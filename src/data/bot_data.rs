@@ -1,4 +1,4 @@
-use crate::data::*;
+use lazy_static::lazy_static;
 
 lazy_static! {
     #[derive(Debug)] // So it can be printed in main.rs (you shouldn't do it tho)
