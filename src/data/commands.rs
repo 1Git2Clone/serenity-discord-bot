@@ -1,9 +1,6 @@
-use crate::data::*;
+pub static COMMAND_PREFIX: &str = "!";
 
-lazy_static! {
-    pub(crate) static ref COMMAND_PREFIX: &'static str = "!";
-    pub(crate) static ref COMMAND_LIST: Vec<String> = vec![
-        format!("{}help", *COMMAND_PREFIX),
-        format!("{}ping", *COMMAND_PREFIX),
-    ];
-}
+pub static HELP: &str = "help";
+pub static PING: &str = "ping";
+
+pub static COMMAND_LIST: &[&str] = &[HELP, PING];

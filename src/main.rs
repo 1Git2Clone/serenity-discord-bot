@@ -32,6 +32,7 @@ mod data;
 use data::bot_data::BOT_TOKEN;
 mod message_commands;
 use crate::message_commands::message_create::Handler;
+mod bot_utils;
 
 /*
  * Serenity handling part
