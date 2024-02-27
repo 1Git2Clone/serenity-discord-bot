@@ -28,37 +28,109 @@
  *
  */
 
+mod commands;
+use commands::general_commands::age;
+
 mod data;
 use data::bot_data::BOT_TOKEN;
-mod message_commands;
-use crate::message_commands::message_create::Handler;
-mod bot_utils;
+use data::command_data::Data;
 
-/*
- * Serenity handling part
- * Credit:
- * https://github.com/serenity-rs/serenity/blob/current/examples/e01_basic_ping_bot/src/main.rs
- */
-
-pub use serenity::model::gateway::Ready;
-pub use serenity::prelude::*;
+mod event_handler;
+use event_handler::handler::event_handler;
 
 // #endregion
+
+// Used the quickstart guide for poise (serenity-rs command framework)
+// https://github.com/serenity-rs/poise/blob/current/examples/quickstart/main.rs
+
+use poise::serenity_prelude as serenity;
+use std::sync::atomic::AtomicU32;
+
+// User data, which is stored and accessible in all command invocations
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
+    let token = BOT_TOKEN.to_string();
+    let intents = serenity::GatewayIntents::non_privileged();
 
-    let intents = GatewayIntents::GUILD_MESSAGES
-        | GatewayIntents::DIRECT_MESSAGES
-        | GatewayIntents::MESSAGE_CONTENT;
+    let framework = poise::Framework::builder()
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                Ok(Data {
+                    poise_mentions: AtomicU32::new(0),
+                })
+            })
+        })
+        .options(poise::FrameworkOptions {
+            event_handler: |ctx, event, framework, data| {
+                Box::pin(event_handler(ctx, event, framework, data))
+            },
+            // These invocations are not really necessary
+            // Feel free to refer to the source code of the poise library
+            // https://github.com/serenity-rs/poise/blob/current/examples/invocation_data/main.rs
+            // I found the on_error one to be the most useful (that's if it ever fails on runtime)
+            //
+            // ```rust
+            // pre_command: |ctx| {
+            //     Box::pin(async move {
+            //         println!(
+            //             "In pre_command: {:?}",
+            //             ctx.invocation_data::<&str>().await.as_deref()
+            //         );
+            //     })
+            // },
+            // command_check: Some(|ctx| {
+            //     Box::pin(async move {
+            //         // Global command check is the first callback that's invoked, so let's set the
+            //         // data here
+            //         println!("Writing invocation data!");
+            //         ctx.set_invocation_data("hello").await;
+            //
+            //         println!(
+            //             "In global check: {:?}",
+            //             ctx.invocation_data::<&str>().await.as_deref()
+            //         );
+            //
+            //         Ok(true)
+            //     })
+            // }),
+            // post_command: |ctx| {
+            //     Box::pin(async move {
+            //         println!(
+            //             "In post_command: {:?}",
+            //             ctx.invocation_data::<&str>().await.as_deref()
+            //         );
+            //     })
+            // },
+            // ```
+            //
+            on_error: |err| {
+                Box::pin(async move {
+                    match err {
+                        poise::FrameworkError::Command { ctx, .. } => {
+                            println!(
+                                "In on_error: {:?}",
+                                ctx.invocation_data::<&str>().await.as_deref()
+                            );
+                        }
+                        err => poise::builtins::on_error(err).await.unwrap(),
+                    }
+                })
+            },
 
-    let mut client = Client::builder(&*BOT_TOKEN, intents)
-        .event_handler(Handler)
-        .await
-        .expect("Error creating client.");
+            commands: vec![age()],
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("!".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .build();
 
-    if let Err(why) = client.start().await {
-        print!("Client error: {why:?}");
-    }
+    let client = serenity::ClientBuilder::new(token, intents)
+        .framework(framework)
+        .await;
+    client.unwrap().start().await.unwrap();
 }
