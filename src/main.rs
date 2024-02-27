@@ -53,7 +53,7 @@ async fn main() {
     dotenv::dotenv().ok();
     let token = BOT_TOKEN.to_string();
     // ```rust
-    // non_priveliged()
+    // non_privileged()
     // ```
     // Should be enough for most cases. I set it to all because I wanted to log the message
     // content.
