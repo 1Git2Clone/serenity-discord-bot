@@ -5,3 +5,4 @@ lazy_static! {
     pub(crate) static ref BOT_TOKEN: String =
         std::env::var("BOT_TOKEN").expect("Expected a token in the dotenv file.");
 }
+pub static BOT_PREFIX: &str = "!";

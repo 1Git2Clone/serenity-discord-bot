@@ -32,7 +32,7 @@ mod commands;
 use commands::general_commands::age;
 
 mod data;
-use data::bot_data::BOT_TOKEN;
+use data::bot_data::{BOT_PREFIX, BOT_TOKEN};
 use data::command_data::Data;
 
 mod event_handler;
@@ -52,7 +52,12 @@ use std::sync::atomic::AtomicU32;
 async fn main() {
     dotenv::dotenv().ok();
     let token = BOT_TOKEN.to_string();
-    let intents = serenity::GatewayIntents::non_privileged();
+    // ```rust
+    // non_priveliged()
+    // ```
+    // Should be enough for most cases. I set it to all because I wanted to log the message
+    // content.
+    let intents = serenity::GatewayIntents::all();
 
     let framework = poise::Framework::builder()
         .setup(|ctx, _ready, framework| {
@@ -122,7 +127,7 @@ async fn main() {
 
             commands: vec![age()],
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("!".into()),
+                prefix: Some(BOT_PREFIX.into()),
                 ..Default::default()
             },
             ..Default::default()
