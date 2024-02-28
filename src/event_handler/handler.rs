@@ -24,7 +24,11 @@ pub async fn event_handler(
             );
         }
         serenity::FullEvent::Message { new_message } => match &new_message.content.to_lowercase() {
-            msg if msg.contains("hutao") => {
+            // This is a hassle to deal with so I'm implicitly
+            // moving the match up to here.
+            _ if new_message.author.bot => {}
+
+            msg if msg.contains("hutao") || msg.contains("hu tao") => {
                 let mentions = data.poise_mentions.load(Ordering::SeqCst) + 1;
                 data.poise_mentions.store(mentions, Ordering::SeqCst);
                 new_message
@@ -38,6 +42,12 @@ pub async fn event_handler(
                 );
             }
         },
+        serenity::FullEvent::Ratelimit { data } => {
+            eprintln!(
+                "- (!) - There's a rate limit for the bot right now! [{:?} seconds left!]",
+                data.timeout.as_secs()
+            )
+        }
         _ => {}
     }
     Ok(())
