@@ -29,7 +29,8 @@
 //
 
 mod commands;
-use commands::general_commands::age;
+// use commands::embed_commands::*;
+// use commands::general_commands::*;
 
 mod data;
 use data::bot_data::{BOT_PREFIX, BOT_TOKEN};
@@ -57,17 +58,12 @@ async fn main() {
     // ```
     // Should be enough for most cases. I set it to all because I wanted to log the message
     // content.
-    let intents = serenity::GatewayIntents::all();
+
+    // Either all or non_privileged intents only.
+    // https://docs.rs/poise/latest/poise/#gateway-intents
+    let intents = serenity::GatewayIntents::all() | serenity::GatewayIntents::non_privileged();
 
     let framework = poise::Framework::builder()
-        .setup(|ctx, _ready, framework| {
-            Box::pin(async move {
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data {
-                    poise_mentions: AtomicU32::new(0),
-                })
-            })
-        })
         .options(poise::FrameworkOptions {
             event_handler: |ctx, event, framework, data| {
                 Box::pin(event_handler(ctx, event, framework, data))
@@ -125,17 +121,40 @@ async fn main() {
                 })
             },
 
-            commands: vec![age()],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some(BOT_PREFIX.into()),
                 ..Default::default()
             },
+            commands: vec![
+                commands::general_commands::age(),
+                commands::embed_commands::pat(),
+                commands::embed_commands::avatar(),
+            ],
             ..Default::default()
+        })
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                Ok(Data {
+                    poise_mentions: AtomicU32::new(0),
+                })
+            })
         })
         .build();
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
+        // .activity(
+        //     serenity::ActivityData::streaming("Genshin Impact", "https://twitch.tv/1kill2steal")
+        //         .expect("Something went wrong in setting the custom activity data."),
+        // )
+        .activity(serenity::ActivityData::custom(format!(
+            "{BOT_PREFIX} <- The prefix for the bot!"
+        )))
+        .status(serenity::OnlineStatus::Idle)
         .await;
+
+    // Heheh, we do a little bit of trolling...
+    webbrowser::open("https://www.youtube.com/watch?v=dQw4w9WgXcQ").expect("");
     client.unwrap().start().await.unwrap();
 }
