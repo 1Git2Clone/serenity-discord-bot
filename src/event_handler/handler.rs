@@ -36,10 +36,12 @@ pub async fn event_handler(
                     .await?;
             }
             _ => {
-                println!(
-                    "MESSAGE:\nUserID: {}\nUsername: {}\nMsg: {:#?}\n",
-                    &new_message.author.id, &new_message.author.name, &new_message.content
-                );
+                if !new_message.author.bot {
+                    println!(
+                        "MESSAGE:\nUserID: {}\nUsername: {}\nMsg: {:#?}\n",
+                        &new_message.author.id, &new_message.author.name, &new_message.content
+                    );
+                }
             }
         },
         serenity::FullEvent::Ratelimit { data } => {
