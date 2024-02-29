@@ -40,7 +40,7 @@ pub async fn avatar(
     let u = user.as_ref().unwrap_or_else(|| ctx.author());
 
     let response = format!("**{}**'s avatar:", u.name);
-    let user_avatar = u.avatar_url().unwrap().replace(".webp", ".png");
+    let user_avatar = u.face().replace(".webp", ".png");
     println!("{user_avatar}");
 
     let embed = serenity::CreateEmbed::new()
