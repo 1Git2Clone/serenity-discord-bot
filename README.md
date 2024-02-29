@@ -15,6 +15,8 @@ To compile and run it, enter in these commands (in the **ROOT** directory of thi
 For Linux:
 
 ```
+mkdir bin/
+
 rustc extra_utils/generate_dotenv.rs -o bin/generate_dotenv
 
 ./bin/generate_dotenv
@@ -23,6 +25,8 @@ rustc extra_utils/generate_dotenv.rs -o bin/generate_dotenv
 For Windows:
 
 ```
+mkdir bin\
+
 rustc extra_utils\generate_dotenv.rs -o bin\generate_dotenv
 
 .\bin\generate_dotenv
