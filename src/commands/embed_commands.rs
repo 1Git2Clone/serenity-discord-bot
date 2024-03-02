@@ -37,16 +37,7 @@ pub async fn avatar(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let mut u = user.as_ref().unwrap_or_else(|| ctx.author());
-
-    if ctx.data().user_message.referenced_message.is_some() {
-        u = ctx
-            .data()
-            .user_message
-            .mentions
-            .first()
-            .unwrap_or_else(|| ctx.author());
-    }
+    let u = user.as_ref().unwrap_or_else(|| ctx.author());
 
     let response = format!("**{}**'s avatar:", u.name);
     let user_avatar = u.face().replace(".webp", ".png");
