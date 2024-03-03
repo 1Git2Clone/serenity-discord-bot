@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicU32;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Data {
     pub poise_mentions: AtomicU32,
