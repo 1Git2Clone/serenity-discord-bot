@@ -6,7 +6,7 @@ use std::sync::atomic::AtomicU32;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Data {
     pub poise_mentions: AtomicU32,
-    pub user_message: poise::serenity_prelude::model::channel::Message,
+    pub user_message: Option<poise::serenity_prelude::model::channel::Message>,
     // #[cfg_attr(feature = "serde", serde(skip))]
     // pub some_unserializable_data: std::sync::Arc<i32>,
 }
