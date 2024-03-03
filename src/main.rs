@@ -126,6 +126,7 @@ async fn main() {
                 ..Default::default()
             },
             commands: vec![
+                commands::general_commands::help(),
                 commands::general_commands::age(),
                 commands::embed_commands::pat(),
                 commands::embed_commands::avatar(),
@@ -155,6 +156,6 @@ async fn main() {
         .await;
 
     // Heheh, we do a little bit of trolling...
-    webbrowser::open("https://www.youtube.com/watch?v=dQw4w9WgXcQ").expect("");
+    // webbrowser::open("https://www.youtube.com/watch?v=dQw4w9WgXcQ").expect("");
     client.unwrap().start().await.unwrap();
 }

@@ -7,6 +7,7 @@ use crate::data::command_data::{Context, Error};
 // Docs for reference:
 // https://docs.rs/poise/latest/poise/reply/fn.send_reply.html
 
+/// Pat someone
 #[poise::command(slash_command, prefix_command, rename = "pat")]
 pub async fn pat(
     ctx: Context<'_>,
@@ -32,6 +33,7 @@ pub async fn pat(
     Ok(())
 }
 
+/// Get the avatar for someone.
 #[poise::command(slash_command, prefix_command, rename = "avatar")]
 pub async fn avatar(
     ctx: Context<'_>,
