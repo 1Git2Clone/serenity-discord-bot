@@ -137,7 +137,6 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     poise_mentions: AtomicU32::new(0),
-                    user_message: serenity::model::channel::Message::default(),
                 })
             })
         })
