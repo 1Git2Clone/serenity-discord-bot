@@ -8,7 +8,7 @@ use crate::data::command_data::{Context, Error};
 // https://docs.rs/poise/latest/poise/reply/fn.send_reply.html
 
 /// Pat someone
-#[poise::command(slash_command, prefix_command, rename = "pat")]
+#[poise::command(prefix_command, slash_command, rename = "pat")]
 pub async fn pat(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
