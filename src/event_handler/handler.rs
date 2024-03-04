@@ -40,11 +40,8 @@ pub async fn event_handler(
             _ => {
                 if !new_message.author.bot {
                     println!(
-                        "! NEW MESSAGE !\nChannel: {}\nUserID: {}\nUsername: {}\nMessage content:\n{}\n\n",
-                        &new_message.channel_id,
-                        &new_message.author.id,
-                        &new_message.author.name,
-                        &new_message.content
+                        "MESSAGE:\nUserID: {}\nUsername: {}\nMsg: {:#?}\n",
+                        &new_message.author.id, &new_message.author.name, &new_message.content
                     );
                 }
             }
