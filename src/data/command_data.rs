@@ -6,9 +6,6 @@ use std::sync::atomic::AtomicU32;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Data {
     pub poise_mentions: AtomicU32,
-    pub user_message: Option<poise::serenity_prelude::model::channel::Message>,
-    // #[cfg_attr(feature = "serde", serde(skip))]
-    // pub some_unserializable_data: std::sync::Arc<i32>,
 }
 
 /// This is a useful way to test if your structs can be syncronized.
@@ -20,8 +17,11 @@ pub struct Data {
 /// In order to use data that can't be serialized or deserlialized you need to do the following:
 ///
 /// ```rust
-/// #[cfg_attr(feature="serde", serde(skip))] // Needed option for data that can't be serialized/deserlialized
-/// pub some_unserializable_data: std::sync::Arc<i32>,
+/// pub struct Data {
+///     // Existing data...
+///     #[cfg_attr(feature = "serde", serde(skip))]
+///     pub some_unserializable_data: std::sync::Arc<i32>,
+/// }
 /// ```
 ///
 /// Tutorial vid for the topic:
