@@ -1,23 +1,21 @@
 // #region Notes about the external imports
-//
-// The tokio async runtime:
-// - https://tokio.rs/
-// - https://github.com/tokio-rs/tokio/
-// NOTE: It's kind of necessary to use it for better responsiveness, especially in bigger servers.
-//
-// The serenity-rs API for the discord bot functionality:
-// - https://github.com/serenity-rs/serenity/
-// NOTE: It has very nice and comprehensive examples under this folder:
-// - https://github.com/serenity-rs/serenity/tree/current/examples
-//
-// lazy_static:
-// - https://github.com/rust-lang-nursery/lazy-static.rs
-// Why? Well its for the ease of modularity.
-// Having the data seperated in a different folder
-// makes the project more organized (at least in my opinion).
-//
-//
-
+///
+/// The tokio async runtime:
+/// - https://tokio.rs/
+/// - https://github.com/tokio-rs/tokio/
+/// NOTE: It's kind of necessary to use it for better responsiveness, especially in bigger servers.
+///
+/// The serenity-rs API for the discord bot functionality:
+/// - https://github.com/serenity-rs/serenity/
+/// NOTE: It has very nice and comprehensive examples under this folder:
+/// - https://github.com/serenity-rs/serenity/tree/current/examples
+///
+/// lazy_static:
+/// - https://github.com/rust-lang-nursery/lazy-static.rs
+/// Why? Well its for the ease of modularity.
+/// Having the data seperated in a different folder
+/// makes the project more organized (at least in my opinion).
+///
 // #endregion
 
 // #region All imports (./lib.rs)
@@ -26,14 +24,12 @@
 // The bot_data like the BOT_TOKEN is handled using the dotenv-rs dependency!
 // - https://github.com/dotenv-rs/dotenv/
 //
-//
-
 mod commands;
 // use commands::embed_commands::*;
 // use commands::general_commands::*;
 
 mod data;
-use data::bot_data::{BOT_PREFIX, BOT_TOKEN};
+use data::bot_data::{BOT_PREFIX, BOT_TOKEN, START_TIME};
 use data::command_data::Data;
 
 mod event_handler;
@@ -47,10 +43,9 @@ use event_handler::handler::event_handler;
 use poise::serenity_prelude as serenity;
 use std::sync::atomic::AtomicU32;
 
-// User data, which is stored and accessible in all command invocations
-
 #[tokio::main]
 async fn main() {
+    let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
     dotenv::dotenv().ok();
     let token = BOT_TOKEN.to_string();
     // ```rust
@@ -128,6 +123,7 @@ async fn main() {
             commands: vec![
                 commands::general_commands::help(),
                 commands::general_commands::age(),
+                commands::general_commands::uptime(),
                 commands::embed_commands::pat(),
                 commands::embed_commands::avatar(),
             ],

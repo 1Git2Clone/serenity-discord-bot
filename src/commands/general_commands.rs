@@ -1,5 +1,8 @@
 use super::*;
-use crate::data::command_data::{Context, Error};
+use crate::data::{
+    bot_data::START_TIME,
+    command_data::{Context, Error},
+};
 
 /// Show this help menu
 #[poise::command(prefix_command, track_edits, slash_command)]
@@ -44,8 +47,19 @@ pub async fn age(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let u = user.as_ref().unwrap_or_else(|| ctx.author());
+    let u = cmd_utils::get_user(ctx, user).await;
     let response = format!("**{}**'s account was created at {}", u.name, u.created_at());
+    ctx.say(response).await?;
+    Ok(())
+}
+
+/// Displays the bot's current uptime
+#[poise::command(slash_command, prefix_command, rename = "uptime")]
+pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
+    let response = format!(
+        "The bot has been running for: {} seconds",
+        START_TIME.elapsed().as_secs()
+    );
     ctx.say(response).await?;
     Ok(())
 }

@@ -14,6 +14,10 @@ pub async fn pat(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let u = cmd_utils::get_user(ctx, user).await;
+    if &u == ctx.author() {
+        ctx.reply("Aww I'll pat you~ *pat pat*").await?;
+        return Ok(());
+    }
     let response = format!("**{}** *pats* **{}**", ctx.author().name, u.name);
     let embed = serenity::CreateEmbed::new()
         .color((255, 0, 0))

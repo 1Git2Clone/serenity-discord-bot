@@ -1,5 +1,6 @@
 use crate::data::{
     // bot_data::BOT_PREFIX,
+    bot_data::START_TIME,
     command_data::{Data, Error},
 };
 use poise::serenity_prelude as serenity;
@@ -19,7 +20,8 @@ pub async fn event_handler(
     match event {
         serenity::FullEvent::Ready { data_about_bot, .. } => {
             println!(
-                "\n!!! DISCORD BOT STARTED SUCCESSFULLY !!!\nFrameworks   : [serenity, poise]\nAsync runtime: [tokio]\n\n=> Logged in as: {}",
+                "\n!!! DISCORD BOT STARTED SUCCESSFULLY IN {} MILISECONDS !!!\nFrameworks   : [serenity, poise]\nAsync runtime: [tokio]\n\n=> Logged in as: {}",
+                START_TIME.elapsed().as_millis(),
                 data_about_bot.user.tag()
             );
         }
