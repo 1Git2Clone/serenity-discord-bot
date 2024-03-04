@@ -1346,6 +1346,7 @@ dependencies = [
  "dotenv",
  "lazy_static",
  "poise",
+ "rand",
  "serde",
  "serenity",
  "tokio",
