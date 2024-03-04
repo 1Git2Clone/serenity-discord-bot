@@ -30,20 +30,23 @@ pub async fn event_handler(
             // moving the match up to here.
             _ if new_message.author.bot => {}
 
-            msg if msg.contains("hutao") || msg.contains("hu tao") => {
-                let mentions = data.poise_mentions.load(Ordering::SeqCst) + 1;
-                data.poise_mentions.store(mentions, Ordering::SeqCst);
-                new_message
-                    .reply(ctx, format!("Hu Tao has been mentioned {} times", mentions))
-                    .await?;
-            }
-            _ => {
-                if !new_message.author.bot {
-                    println!(
-                        "MESSAGE:\nUserID: {}\nUsername: {}\nMsg: {:#?}\n",
-                        &new_message.author.id, &new_message.author.name, &new_message.content
-                    );
+            msg => {
+                if msg.contains("hutao") || msg.contains("hu tao") {
+                    let mentions = data.poise_mentions.load(Ordering::SeqCst) + 1;
+                    data.poise_mentions.store(mentions, Ordering::SeqCst);
+                    new_message
+                        .reply(ctx, format!("Hu Tao has been mentioned {} times", mentions))
+                        .await?;
                 }
+                println!(
+                    "! NEW MESSAGE !\nGuildID: {}\nUserID: {}\nUsername: {}\nMsg: {}\n\n",
+                    &new_message
+                        .guild_id
+                        .unwrap_or_else(|| serenity::GuildId::default()),
+                    &new_message.author.id,
+                    &new_message.author.name,
+                    &new_message.content,
+                );
             }
         },
         serenity::FullEvent::Ratelimit { data } => {

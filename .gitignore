@@ -1,5 +1,10 @@
 /target
 /.env
 
+!/database/
+/database/*
+
 !/bin
 /bin/*
+
+/Cargo.lock

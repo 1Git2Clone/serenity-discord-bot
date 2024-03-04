@@ -16,7 +16,14 @@ fn write_dotenv(file: &Path) {
         .read_line(&mut input)
         .expect("Failed to read user input.");
 
-    fs::write(file, format!("BOT_TOKEN={}", input)).expect("Error writing to the file.");
+    fs::write(
+        file,
+        format!(
+            "DATABASE_URL=sqlite:database/bot_database.sqlite\nBOT_TOKEN={}",
+            input
+        ),
+    )
+    .expect("Error writing to the file.");
 }
 
 fn handle_input(loop_msg: &str, default_option: char) -> char {

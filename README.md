@@ -17,6 +17,8 @@ For Linux:
 ```
 mkdir bin/
 
+mkdir database/
+
 rustc extra_utils/generate_dotenv.rs -o bin/generate_dotenv
 
 ./bin/generate_dotenv
@@ -27,6 +29,8 @@ For Windows:
 ```
 mkdir bin\
 
+mkdir database\
+
 rustc extra_utils\generate_dotenv.rs -o bin\generate_dotenv
 
 .\bin\generate_dotenv
@@ -35,7 +39,26 @@ rustc extra_utils\generate_dotenv.rs -o bin\generate_dotenv
 After you've configured your dotenv (.env) files, you can just run
 
 ```
+sqlx database setup
+
+cargo sqlx prepare
+
 cargo run --release
 ```
 
 and you have your bot ready to go!
+
+### Additional info
+
+The database setting up is a ONE TIME ONLY thing. From your second run after you just need to do:
+
+```
+cargo run --release
+```
+
+Also, If you want to change your database location, make sure you also change the .env file.
+
+```env
+# This line determines where the database is based on the root directory of the repository.
+DATABASE_URL=sqlite:database/botdatabase.sqlite
+```

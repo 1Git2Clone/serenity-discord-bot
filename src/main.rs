@@ -46,6 +46,17 @@ use std::sync::atomic::AtomicU32;
 #[tokio::main]
 async fn main() {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
+
+    let database = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(
+            sqlx::sqlite::SqliteConnectOptions::new()
+                .filename("bot_database.sqlite")
+                .create_if_missing(true),
+        )
+        .await
+        .expect("Couldn't connect to database");
+
     dotenv::dotenv().ok();
     let token = BOT_TOKEN.to_string();
     // ```rust
@@ -127,6 +138,7 @@ async fn main() {
                 commands::embed_commands::pat(),
                 commands::embed_commands::avatar(),
             ],
+            manual_cooldowns: true,
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
@@ -134,6 +146,7 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     poise_mentions: AtomicU32::new(0),
+                    database: database,
                 })
             })
         })
