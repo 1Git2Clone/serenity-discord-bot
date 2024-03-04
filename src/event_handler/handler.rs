@@ -39,10 +39,8 @@ pub async fn event_handler(
                         .await?;
                 }
                 println!(
-                    "! NEW MESSAGE !\nGuildID: {}\nUserID: {}\nUsername: {}\nMsg: {}\n\n",
-                    &new_message
-                        .guild_id
-                        .unwrap_or_else(|| serenity::GuildId::default()),
+                    "! NEW MESSAGE !\nGuildID:  {}\nUserID:   {}\nUsername: {}\nMsg:      {}\n",
+                    &new_message.guild_id.unwrap_or_default(),
                     &new_message.author.id,
                     &new_message.author.name,
                     &new_message.content,

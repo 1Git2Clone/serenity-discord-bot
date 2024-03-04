@@ -28,24 +28,25 @@ pub async fn pat(
             "https://cdn.discordapp.com/attachments/614790390020833281/1183493730339139694/hu-tao-hug.gif?ex=65f7476d&is=65e4d26d&hm=acc5a8f998ee80ae8198019d96c407119686c0168a12d74adf057789eb5a8c75&"
         ).await;
 
-    let response: String = match ctx {
-        poise::Context::Prefix(_) => {
-            format!("**{}** *pats* **{}**", ctx.author().name, target_user.name)
-        }
-        poise::Context::Application(_) => {
-            format!(
-                "**{}** *pats* **{}**",
-                ctx.author().name,
-                target_user.mention()
-            )
-        }
+    let response: String = format!("**{}** *pats* **{}**", ctx.author().name, target_user.name);
+
+    let ping_on_shash_command: Option<poise::serenity_prelude::Mention> = match ctx {
+        poise::Context::Prefix(_) => None,
+        poise::Context::Application(_) => Some(target_user.mention()),
     };
 
     let embed = serenity::CreateEmbed::new()
+        .title(response)
         .color((255, 0, 0))
         .image(embed_item.to_string());
-    let make_message = poise::CreateReply::default().content(response).embed(embed);
-    ctx.send(make_message).await?;
+
+    let full_respone = poise::CreateReply::default()
+        .content(match ping_on_shash_command {
+            Some(ping) => format!("{}", ping),
+            None => "".to_owned(),
+        })
+        .embed(embed);
+    ctx.send(full_respone).await?;
 
     Ok(())
 }
@@ -61,10 +62,11 @@ pub async fn avatar(
     let user_avatar_as_embed: String = target_user.face().replace(".webp", ".png");
 
     let embed = serenity::CreateEmbed::new()
+        .title(response)
         .color((255, 0, 0))
         .image(user_avatar_as_embed);
-    let make_message = poise::CreateReply::default().content(response).embed(embed);
-    ctx.send(make_message).await?;
+    let full_respone = poise::CreateReply::default().embed(embed);
+    ctx.send(full_respone).await?;
 
     Ok(())
 }

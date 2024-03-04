@@ -47,7 +47,7 @@ use std::sync::atomic::AtomicU32;
 async fn main() {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
 
-    let database = sqlx::sqlite::SqlitePoolOptions::new()
+    let _database = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(5)
         .connect_with(
             sqlx::sqlite::SqliteConnectOptions::new()
@@ -146,7 +146,7 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     poise_mentions: AtomicU32::new(0),
-                    database: database,
+                    // database: database,
                 })
             })
         })

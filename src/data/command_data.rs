@@ -7,8 +7,8 @@ use std::sync::atomic::AtomicU32;
 pub struct Data {
     pub poise_mentions: AtomicU32,
     // I'm not sure why clippy gives a warning, this works just fine...
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub database: sqlx::SqlitePool,
+    // #[cfg_attr(feature = "serde", serde(skip))]
+    // pub database: sqlx::SqlitePool,
 }
 
 /// This is a useful way to test if your structs can be syncronized.
