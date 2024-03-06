@@ -47,16 +47,6 @@ use std::sync::atomic::AtomicU32;
 async fn main() {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
 
-    let _database = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect_with(
-            sqlx::sqlite::SqliteConnectOptions::new()
-                .filename("bot_database.sqlite")
-                .create_if_missing(true),
-        )
-        .await
-        .expect("Couldn't connect to database");
-
     dotenv::dotenv().ok();
     let token = BOT_TOKEN.to_string();
     // ```rust

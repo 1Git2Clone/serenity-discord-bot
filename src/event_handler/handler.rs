@@ -1,7 +1,9 @@
 use crate::data::{
     // bot_data::BOT_PREFIX,
-    bot_data::START_TIME,
+    self,
+    bot_data::{DATABASE_FILENAME, START_TIME},
     command_data::{Data, Error},
+    database::add_user_if_not_exists,
 };
 use poise::serenity_prelude as serenity;
 use std::sync::atomic::Ordering;
@@ -45,6 +47,17 @@ pub async fn event_handler(
                     &new_message.author.name,
                     &new_message.content,
                 );
+                let db = data::database::connect_to_db(DATABASE_FILENAME.to_string()).await;
+                match db.await {
+                    Ok(pool) => {
+                        println!("Connected to the database: {pool:?}");
+                        let status =
+                            add_user_if_not_exists(pool, &new_message.author, event.to_owned())
+                                .await;
+                        println!("Status: {:#?}", status);
+                    }
+                    Err(why) => eprintln!("Failed to connect to the database: {why:?}"),
+                }
             }
         },
         serenity::FullEvent::Ratelimit { data } => {
