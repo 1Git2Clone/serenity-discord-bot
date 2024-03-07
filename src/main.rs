@@ -28,6 +28,11 @@ mod commands;
 // use commands::embed_commands::*;
 // use commands::general_commands::*;
 
+mod enums;
+
+mod extra_threads;
+use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
+
 mod data;
 use data::bot_data::{BOT_PREFIX, BOT_TOKEN, START_TIME};
 use data::command_data::Data;
@@ -48,6 +53,7 @@ async fn main() {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
 
     dotenv::dotenv().ok();
+    periodically_clean_users_on_diff_thread();
     let token = BOT_TOKEN.to_string();
     // ```rust
     // non_privileged()

@@ -1,10 +1,8 @@
 use ::serenity::all::Mentionable;
 
 use super::*;
-use crate::data::{
-    command_data::{Context, Error},
-    command_enums::EmbedType,
-};
+use crate::data::command_data::{Context, Error};
+use crate::enums::command_enums::EmbedType;
 
 // This is where the poise framework shines since with it you can make
 // a slash and a prefix command work in one function.

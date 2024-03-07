@@ -1,4 +1,4 @@
-use super::command_enums::EmbedType;
+use crate::enums::command_enums::EmbedType;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -15,4 +15,3 @@ lazy_static! {
         HashMap::from([(EmbedType::Pat, pat_array)])
     };
 }
-
