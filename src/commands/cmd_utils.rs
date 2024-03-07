@@ -1,5 +1,6 @@
 use super::*;
-use crate::data::{command_data::Context, command_enums::EmbedType, embed_media::COMMANDS};
+use crate::data::{command_data::Context, embed_media::COMMANDS};
+use crate::enums::command_enums::EmbedType;
 use rand::prelude::SliceRandom;
 
 pub async fn get_user(

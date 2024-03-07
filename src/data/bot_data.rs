@@ -1,3 +1,4 @@
+use crate::enums::schemas::{DatabaseSchema, DatabaseSchema::*};
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
@@ -10,12 +11,13 @@ lazy_static! {
     pub(crate) static ref DATABASE_FILENAME: &'static str = "database/bot_database.sqlite";
     #[derive(Debug)]
     pub(crate) static ref DATABASE_USERS: &'static str = "user_stats";
-    pub(crate) static ref DATABASE_COLUMNS: HashMap<&'static str, &'static str> = HashMap::from([
-        ("user_id", "user_id"),
-        ("guild_id", "guild_id"),
-        ("experience_points", "experience_points"),
-        ("level", "level"),
-        ("last_query_timestamp", "last_query_timestamp")
+    pub(crate) static ref DATABASE_COLUMNS: HashMap<DatabaseSchema, &'static str> = HashMap::from([
+        (UserId, "user_id"),
+        (GuildId, "guild_id"),
+        (ExperiencePoints, "experience_points"),
+        (Level, "level"),
+        (LastQueryTimestamp, "last_query_timestamp")
     ]);
+    pub(crate) static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
 }
 pub static BOT_PREFIX: &str = "!";

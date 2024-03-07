@@ -1,11 +1,11 @@
 use crate::data::{
     // bot_data::BOT_PREFIX,
-    self,
     bot_data::{DATABASE_FILENAME, START_TIME},
     command_data::{Data, Error},
-    database::add_user_if_not_exists,
+    database_interactions::*,
 };
 use poise::serenity_prelude as serenity;
+use rand::Rng;
 use std::sync::atomic::Ordering;
 
 pub async fn event_handler(
@@ -27,19 +27,18 @@ pub async fn event_handler(
                 data_about_bot.user.tag()
             );
         }
+        serenity::FullEvent::Ratelimit { data } => {
+            eprintln!(
+                "- (!) - There's a rate limit for the bot right now! [{:?} seconds left!]",
+                data.timeout.as_secs()
+            )
+        }
         serenity::FullEvent::Message { new_message } => match &new_message.content.to_lowercase() {
             // This is a hassle to deal with so I'm implicitly
             // moving the match up to here.
             _ if new_message.author.bot => {}
 
             msg => {
-                if msg.contains("hutao") || msg.contains("hu tao") {
-                    let mentions = data.poise_mentions.load(Ordering::SeqCst) + 1;
-                    data.poise_mentions.store(mentions, Ordering::SeqCst);
-                    new_message
-                        .reply(ctx, format!("Hu Tao has been mentioned {} times", mentions))
-                        .await?;
-                }
                 println!(
                     "! NEW MESSAGE !\nGuildID:  {}\nUserID:   {}\nUsername: {}\nMsg:      {}\n",
                     &new_message.guild_id.unwrap_or_default(),
@@ -47,25 +46,32 @@ pub async fn event_handler(
                     &new_message.author.name,
                     &new_message.content,
                 );
-                let db = data::database::connect_to_db(DATABASE_FILENAME.to_string()).await;
+                if msg.contains("hutao") || msg.contains("hu tao") {
+                    let mentions = data.poise_mentions.load(Ordering::SeqCst) + 1;
+                    data.poise_mentions.store(mentions, Ordering::SeqCst);
+                    new_message
+                        .reply(ctx, format!("Hu Tao has been mentioned {} times", mentions))
+                        .await?;
+                }
+
+                let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
                 match db.await {
                     Ok(pool) => {
+                        let obtained_xp: i32 = rand::thread_rng().gen_range(5..=15);
                         println!("Connected to the database: {pool:?}");
-                        let status =
-                            add_user_if_not_exists(pool, &new_message.author, event.to_owned())
-                                .await;
+                        let status = add_or_update_db_user(
+                            pool,
+                            new_message.to_owned(),
+                            ctx.to_owned(),
+                            obtained_xp,
+                        )
+                        .await;
                         println!("Status: {:#?}", status);
                     }
                     Err(why) => eprintln!("Failed to connect to the database: {why:?}"),
                 }
             }
         },
-        serenity::FullEvent::Ratelimit { data } => {
-            eprintln!(
-                "- (!) - There's a rate limit for the bot right now! [{:?} seconds left!]",
-                data.timeout.as_secs()
-            )
-        }
         _ => {}
     }
     Ok(())
