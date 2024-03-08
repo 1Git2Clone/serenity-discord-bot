@@ -144,6 +144,7 @@ async fn main() {
                 commands::embed_commands::kick(),
                 commands::embed_commands::bury(),
                 commands::embed_commands::selfbury(),
+                commands::embed_commands::peek(),
                 commands::embed_commands::avatar(),
                 commands::embed_commands::drive(),
                 commands::embed_commands::chair(),
