@@ -4,8 +4,21 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EmbedType {
+    TieUp,
     Pat,
     Hug,
+    Kiss,
+    Slap,
+    Punch,
+    Bonk,
+    RyanGoslingDrive, // heh...
+    Nom,
+    Kill,
+    Kick,
+    Bury,
+    SelfBury,
+    Chair, // you lack motivation.
+    Peek,
 }
 
 fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
