@@ -131,6 +131,7 @@ async fn main() {
                 commands::general_commands::help(),
                 commands::general_commands::age(),
                 commands::general_commands::uptime(),
+                commands::general_commands::level(),
                 commands::embed_commands::pat(),
                 commands::embed_commands::avatar(),
             ],
