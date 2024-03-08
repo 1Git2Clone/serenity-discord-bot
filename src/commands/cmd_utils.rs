@@ -40,14 +40,11 @@ pub async fn get_user(
     }
 }
 
-pub async fn get_embed_from_type(
-    embed_type: &EmbedType,
-    default_option: &'static str,
-) -> &'static str {
+pub async fn get_embed_from_type(embed_type: &EmbedType) -> &'static str {
     let embed_option = COMMANDS[embed_type].choose(&mut rand::thread_rng());
     match embed_option {
         Some(embed) => embed,
         // Set a default one just in case!
-        None => default_option,
+        None => "",
     }
 }
