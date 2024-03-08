@@ -56,6 +56,32 @@ async fn add_user_if_not_exists(
     Ok(())
 }
 
+pub async fn fetch_user_level(
+    db: &SqlitePool,
+    user: &User,
+    guild_id: serenity::GuildId,
+) -> Result<Option<SqliteRow>, Error> {
+    sqlx::query(
+        format!(
+            "SELECT `{}`, `{}`
+             FROM `{}`
+             WHERE `{}` = ? AND `{}` = ?",
+            DATABASE_COLUMNS[&ExperiencePoints],
+            DATABASE_COLUMNS[&Level],
+            //
+            DATABASE_USERS.to_owned(),
+            //
+            DATABASE_COLUMNS[&UserId],
+            DATABASE_COLUMNS[&GuildId]
+        )
+        .as_str(),
+    )
+    .bind(user.id.to_string())
+    .bind(guild_id.to_string())
+    .fetch_optional(db)
+    .await
+}
+
 /// Adds a db user id + guild id if there's none or updates the pair with the new values.
 ///
 /// The function is the one which is referrred to in the event handler because it's more likely
@@ -103,25 +129,7 @@ pub async fn add_or_update_db_user(
     }
 
     // First we need to check if there's some user_id+guild_id pair that matches
-    let level_query: Option<SqliteRow> = sqlx::query(
-        format!(
-            "SELECT `{}`, `{}`
-             FROM `{}`
-             WHERE `{}` = ? AND `{}` = ?",
-            DATABASE_COLUMNS[&ExperiencePoints],
-            DATABASE_COLUMNS[&Level],
-            //
-            DATABASE_USERS.to_owned(),
-            //
-            DATABASE_COLUMNS[&UserId],
-            DATABASE_COLUMNS[&GuildId]
-        )
-        .as_str(),
-    )
-    .bind(user.id.to_string())
-    .bind(guild_id.to_string())
-    .fetch_optional(&db)
-    .await?;
+    let level_query: Option<SqliteRow> = fetch_user_level(&db, user, guild_id).await?;
 
     let query_row = match level_query {
         Some(row) => row,
