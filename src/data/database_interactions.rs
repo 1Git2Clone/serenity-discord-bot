@@ -83,6 +83,35 @@ pub async fn fetch_user_level(
     .await
 }
 
+pub async fn fetch_user_level_and_rank(
+    db: &SqlitePool,
+    user: &User,
+    guild_id: serenity::GuildId,
+) -> Result<Option<(i64, SqliteRow)>, Error> {
+    let sql = sqlx::query(
+        "
+        SELECT us.*,
+               (SELECT COUNT(*)
+                FROM user_stats AS inner_u
+                WHERE inner_u.guild_id = us.guild_id
+                      AND (inner_u.level > us.level OR 
+                          (inner_u.level = us.level AND inner_u.experience_points >= us.experience_points))
+               ) AS rank
+        FROM user_stats AS us
+        WHERE us.user_id = ? AND us.guild_id = ?
+        ORDER BY level DESC, experience_points DESC
+        ",
+    )
+    .bind(user.id.to_string())
+    .bind(guild_id.to_string())
+    .fetch_optional(db)
+    .await?;
+
+    match sql {
+        Some(row) => Ok(Some((row.get::<i64, &str>("rank"), row))),
+        None => Ok(None),
+    }
+}
 pub async fn fetch_top_nine_levels_in_guild(
     db: &SqlitePool,
     guild_id: serenity::GuildId,

@@ -6,7 +6,7 @@ use crate::commands::cmd_utils::{get_bot_avatar, get_bot_user};
 use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME};
 use crate::data::command_data::{Context, Error};
 use crate::data::database_interactions::{
-    connect_to_db, fetch_top_nine_levels_in_guild, fetch_user_level,
+    connect_to_db, fetch_top_nine_levels_in_guild, fetch_user_level_and_rank,
 };
 use crate::enums::command_enums::EmbedType;
 use crate::enums::schemas::DatabaseSchema::*;
@@ -682,10 +682,10 @@ pub async fn level(
     };
     let selected_user = cmd_utils::get_user(ctx, user).await;
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
-    let level_and_xp_row_option = match db.await {
+    let level_xp_and_rank_row_option = match db.await {
         Ok(pool) => {
             println!("Connected to the database: {pool:?}");
-            fetch_user_level(&pool, &selected_user, message_guild_id).await?
+            fetch_user_level_and_rank(&pool, &selected_user, message_guild_id).await?
         }
         Err(_) => {
             ctx.reply(format!(
@@ -696,8 +696,8 @@ pub async fn level(
             return Ok(());
         }
     };
-    let level_and_xp_row = if let Some(lvl_and_xp_row) = level_and_xp_row_option {
-        lvl_and_xp_row
+    let level_xp_and_rank_row = if let Some(lvl_xp_and_rank_row) = level_xp_and_rank_row_option {
+        lvl_xp_and_rank_row
     } else {
         ctx.reply(format!(
             "Please wait for {} to chat more then try again later...",
@@ -706,12 +706,19 @@ pub async fn level(
         .await?;
         return Ok(());
     };
-    let level = level_and_xp_row.get::<i32, &str>(DATABASE_COLUMNS[&Level]);
-    let xp = level_and_xp_row.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]);
+    let level = level_xp_and_rank_row
+        .1
+        .get::<i32, &str>(DATABASE_COLUMNS[&Level]);
+    let xp = level_xp_and_rank_row
+        .1
+        .get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]);
 
     let avatar = selected_user.face().replace(".webp", ".png");
     let username = selected_user.name;
-    let response = format!("User stats for: **{}**", &username);
+    let response = format!(
+        "User stats for: **{}**\n\nRank: {}",
+        &username, level_xp_and_rank_row.0
+    );
     let bot_user = ctx
         .http()
         .get_user(ctx.framework().bot_id)
@@ -762,7 +769,6 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
             return Ok(());
         }
     };
-
     let user_ids: Vec<u64> = level_and_xp_rows
         .iter()
         .map(|row| row.get::<i64, &str>(DATABASE_COLUMNS[&UserId]) as u64)
