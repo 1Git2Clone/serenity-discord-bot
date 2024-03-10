@@ -63,9 +63,10 @@ pub async fn fetch_user_level(
 ) -> Result<Option<SqliteRow>, Error> {
     sqlx::query(
         format!(
-            "SELECT `{}`, `{}`
+            "SELECT `{}`, `{}`, `{}`
              FROM `{}`
              WHERE `{}` = ? AND `{}` = ?",
+            DATABASE_COLUMNS[&UserId],
             DATABASE_COLUMNS[&ExperiencePoints],
             DATABASE_COLUMNS[&Level],
             //
@@ -79,6 +80,41 @@ pub async fn fetch_user_level(
     .bind(user.id.to_string())
     .bind(guild_id.to_string())
     .fetch_optional(db)
+    .await
+}
+
+pub async fn fetch_top_nine_levels_in_guild(
+    db: &SqlitePool,
+    guild_id: serenity::GuildId,
+) -> Result<Vec<SqliteRow>, Error> {
+    sqlx::query(
+        format!(
+            "SELECT
+            COALESCE(`{}`, 'Unknown user') AS `{}`,
+            COALESCE(`{}`, 0) AS `{}`,
+            COALESCE(`{}`, 0) AS `{}`
+            FROM `{}`
+            WHERE `{}` = ?
+            ORDER BY {} DESC, {} DESC
+            LIMIT 9",
+            DATABASE_COLUMNS[&UserId],
+            DATABASE_COLUMNS[&UserId],
+            //
+            DATABASE_COLUMNS[&ExperiencePoints],
+            DATABASE_COLUMNS[&ExperiencePoints],
+            //
+            DATABASE_COLUMNS[&Level],
+            DATABASE_COLUMNS[&Level],
+            //
+            DATABASE_USERS.to_owned(),
+            DATABASE_COLUMNS[&GuildId],
+            DATABASE_COLUMNS[&Level],
+            DATABASE_COLUMNS[&ExperiencePoints],
+        )
+        .as_str(),
+    )
+    .bind(guild_id.to_string())
+    .fetch_all(db)
     .await
 }
 

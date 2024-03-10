@@ -1,9 +1,12 @@
 use ::serenity::all::Mentionable;
 
 use super::*;
+use crate::commands::cmd_utils::{get_bot_avatar, get_bot_user};
 use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME};
 use crate::data::command_data::{Context, Error};
-use crate::data::database_interactions::{connect_to_db, fetch_user_level};
+use crate::data::database_interactions::{
+    connect_to_db, fetch_top_nine_levels_in_guild, fetch_user_level,
+};
 use crate::enums::command_enums::EmbedType;
 use crate::enums::schemas::DatabaseSchema::*;
 use sqlx::Row;
@@ -24,6 +27,7 @@ pub async fn tieup(
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::TieUp).await;
+    let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -31,7 +35,11 @@ pub async fn tieup(
                 .embed(
                     serenity::CreateEmbed::new()
                         .color((255, 0, 0))
-                        .image(embed_item.to_string()),
+                        .image(embed_item.to_string())
+                        .footer(
+                            serenity::CreateEmbedFooter::new(bot_user.tag())
+                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                        ),
                 ),
         )
         .await?;
@@ -57,7 +65,11 @@ pub async fn tieup(
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -78,7 +90,7 @@ pub async fn pat(
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Pat).await;
-
+    let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -86,7 +98,11 @@ pub async fn pat(
                 .embed(
                     serenity::CreateEmbed::new()
                         .color((255, 0, 0))
-                        .image(embed_item.to_string()),
+                        .image(embed_item.to_string())
+                        .footer(
+                            serenity::CreateEmbedFooter::new(bot_user.tag())
+                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                        ),
                 ),
         )
         .await?;
@@ -103,7 +119,11 @@ pub async fn pat(
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -124,6 +144,7 @@ pub async fn hug(
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Hug).await;
+    let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -131,7 +152,11 @@ pub async fn hug(
                 .embed(
                     serenity::CreateEmbed::new()
                         .color((255, 0, 0))
-                        .image(embed_item.to_string()),
+                        .image(embed_item.to_string())
+                        .footer(
+                            serenity::CreateEmbedFooter::new(bot_user.tag())
+                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                        ),
                 ),
         )
         .await?;
@@ -148,7 +173,11 @@ pub async fn hug(
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -168,16 +197,23 @@ pub async fn kiss(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
+    let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
                 .content("Aww~ I won't kiss you! Ahahahah!")
                 .embed(
-                    serenity::CreateEmbed::new().color((255, 0, 0)).image(
-                        cmd_utils::get_embed_from_type(&EmbedType::Slap)
-                            .await
-                            .to_string(),
-                    ),
+                    serenity::CreateEmbed::new()
+                        .color((255, 0, 0))
+                        .image(
+                            cmd_utils::get_embed_from_type(&EmbedType::Slap)
+                                .await
+                                .to_string(),
+                        )
+                        .footer(
+                            serenity::CreateEmbedFooter::new(bot_user.tag())
+                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                        ),
                 ),
         )
         .await?;
@@ -199,7 +235,11 @@ pub async fn kiss(
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -220,6 +260,7 @@ pub async fn slap(
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Slap).await;
+    let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -227,7 +268,11 @@ pub async fn slap(
                 .embed(
                     serenity::CreateEmbed::new()
                         .color((255, 0, 0))
-                        .image(embed_item.to_string()),
+                        .image(embed_item.to_string())
+                        .footer(
+                            serenity::CreateEmbedFooter::new(bot_user.tag())
+                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                        ),
                 ),
         )
         .await?;
@@ -246,7 +291,11 @@ pub async fn slap(
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -284,10 +333,16 @@ pub async fn punch(
         poise::Context::Application(_) => Some(target_user.mention()),
     };
 
+    let bot_user = get_bot_user(ctx).await;
+
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -308,12 +363,17 @@ pub async fn bonk(
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bonk).await;
+    let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default().content("バカ！").embed(
                 serenity::CreateEmbed::new()
                     .color((255, 0, 0))
-                    .image(embed_item.to_string()),
+                    .image(embed_item.to_string())
+                    .footer(
+                        serenity::CreateEmbedFooter::new(bot_user.tag())
+                            .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                    ),
             ),
         )
         .await?;
@@ -330,7 +390,11 @@ pub async fn bonk(
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -351,6 +415,7 @@ pub async fn nom(
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Nom).await;
+    let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -358,7 +423,11 @@ pub async fn nom(
                 .embed(
                     serenity::CreateEmbed::new()
                         .color((255, 0, 0))
-                        .image(embed_item.to_string()),
+                        .image(embed_item.to_string())
+                        .footer(
+                            serenity::CreateEmbedFooter::new(bot_user.tag())
+                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                        ),
                 ),
         )
         .await?;
@@ -375,7 +444,11 @@ pub async fn nom(
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -409,10 +482,16 @@ pub async fn kill(
         poise::Context::Application(_) => Some(target_user.mention()),
     };
 
+    let bot_user = get_bot_user(ctx).await;
+
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -449,10 +528,16 @@ pub async fn kick(
         poise::Context::Application(_) => Some(target_user.mention()),
     };
 
+    let bot_user = get_bot_user(ctx).await;
+
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -492,11 +577,16 @@ pub async fn bury(
         poise::Context::Prefix(_) => None,
         poise::Context::Application(_) => Some(target_user.mention()),
     };
+    let bot_user = get_bot_user(ctx).await;
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default()
         .content(match ping_on_shash_command {
@@ -514,11 +604,16 @@ pub async fn bury(
 pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::SelfBury).await;
     let response: String = format!("**{}** *buries themselves*", ctx.author().name,);
+    let bot_user = get_bot_user(ctx).await;
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default().embed(embed);
     ctx.send(full_respone).await?;
@@ -531,11 +626,16 @@ pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn peek(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Peek).await;
     let response: String = format!("{} is lurking . . .", ctx.author().name,);
+    let bot_user = get_bot_user(ctx).await;
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
-        .image(embed_item.to_string());
+        .image(embed_item.to_string())
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
 
     let full_respone = poise::CreateReply::default().embed(embed);
     ctx.send(full_respone).await?;
@@ -639,6 +739,88 @@ pub async fn level(
     Ok(())
 }
 
+/// Displays the levels for the top 9 users.
+#[poise::command(slash_command, prefix_command, rename = "toplevels")]
+pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
+    let message_guild_id = match ctx.guild_id() {
+        Some(msg) => msg,
+        None => {
+            ctx.reply("Please use the fucking guild chats you sick fuck!")
+                .await?;
+            return Ok(());
+        }
+    };
+    let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
+    let level_and_xp_rows = match db.await {
+        Ok(pool) => {
+            println!("Connected to the database: {pool:?}");
+            fetch_top_nine_levels_in_guild(&pool, message_guild_id).await?
+        }
+        Err(_) => {
+            ctx.reply(
+                "Please wait for the people in the guild to chat more then try again later...",
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+    // let mut top_nine_users: Vec<(i32, &str, i32, i32)> = Vec::new();
+    let mut fields: Vec<(String, String, bool)> = Vec::new();
+
+    let mut counter = 1;
+    for row in level_and_xp_rows {
+        let (user_id, level, xp) = (
+            row.get::<i64, &str>(DATABASE_COLUMNS[&UserId]),
+            row.get::<i32, &str>(DATABASE_COLUMNS[&Level]),
+            row.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]),
+        );
+        let user_id_u64 = user_id as u64;
+        let mut user = ctx
+            .http()
+            .get_user(user_id_u64.into())
+            .await
+            .unwrap_or(serenity::User::default());
+        if user.id == 1 {
+            user.name = "Unknown user.".into();
+        }
+        fields.push((
+            format!("#{} >> {}", counter, user.name),
+            format!("Lvl: {level}\nXP: {xp}"),
+            false,
+        ));
+        counter += 1;
+    }
+
+    // let level = level_and_xp_rows.get::<i32, &str>(DATABASE_COLUMNS[&Level]);
+    // let xp = level_and_xp_rows.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]);
+
+    // Unwrap is safe because we already checked if the message is in a guild and handled the early
+    // return otherwise.
+    let response = format!("Guild: {}\n\nTop 9 Users", ctx.guild().unwrap().name);
+    let bot_user = ctx
+        .http()
+        .get_user(ctx.framework().bot_id)
+        .await
+        .expect("Retrieving the bot user shouldn't fail.");
+    let bot_avatar = bot_user.face().replace(".webp", ".png");
+    let thumbnail = match ctx.guild() {
+        Some(guild) => guild.icon_url().unwrap_or_else(|| bot_avatar.to_owned()),
+        None => bot_avatar.to_owned(),
+    };
+    ctx.send(
+        poise::CreateReply::default().embed(
+            serenity::CreateEmbed::default()
+                .title(response)
+                .fields(fields)
+                .thumbnail(thumbnail)
+                .color((255, 0, 0))
+                .footer(serenity::CreateEmbedFooter::new(bot_user.tag()).icon_url(bot_avatar)),
+        ),
+    )
+    .await?;
+    Ok(())
+}
+
 /// Get a Ryan Gosling drive GIF.
 #[poise::command(slash_command, prefix_command, rename = "drive")]
 pub async fn drive(ctx: Context<'_>) -> Result<(), Error> {
@@ -658,11 +840,16 @@ pub async fn drive(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, prefix_command, rename = "chair")]
 pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Chair).await;
+    let bot_user = get_bot_user(ctx).await;
 
     let embed = serenity::CreateEmbed::new()
         .title("You need some motivation!")
         .color((255, 0, 0))
-        .image(embed_item);
+        .image(embed_item)
+        .footer(
+            serenity::CreateEmbedFooter::new(bot_user.tag())
+                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+        );
     let full_respone = poise::CreateReply::default().embed(embed);
     ctx.send(full_respone).await?;
 

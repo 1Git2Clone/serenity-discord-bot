@@ -48,3 +48,17 @@ pub async fn get_embed_from_type(embed_type: &EmbedType) -> &'static str {
         None => "",
     }
 }
+pub async fn get_bot_user(ctx: Context<'_>) -> serenity::User {
+    ctx.http()
+        .get_user(ctx.framework().bot_id)
+        .await
+        .expect("Retrieving the bot user shouldn't fail.")
+}
+
+pub async fn get_bot_avatar(ctx: Context<'_>, bot_user: Option<serenity::User>) -> String {
+    let match_bot_user = match bot_user {
+        Some(user) => user,
+        None => get_bot_user(ctx).await,
+    };
+    match_bot_user.face().replace(".webp", ".png")
+}

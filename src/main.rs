@@ -146,6 +146,7 @@ async fn main() {
                 commands::embed_commands::peek(),
                 commands::embed_commands::avatar(),
                 commands::embed_commands::level(),
+                commands::embed_commands::toplevels(),
                 commands::embed_commands::drive(),
                 commands::embed_commands::chair(),
             ],
