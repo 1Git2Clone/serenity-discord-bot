@@ -1,4 +1,5 @@
 use ::serenity::all::Mentionable;
+use ::serenity::futures::future::try_join_all;
 
 use super::*;
 use crate::commands::cmd_utils::{get_bot_avatar, get_bot_user};
@@ -750,63 +751,63 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
             return Ok(());
         }
     };
+
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
+
     let level_and_xp_rows = match db.await {
-        Ok(pool) => {
-            println!("Connected to the database: {pool:?}");
-            fetch_top_nine_levels_in_guild(&pool, message_guild_id).await?
-        }
+        Ok(pool) => fetch_top_nine_levels_in_guild(&pool, message_guild_id).await?,
         Err(_) => {
-            ctx.reply(
-                "Please wait for the people in the guild to chat more then try again later...",
-            )
-            .await?;
+            ctx.reply("Please wait for the guild members to chat more.")
+                .await?;
             return Ok(());
         }
     };
-    // let mut top_nine_users: Vec<(i32, &str, i32, i32)> = Vec::new();
+
+    let user_ids: Vec<u64> = level_and_xp_rows
+        .iter()
+        .map(|row| row.get::<i64, &str>(DATABASE_COLUMNS[&UserId]) as u64)
+        .collect();
+    let users = try_join_all(
+        user_ids
+            .into_iter()
+            .map(|user_id| ctx.http().get_user(user_id.into())),
+    );
+
     let mut fields: Vec<(String, String, bool)> = Vec::new();
 
-    let mut counter = 1;
-    for row in level_and_xp_rows {
-        let (user_id, level, xp) = (
-            row.get::<i64, &str>(DATABASE_COLUMNS[&UserId]),
+    for (counter, (row, user)) in level_and_xp_rows
+        .iter()
+        .zip(users.await?.into_iter())
+        .enumerate()
+        .take(9)
+    {
+        let (level, xp) = (
             row.get::<i32, &str>(DATABASE_COLUMNS[&Level]),
             row.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]),
         );
-        let user_id_u64 = user_id as u64;
-        let mut user = ctx
-            .http()
-            .get_user(user_id_u64.into())
-            .await
-            .unwrap_or(serenity::User::default());
-        if user.id == 1 {
-            user.name = "Unknown user.".into();
-        }
+
+        let name = if user.id == 1 {
+            "Unknown user.".into()
+        } else {
+            user.name
+        };
+
         fields.push((
-            format!("#{} >> {}", counter, user.name),
-            format!("Lvl: {level}\nXP: {xp}"),
+            format!("#{} >> {}", counter + 1, name),
+            format!("Lvl: {}\nXP: {}", level, xp),
             false,
         ));
-        counter += 1;
     }
 
-    // let level = level_and_xp_rows.get::<i32, &str>(DATABASE_COLUMNS[&Level]);
-    // let xp = level_and_xp_rows.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]);
-
-    // Unwrap is safe because we already checked if the message is in a guild and handled the early
-    // return otherwise.
     let response = format!("Guild: {}\n\nTop 9 Users", ctx.guild().unwrap().name);
-    let bot_user = ctx
-        .http()
-        .get_user(ctx.framework().bot_id)
-        .await
-        .expect("Retrieving the bot user shouldn't fail.");
+    let bot_user = ctx.http().get_current_user().await?;
     let bot_avatar = bot_user.face().replace(".webp", ".png");
-    let thumbnail = match ctx.guild() {
-        Some(guild) => guild.icon_url().unwrap_or_else(|| bot_avatar.to_owned()),
-        None => bot_avatar.to_owned(),
-    };
+
+    let thumbnail = ctx
+        .guild()
+        .and_then(|guild| guild.icon_url())
+        .unwrap_or_else(|| bot_avatar.to_owned());
+
     ctx.send(
         poise::CreateReply::default().embed(
             serenity::CreateEmbed::default()
@@ -818,6 +819,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         ),
     )
     .await?;
+
     Ok(())
 }
 
