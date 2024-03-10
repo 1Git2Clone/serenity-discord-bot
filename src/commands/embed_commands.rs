@@ -1,8 +1,12 @@
 use ::serenity::all::Mentionable;
 
 use super::*;
+use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME};
 use crate::data::command_data::{Context, Error};
+use crate::data::database_interactions::{connect_to_db, fetch_user_level};
 use crate::enums::command_enums::EmbedType;
+use crate::enums::schemas::DatabaseSchema::*;
+use sqlx::Row;
 
 // This is where the poise framework shines since with it you can make
 // a slash and a prefix command work in one function.
@@ -39,7 +43,11 @@ pub async fn tieup(
         return Ok(());
     }
 
-    let response: String = format!("**{}** *slaps* **{}**", ctx.author().name, target_user.name);
+    let response: String = format!(
+        "**{}** *ties up* **{}**",
+        ctx.author().name,
+        target_user.name
+    );
 
     let ping_on_shash_command: Option<poise::serenity_prelude::Mention> = match ctx {
         poise::Context::Prefix(_) => None,
@@ -160,12 +168,22 @@ pub async fn kiss(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kiss).await;
     if &target_user == ctx.author() {
-        ctx.send(poise::CreateReply::default().content("Aww~ I won't kiss you! Ahahahah!"))
-            .await?;
+        ctx.send(
+            poise::CreateReply::default()
+                .content("Aww~ I won't kiss you! Ahahahah!")
+                .embed(
+                    serenity::CreateEmbed::new().color((255, 0, 0)).image(
+                        cmd_utils::get_embed_from_type(&EmbedType::Slap)
+                            .await
+                            .to_string(),
+                    ),
+                ),
+        )
+        .await?;
         return Ok(());
     }
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kiss).await;
 
     let response: String = format!(
         "**{}** *kisses* **{}**",
@@ -544,6 +562,80 @@ pub async fn avatar(
     let full_respone = poise::CreateReply::default().embed(embed);
     ctx.send(full_respone).await?;
 
+    Ok(())
+}
+
+/// Displays the user's level
+#[poise::command(slash_command, prefix_command, rename = "level")]
+pub async fn level(
+    ctx: Context<'_>,
+    #[description = "Selected user"] user: Option<serenity::User>,
+) -> Result<(), Error> {
+    let message_guild_id = match ctx.guild_id() {
+        Some(msg) => msg,
+        None => {
+            ctx.reply("Please use the fucking guild chats you sick fuck!")
+                .await?;
+            return Ok(());
+        }
+    };
+    let selected_user = cmd_utils::get_user(ctx, user).await;
+    let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
+    let level_and_xp_row_option = match db.await {
+        Ok(pool) => {
+            println!("Connected to the database: {pool:?}");
+            fetch_user_level(&pool, &selected_user, message_guild_id).await?
+        }
+        Err(_) => {
+            ctx.reply(format!(
+                "Please wait for {} to chat more then try again later...",
+                selected_user.name
+            ))
+            .await?;
+            return Ok(());
+        }
+    };
+    let level_and_xp_row = if let Some(lvl_and_xp_row) = level_and_xp_row_option {
+        lvl_and_xp_row
+    } else {
+        ctx.reply(format!(
+            "Please wait for {} to chat more then try again later...",
+            selected_user.name
+        ))
+        .await?;
+        return Ok(());
+    };
+    let level = level_and_xp_row.get::<i32, &str>(DATABASE_COLUMNS[&Level]);
+    let xp = level_and_xp_row.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]);
+
+    let avatar = selected_user.face().replace(".webp", ".png");
+    let username = selected_user.name;
+    let response = format!("User stats for: **{}**", &username);
+    let bot_user = ctx
+        .http()
+        .get_user(ctx.framework().bot_id)
+        .await
+        .expect("Retrieving the bot user shouldn't fail.");
+    let bot_avatar = bot_user.face().replace(".webp", ".png");
+    let percent_left_to_level_up: f32 = (xp as f32) / ((level as f32) + 1.0);
+    ctx.send(
+        poise::CreateReply::default().embed(
+            serenity::CreateEmbed::default()
+                .title(response)
+                .url("")
+                .color((255, 0, 0))
+                .thumbnail(&avatar)
+                .field("Level", format!("⊱ {}", level), false)
+                .field("Experience Points", format!("⊱ {}", xp), false)
+                .field(
+                    "Progress until next level",
+                    format!("⊱ {}%", percent_left_to_level_up),
+                    false,
+                )
+                .footer(serenity::CreateEmbedFooter::new(bot_user.tag()).icon_url(bot_avatar)),
+        ),
+    )
+    .await?;
     Ok(())
 }
 
