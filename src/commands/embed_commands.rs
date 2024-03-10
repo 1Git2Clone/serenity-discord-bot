@@ -730,7 +730,7 @@ pub async fn level(
                 .field("Experience Points", format!("⊱ {}", xp), false)
                 .field(
                     "Progress until next level",
-                    format!("⊱ {}%", percent_left_to_level_up),
+                    format!("⊱ {:.2}%", percent_left_to_level_up),
                     false,
                 )
                 .footer(serenity::CreateEmbedFooter::new(bot_user.tag()).icon_url(bot_avatar)),
@@ -793,8 +793,13 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         };
 
         fields.push((
-            format!("#{} >> {}", counter + 1, name),
-            format!("Lvl: {}\nXP: {}", level, xp),
+            format!("#{} >> {}", counter + 1, name,),
+            format!(
+                "Lvl: {}\nXP: {}\nLevel progress: {:.2}%",
+                level,
+                xp,
+                ((xp as f32) / ((level as f32) + 1.0))
+            ),
             false,
         ));
     }
