@@ -18,6 +18,6 @@ lazy_static! {
         (Level, "level"),
         (LastQueryTimestamp, "last_query_timestamp")
     ]);
-    pub(crate) static ref XP_COOLDOWN_NUMBER_SECS: i64 = 0;
+    pub(crate) static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
 }
 pub static BOT_PREFIX: &str = "!";
