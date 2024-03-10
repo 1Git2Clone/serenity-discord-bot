@@ -1,8 +1,8 @@
 -- Add migration script here
 CREATE TABLE user_stats (
-  user_id INTEGER NOT NULL,
-  guild_id INTEGER NOT NULL,
-  experience_points INTEGER NOT NULL,
-  level INTEGER NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  guild_id BIGINT UNSIGNED NOT NULL,
+  experience_points INTEGER UNSIGNED NOT NULL,
+  level INTEGER UNSIGNED NOT NULL,
   PRIMARY KEY (user_id, guild_id)
 );
