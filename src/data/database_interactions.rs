@@ -165,9 +165,7 @@ pub async fn add_or_update_db_user(
     let current_timestamp = chrono::offset::Utc::now().timestamp();
 
     let user = &message.author;
-    let guild_id = if let Some(in_guild) = message.guild_id {
-        in_guild
-    } else {
+    let Some(guild_id) = message.guild_id else {
         return Ok(());
     };
 

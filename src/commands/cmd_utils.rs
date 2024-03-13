@@ -13,26 +13,15 @@ pub async fn get_user(
         return initial_user.to_owned();
     }
 
-    let is_msg: Option<&poise::serenity_prelude::model::channel::Message> = match ctx {
-        poise::Context::Prefix(prefix_cmd) => Some(prefix_cmd.msg),
-        poise::Context::Application(_) => None,
-    };
-    if is_msg.is_none() {
+    let poise::Context::Prefix(is_msg) = ctx else {
         return initial_user.to_owned();
-    }
-
-    let msg = match is_msg {
-        Some(msg) => msg.to_owned(),
-        None => poise::serenity_prelude::model::channel::Message::default(),
     };
-    if msg.id == 1 {
+    let msg = is_msg.msg;
+
+    let Some(ref_msg) = msg.referenced_message.to_owned() else {
         return initial_user.to_owned();
-    }
-
-    let ref_msg = match msg.referenced_message {
-        Some(referenced_message) => referenced_message,
-        None => Box::default(),
     };
+
     if ref_msg.author.id == 1 {
         initial_user.to_owned()
     } else {
