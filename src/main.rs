@@ -178,7 +178,7 @@ async fn main() {
         //         .expect("Something went wrong in setting the custom activity data."),
         // )
         .activity(serenity::ActivityData::custom(format!(
-            "Usabe prefixes: [ {} ]",
+            "Usable prefixes: [ {} ]",
             BOT_PREFIXES
                 .values()
                 .map(|x| x.to_owned())
