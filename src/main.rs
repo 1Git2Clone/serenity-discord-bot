@@ -29,12 +29,13 @@ mod commands;
 // use commands::general_commands::*;
 
 mod enums;
+use enums::command_enums::CmdPrefixes::*;
 
 mod extra_threads;
 use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
 
 mod data;
-use data::bot_data::{BOT_PREFIX, BOT_TOKEN, START_TIME};
+use data::bot_data::{BOT_PREFIXES, BOT_TOKEN, START_TIME};
 use data::command_data::Data;
 
 mod event_handler;
@@ -124,7 +125,13 @@ async fn main() {
             },
 
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some(BOT_PREFIX.into()),
+                prefix: None,
+                additional_prefixes: vec![
+                    poise::Prefix::Literal(BOT_PREFIXES[&Hu]),
+                    poise::Prefix::Literal(BOT_PREFIXES[&HT]),
+                    poise::Prefix::Literal(BOT_PREFIXES[&ExclaimationMark]),
+                ],
+                mention_as_prefix: true,
                 ..Default::default()
             },
             commands: vec![
@@ -171,7 +178,12 @@ async fn main() {
         //         .expect("Something went wrong in setting the custom activity data."),
         // )
         .activity(serenity::ActivityData::custom(format!(
-            "{BOT_PREFIX} <- The prefix for the bot!"
+            "Usabe prefixes: [ {} ]",
+            BOT_PREFIXES
+                .values()
+                .map(|x| x.to_owned())
+                .collect::<Vec<&str>>()
+                .join(" ")
         )))
         .status(serenity::OnlineStatus::Idle)
         .await;
