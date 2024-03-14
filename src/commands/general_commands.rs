@@ -60,10 +60,14 @@ pub async fn age(
 /// Displays the bot's current uptime
 #[poise::command(slash_command, prefix_command, rename = "uptime")]
 pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
-    let response = format!(
-        "The bot has been running for: {} seconds",
-        START_TIME.elapsed().as_secs()
-    );
+    let time = START_TIME.elapsed().as_secs();
+    let parsed_time: String = match time {
+        (86400..) => format!("{:.2} days.", time as f64 / 86400.0),
+        (3600..=86399) => format!("{:.2} hours.", time as f64 / 3600.0),
+        (60..=3599) => format!("{:.2} minutes.", time as f64 / 60.0),
+        _ => format!("{} seconds.", time),
+    };
+    let response = format!("The bot has been running for: {}", parsed_time);
     ctx.say(response).await?;
     Ok(())
 }

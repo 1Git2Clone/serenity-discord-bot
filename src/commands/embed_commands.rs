@@ -725,7 +725,7 @@ pub async fn level(
         .await
         .expect("Retrieving the bot user shouldn't fail.");
     let bot_avatar = bot_user.face().replace(".webp", ".png");
-    let percent_left_to_level_up: f32 = (xp as f32) / ((level as f32) + 1.0);
+    let percent_left_to_level_up: f32 = (xp as f32) / (level as f32);
     ctx.send(
         poise::CreateReply::default().embed(
             serenity::CreateEmbed::default()
@@ -804,7 +804,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
                 "Lvl: {}\nXP: {}\nLevel progress: {:.2}%",
                 level,
                 xp,
-                ((xp as f32) / ((level as f32) + 1.0))
+                ((xp as f32) / (level as f32))
             ),
             false,
         ));
