@@ -130,7 +130,6 @@ async fn main() {
             commands: vec![
                 commands::general_commands::help(),
                 commands::general_commands::age(),
-                commands::general_commands::uptime(),
                 commands::embed_commands::tieup(),
                 commands::embed_commands::pat(),
                 commands::embed_commands::hug(),
@@ -149,6 +148,7 @@ async fn main() {
                 commands::embed_commands::toplevels(),
                 commands::embed_commands::drive(),
                 commands::embed_commands::chair(),
+                commands::embed_commands::uptime(),
             ],
             manual_cooldowns: true,
             ..Default::default()

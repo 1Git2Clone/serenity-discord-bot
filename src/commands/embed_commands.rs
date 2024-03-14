@@ -3,13 +3,12 @@ use ::serenity::futures::future::try_join_all;
 
 use super::*;
 use crate::commands::cmd_utils::{get_bot_avatar, get_bot_user};
-use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME};
+use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME, START_TIME};
 use crate::data::command_data::{Context, Error};
 use crate::data::database_interactions::{
     connect_to_db, fetch_top_nine_levels_in_guild, fetch_user_level_and_rank,
 };
-use crate::enums::command_enums::EmbedType;
-use crate::enums::schemas::DatabaseSchema::*;
+use crate::enums::{command_enums::EmbedType, schemas::DatabaseSchema::*};
 use sqlx::Row;
 
 // This is where the poise framework shines since with it you can make
@@ -865,6 +864,38 @@ pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
         );
     let full_respone = poise::CreateReply::default().embed(embed);
     ctx.send(full_respone).await?;
+
+    Ok(())
+}
+
+/// Displays the bot's current uptime
+#[poise::command(slash_command, prefix_command, rename = "uptime")]
+pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
+    let bot_user = ctx.http().get_current_user().await?;
+    let bot_avatar = bot_user.face().replace(".webp", ".png");
+
+    let time = START_TIME.elapsed().as_secs();
+
+    let units = [("days", 86400), ("hours", 3600), ("minutes", 60)];
+    let (unit, value) = units
+        .iter()
+        .find(|(_, divisor)| time >= *divisor)
+        .unwrap_or(&("seconds", 1));
+
+    let parsed_time = match value {
+        1 => format!("{} seconds", time as f64 / value.to_owned() as f64),
+        _ => format!("{:.2} {} ", time as f64 / value.to_owned() as f64, unit),
+    };
+    ctx.send(
+        poise::CreateReply::default().embed(
+            serenity::CreateEmbed::default()
+                .title("Bot Uptime")
+                .field(parsed_time, "", false)
+                .color((255, 0, 0))
+                .footer(serenity::CreateEmbedFooter::new(bot_user.tag()).icon_url(bot_avatar)),
+        ),
+    )
+    .await?;
 
     Ok(())
 }
