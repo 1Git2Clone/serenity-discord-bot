@@ -1,8 +1,5 @@
 use super::*;
-use crate::data::{
-    bot_data::START_TIME,
-    command_data::{Context, Error},
-};
+use crate::data::command_data::{Context, Error};
 
 /// Show this help menu
 #[poise::command(prefix_command, track_edits, slash_command)]
@@ -53,23 +50,6 @@ pub async fn age(
         selected_user.name,
         selected_user.created_at()
     );
-    ctx.say(response).await?;
-    Ok(())
-}
-
-/// Displays the bot's current uptime
-#[poise::command(slash_command, prefix_command, rename = "uptime")]
-pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
-    let time = START_TIME.elapsed().as_secs();
-
-    let units = [("days", 86400), ("hours", 3600), ("minutes", 60)];
-    let (unit, value) = units
-        .iter()
-        .find(|(_, divisor)| time >= *divisor)
-        .unwrap_or(&("seconds", 1));
-
-    let parsed_time = format!("{:.2} {} ", time as f64 / value.to_owned() as f64, unit);
-    let response = format!("The bot has been running for: {}", parsed_time);
     ctx.say(response).await?;
     Ok(())
 }
