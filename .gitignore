@@ -3,8 +3,10 @@
 
 !/database/
 /database/*
+!/database/README.md
 
 !/bin
 /bin/*
+!/bin/README.md
 
 /Cargo.lock
