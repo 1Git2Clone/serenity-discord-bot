@@ -1,6 +1,5 @@
 use crate::enums::{
-    command_enums::CmdPrefixes,
-    command_enums::CmdPrefixes::*,
+    command_enums::{CmdPrefixes, CmdPrefixes::*},
     schemas::{DatabaseSchema, DatabaseSchema::*},
 };
 use std::collections::HashMap;
