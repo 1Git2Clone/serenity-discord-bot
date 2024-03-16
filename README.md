@@ -64,9 +64,9 @@ After you have the Docker engine you need to run these commands in your
 terminal (Linux):
 
 ```sh
-sudo docker volume create --name database
-sudo docker build -t YOUR_DOCKER_IMAGE_NAME .
-sudo docker run -v database:/database -d --env-file .env YOUR_DOCKER_IMAGE_NAME 
+docker volume create --name database
+docker build -t YOUR_DOCKER_IMAGE_NAME .
+docker run -v database:/database -d --env-file .env YOUR_DOCKER_IMAGE_NAME 
 ```
 
 NOTE: The image building could take some time (this is compiling Rust code
@@ -75,7 +75,7 @@ after all) so be patient!
 Checking your docker images is as simple as:
 
 ```sh
-sudo docker images
+docker images
 ```
 
 For Windows installs removing the `sudo` prefix and using the PowerShell as an
