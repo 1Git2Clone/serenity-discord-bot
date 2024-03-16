@@ -64,8 +64,9 @@ After you have the Docker engine you need to run these commands in your
 terminal (Linux):
 
 ```sh
+sudo docker volume create --name database
 sudo docker build -t YOUR_DOCKER_IMAGE_NAME .
-sudo docker run -d --env-file .env YOUR_DOCKER_IMAGE_NAME
+sudo docker run -v database:/database -d --env-file .env YOUR_DOCKER_IMAGE_NAME 
 ```
 
 NOTE: The image building could take some time (this is compiling Rust code
