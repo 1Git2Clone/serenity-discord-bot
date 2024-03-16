@@ -6,4 +6,4 @@
 ###############################################################################
 docker volume create --name database
 docker build -t serenity-discord-bot .
-docker run -v database:/database -d --env-file .env serenity-discord-bot
+docker run -v ./database:/app/database -d --env-file .env serenity-discord-bot
