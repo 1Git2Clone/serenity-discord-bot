@@ -1,5 +1,5 @@
 [package]
-name = "serenity-rs-hutao-discord-bot"
+name = "serenity-discord-bot"
 version = "0.1.0"
 edition = "2021"
 
