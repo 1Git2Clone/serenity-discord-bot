@@ -29,7 +29,6 @@ mod commands;
 // use commands::general_commands::*;
 
 mod enums;
-use enums::command_enums::CmdPrefixes::*;
 
 mod extra_threads;
 use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
@@ -126,11 +125,10 @@ async fn main() {
 
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: None,
-                additional_prefixes: vec![
-                    poise::Prefix::Literal(BOT_PREFIXES[&Hu]),
-                    poise::Prefix::Literal(BOT_PREFIXES[&HT]),
-                    poise::Prefix::Literal(BOT_PREFIXES[&ExclaimationMark]),
-                ],
+                additional_prefixes: BOT_PREFIXES
+                    .values()
+                    .map(|x| poise::Prefix::Literal(x))
+                    .collect::<Vec<poise::Prefix>>(),
                 mention_as_prefix: true,
                 ..Default::default()
             },
