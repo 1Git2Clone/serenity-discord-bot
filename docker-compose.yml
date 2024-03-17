@@ -1,0 +1,20 @@
+version: "3"
+services:
+  serenity-discord-bot:
+    build: .
+    image: serenity-discord-bot
+    environment:
+      - SQLX_OFFLINE=true
+      # - RUST_BACKTRACE=1
+    # The volumes are for the files that the container uses from the actual repo outside of the container.
+    volumes:
+      - ./database:/app/database
+      - ./src:/app/src
+      - ./migrations:/app/migrations
+      - ./extra_utils:/app/extra_utils
+
+volumes:
+  database:
+  src:
+  migrations:
+  extra_utils:
