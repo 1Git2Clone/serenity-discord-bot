@@ -78,13 +78,13 @@ Checking your docker images is as simple as:
 docker images
 ```
 
-There's also a `docker-compose.yml` configuration if you wish to build the image by using Docker Compose[^1].
+There's also a `docker-compose.yml` configuration if you wish to build the image by using Docker Compose.
 
 ```sh
 docker-compose up -d
 ```
 
-[^1]: You need to install Docker Compose from [docker.com/compose/install](https://docs.docker.com/compose/install/) though.
+You need to install Docker Compose from [docker.com/compose/install](https://docs.docker.com/compose/install/) though.
 
 
 For Windows installs removing the `sudo` prefix and using the PowerShell as an
