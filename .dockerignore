@@ -1,2 +1,10 @@
+# Project specific ignores - unneed
 target/
+Cargo.lock
+
+# Ignores because of volume management The point is that updating anything from
+# the codebase should make it so the containers get synced with it.
 database/
+
+# Unneeded READMEs for the containers. Just use the repo.
+README.md
