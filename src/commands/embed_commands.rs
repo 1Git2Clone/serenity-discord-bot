@@ -26,7 +26,7 @@ pub async fn tieup(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::TieUp).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::TieUp).await?;
     let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
@@ -89,7 +89,7 @@ pub async fn pat(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Pat).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Pat).await?;
     let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
@@ -143,7 +143,7 @@ pub async fn hug(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Hug).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Hug).await?;
     let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
@@ -207,7 +207,7 @@ pub async fn kiss(
                         .color((255, 0, 0))
                         .image(
                             cmd_utils::get_embed_from_type(&EmbedType::Slap)
-                                .await
+                                .await?
                                 .to_string(),
                         )
                         .footer(
@@ -219,7 +219,7 @@ pub async fn kiss(
         .await?;
         return Ok(());
     }
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kiss).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kiss).await?;
 
     let response: String = format!(
         "**{}** *kisses* **{}**",
@@ -259,7 +259,7 @@ pub async fn slap(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Slap).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Slap).await?;
     let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
@@ -315,7 +315,7 @@ pub async fn punch(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Punch).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Punch).await?;
     if &target_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content("I won't punch you! *pouts*"))
             .await?;
@@ -362,7 +362,7 @@ pub async fn bonk(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bonk).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bonk).await?;
     let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
@@ -414,7 +414,7 @@ pub async fn nom(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Nom).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Nom).await?;
     let bot_user = get_bot_user(ctx).await;
     if &target_user == ctx.author() {
         ctx.send(
@@ -468,7 +468,7 @@ pub async fn kill(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kill).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kill).await?;
     if &target_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content("No."))
             .await?;
@@ -511,7 +511,7 @@ pub async fn kick(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kick).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kick).await?;
     if &target_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content(format!(
             "{}, why would you kick yourself...? Weirdo...",
@@ -557,7 +557,7 @@ pub async fn bury(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_user = cmd_utils::get_user(ctx, user).await;
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bury).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bury).await?;
     if &target_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content(format!(
             "{} Just use the `!selfbury` or `/selfbury` command bruh...",
@@ -602,7 +602,7 @@ pub async fn bury(
 /// Bury yourself (perhaps to help Hu Tao's busines idk...)
 #[poise::command(prefix_command, slash_command, rename = "selfbury")]
 pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::SelfBury).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::SelfBury).await?;
     let response: String = format!("**{}** *buries themselves*", ctx.author().name,);
     let bot_user = get_bot_user(ctx).await;
 
@@ -624,7 +624,7 @@ pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
 /// Send a peek GIF in the chat (you lurker)
 #[poise::command(prefix_command, slash_command, rename = "peek")]
 pub async fn peek(ctx: Context<'_>) -> Result<(), Error> {
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Peek).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Peek).await?;
     let response: String = format!("{} is lurking . . .", ctx.author().name,);
     let bot_user = get_bot_user(ctx).await;
 
@@ -836,7 +836,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
 /// Get a Ryan Gosling drive GIF.
 #[poise::command(slash_command, prefix_command, rename = "drive")]
 pub async fn drive(ctx: Context<'_>) -> Result<(), Error> {
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::RyanGoslingDrive).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::RyanGoslingDrive).await?;
 
     let embed = serenity::CreateEmbed::new()
         // .title()
@@ -851,7 +851,7 @@ pub async fn drive(ctx: Context<'_>) -> Result<(), Error> {
 /// Get a motivation chair GIF
 #[poise::command(slash_command, prefix_command, rename = "chair")]
 pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Chair).await;
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Chair).await?;
     let bot_user = get_bot_user(ctx).await;
 
     let embed = serenity::CreateEmbed::new()

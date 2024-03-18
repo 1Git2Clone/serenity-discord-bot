@@ -107,3 +107,19 @@ lazy_static! {
         ])
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// It is highly encouraged to run this test to check whether or not all your arrays have a
+    /// vector with at least 1 link in it. If you don't run this test or if this test gives out an
+    /// error, then that means that your program will panic if a user tries to get an embed_type
+    /// from the key-value HashMap pair.
+    #[test]
+    fn test_vecs_not_empty() {
+        for (embed_type, vec) in COMMANDS.iter() {
+            assert!(!vec.is_empty(), "{:?} array is empty", embed_type);
+        }
+    }
+}

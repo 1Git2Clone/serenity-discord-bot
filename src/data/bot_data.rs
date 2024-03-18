@@ -1,7 +1,4 @@
-use crate::enums::{
-    command_enums::{CmdPrefixes, CmdPrefixes::*},
-    schemas::{DatabaseSchema, DatabaseSchema::*},
-};
+use crate::enums::schemas::{DatabaseSchema, DatabaseSchema::*};
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
@@ -22,9 +19,4 @@ lazy_static! {
         (LastQueryTimestamp, "last_query_timestamp")
     ]);
     pub(crate) static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
-    pub(crate) static ref BOT_PREFIXES: HashMap<CmdPrefixes, &'static str> = HashMap::from([
-        (Hu, "hu"),
-        (HT, "ht"),
-        (ExclaimationMark, "!")
-    ]);
 }
