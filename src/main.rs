@@ -1,21 +1,43 @@
 // #region Notes about the external imports
-///
-/// The tokio async runtime:
-/// - https://tokio.rs/
-/// - https://github.com/tokio-rs/tokio/
-/// NOTE: It's kind of necessary to use it for better responsiveness, especially in bigger servers.
-///
-/// The serenity-rs API for the discord bot functionality:
-/// - https://github.com/serenity-rs/serenity/
-/// NOTE: It has very nice and comprehensive examples under this folder:
-/// - https://github.com/serenity-rs/serenity/tree/current/examples
-///
-/// lazy_static:
-/// - https://github.com/rust-lang-nursery/lazy-static.rs
-/// Why? Well its for the ease of modularity.
-/// Having the data seperated in a different folder
-/// makes the project more organized (at least in my opinion).
-///
+//
+//!
+//! Why isn't this in the README.md? Well, I don't think anyone who's just checking out the
+//! README.md file will be as interested in these details as someone like you who's checking out
+//! the actual code. <3
+//!
+//! Serde:
+//! - Serde is life... Data serialization/deserialization is just inevitable.
+//!
+//! Dotenv:
+//! - While this is possible to be man
+//!
+//! lazy_static:
+//! - https://github.com/rust-lang-nursery/lazy-static.rs
+//! Why? Well its for global state management. As much as its not that nice it's also needed for
+//! the functionality I'm looking for. Take for example static data for your embed generation
+//! commands for example or a more complex example would be something like
+//! Arc<Mutex<HashMap<(UserId, GuildId), u32>>>
+//! Where you can store a command invocation counter from a specific user in a specific guild on
+//! runtime - if you need the runtime handling.
+//!
+//! The tokio async runtime:
+//! - https://tokio.rs/
+//! - https://github.com/tokio-rs/tokio/
+//! NOTE: It's kind of necessary to use it for better responsiveness, especially in bigger servers.
+//!
+//! The serenity-rs API for the discord bot functionality:
+//! - https://github.com/serenity-rs/serenity/
+//! NOTE: It has very nice and comprehensive examples under this folder:
+//! - https://github.com/serenity-rs/serenity/tree/current/examples
+//!
+//! The poise command framework which works with serenity
+//! - https://github.com/serenity-rs/poise
+//! It's a revolutionized way of handling commands, allowing you to handle message and slash
+//! commands in 1 function. Additionally provides useful stuff like building context menus, better
+//! embed building and attachment building and also context menu building for both message and
+//! slash commands again.
+//!
+//
 // #endregion
 
 // #region All imports (./lib.rs)
@@ -28,17 +50,20 @@ mod commands;
 // use commands::embed_commands::*;
 // use commands::general_commands::*;
 
+mod data;
+use data::bot_data::{BOT_TOKEN, START_TIME};
+use data::command_data::Data;
+
 mod enums;
 
 mod extra_threads;
 use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
 
-mod data;
-use data::bot_data::{BOT_PREFIXES, BOT_TOKEN, START_TIME};
-use data::command_data::Data;
-
 mod event_handler;
 use event_handler::handler::event_handler;
+
+mod structs;
+use structs::CmdPrefixes;
 
 // #endregion
 
@@ -52,6 +77,8 @@ use std::sync::atomic::AtomicU32;
 async fn main() {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
 
+    let bot_prefixes = CmdPrefixes::set();
+
     dotenv::dotenv().ok();
     periodically_clean_users_on_diff_thread();
     let token = BOT_TOKEN.to_string();
@@ -60,7 +87,6 @@ async fn main() {
     // ```
     // Should be enough for most cases. I set it to all because I wanted to log the message
     // content.
-
     // Either all or non_privileged intents only.
     // https://docs.rs/poise/latest/poise/#gateway-intents
     let intents = serenity::GatewayIntents::all() | serenity::GatewayIntents::non_privileged();
@@ -125,9 +151,10 @@ async fn main() {
 
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: None,
-                additional_prefixes: BOT_PREFIXES
-                    .values()
-                    .map(|x| poise::Prefix::Literal(x))
+                additional_prefixes: bot_prefixes
+                    .prefixes
+                    .iter()
+                    .map(|x| poise::Prefix::Literal(x.to_owned()))
                     .collect::<Vec<poise::Prefix>>(),
                 mention_as_prefix: true,
                 ..Default::default()
@@ -177,8 +204,9 @@ async fn main() {
         // )
         .activity(serenity::ActivityData::custom(format!(
             "Usable prefixes: [ {} ]",
-            BOT_PREFIXES
-                .values()
+            bot_prefixes
+                .prefixes
+                .iter()
                 .map(|x| x.to_owned())
                 .collect::<Vec<&str>>()
                 .join(" ")

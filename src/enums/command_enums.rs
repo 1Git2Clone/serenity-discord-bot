@@ -1,6 +1,8 @@
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+/// The EmbedType is the Value from the HashMap containing a vector of all the URL links as strings
+/// that correspond to the EmbedType variant.
 #[derive(Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EmbedType {
@@ -21,17 +23,8 @@ pub enum EmbedType {
     Peek,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum CmdPrefixes {
-    Hu,
-    HT,
-    ExclaimationMark,
-}
-
 fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
 #[test]
 fn normal_types() {
     _is_normal::<EmbedType>();
-    _is_normal::<CmdPrefixes>();
 }

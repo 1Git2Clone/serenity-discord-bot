@@ -1,7 +1,11 @@
 use super::*;
-use crate::data::{command_data::Context, embed_media::COMMANDS};
+use crate::data::{
+    command_data::{Context, Error},
+    embed_media::COMMANDS,
+};
 use crate::enums::command_enums::EmbedType;
 use rand::prelude::SliceRandom;
+use sqlx::error::BoxDynError;
 
 pub async fn get_user(
     ctx: Context<'_>,
@@ -29,14 +33,16 @@ pub async fn get_user(
     }
 }
 
-pub async fn get_embed_from_type(embed_type: &EmbedType) -> &'static str {
+pub async fn get_embed_from_type(embed_type: &EmbedType) -> Result<&'static str, Error> {
     let embed_option = COMMANDS[embed_type].choose(&mut rand::thread_rng());
     match embed_option {
-        Some(embed) => embed,
-        // Set a default one just in case!
-        None => "",
+        Some(embed) => Ok(embed),
+        None => Err(BoxDynError::from(
+            "Failed to get item from the matching vector of strings from the Hash Map.",
+        )),
     }
 }
+
 pub async fn get_bot_user(ctx: Context<'_>) -> serenity::User {
     ctx.http()
         .get_user(ctx.framework().bot_id)
