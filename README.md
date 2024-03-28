@@ -1,5 +1,22 @@
 # Serenity Discord Bot
 
+## Features overview
+
+This is a list of some of the Bots available features. For a more comprehensive
+list you can always check out the code with all the commands or use the `help`
+command.
+
+- A help command containing all the bot commands.
+- A bunch of embed interaction commands (like pats, hugs and etc.)
+- A levelling system (managed locally). Some people like it, others hate it and
+  say its a MEE6 clone (They kinda have a point there). Nevertheless, you can
+  always use the SQLite database for something else if you need to. There's also
+  a cooldown implementation and periodic cleaning up of the users which aren't
+  under cooldown (This was a bit tricky to do because of the Mutex locking and my
+  overall skill issue).
+- The levelling system has a nice topranks command which gives a cool-looking embed!
+- A bot uptime command.
+
 ## Setting up
 
 **ALL THE RELATIVE PATHS IN THIS DESCRIPTION BASED ON THE ROOT OF THE REPOSITORY!**
@@ -66,7 +83,7 @@ terminal (Linux):
 ```sh
 docker volume create --name database
 docker build -t YOUR_DOCKER_IMAGE_NAME .
-docker run -v database:/database -d --env-file .env YOUR_DOCKER_IMAGE_NAME 
+docker run -v database:/database -d --env-file .env YOUR_DOCKER_IMAGE_NAME
 ```
 
 NOTE: The image building could take some time (this is compiling Rust code
@@ -85,7 +102,6 @@ docker-compose up -d
 ```
 
 You need to install Docker Compose from [docker.com/compose/install](https://docs.docker.com/compose/install/) though.
-
 
 For Windows installs removing the `sudo` prefix and using the PowerShell as an
 administrator should work (according to Google Gemini). If you encounter
