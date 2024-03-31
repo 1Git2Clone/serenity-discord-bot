@@ -737,7 +737,7 @@ pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Just try it.
-#[poise::command(slash_command, prefix_command, rename = "uptime")]
+#[poise::command(slash_command, prefix_command, rename = "boom")]
 pub async fn boom(ctx: Context<'_>) -> Result<(), Error> {
     let bot_user = ctx.http().get_current_user().await?;
     let bot_avatar = bot_user.face().replace(".webp", ".png");
