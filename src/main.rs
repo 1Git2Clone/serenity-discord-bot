@@ -162,6 +162,8 @@ async fn main() {
             commands: vec![
                 commands::general_commands::help(),
                 commands::general_commands::age(),
+                commands::level_cmds::level(),
+                commands::level_cmds::toplevels(),
                 commands::embed_commands::tieup(),
                 commands::embed_commands::pat(),
                 commands::embed_commands::hug(),
@@ -176,11 +178,10 @@ async fn main() {
                 commands::embed_commands::selfbury(),
                 commands::embed_commands::peek(),
                 commands::embed_commands::avatar(),
-                commands::embed_commands::level(),
-                commands::embed_commands::toplevels(),
                 commands::embed_commands::drive(),
                 commands::embed_commands::chair(),
-                commands::embed_commands::uptime(),
+                commands::embed_commands::boom(),
+                commands::util_commands::uptime(),
             ],
             manual_cooldowns: true,
             ..Default::default()
