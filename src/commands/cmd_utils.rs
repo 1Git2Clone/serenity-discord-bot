@@ -7,30 +7,12 @@ use crate::enums::command_enums::EmbedType;
 use rand::prelude::SliceRandom;
 use sqlx::error::BoxDynError;
 
-pub async fn get_user(
-    ctx: Context<'_>,
-    user: Option<serenity::User>,
-) -> poise::serenity_prelude::User {
-    let initial_user = user.as_ref().unwrap_or_else(|| ctx.author());
-
-    if initial_user != ctx.author() {
-        return initial_user.to_owned();
-    }
-
-    let poise::Context::Prefix(is_msg) = ctx else {
-        return initial_user.to_owned();
+pub async fn get_replied_user(ctx: Context<'_>) -> Option<poise::serenity_prelude::User> {
+    let poise::Context::Prefix(msg_ctx) = ctx else {
+        return None;
     };
-    let msg = is_msg.msg;
-
-    let Some(ref_msg) = msg.referenced_message.to_owned() else {
-        return initial_user.to_owned();
-    };
-
-    if ref_msg.author.id == 1 {
-        initial_user.to_owned()
-    } else {
-        ref_msg.author
-    }
+    let ref_msg = msg_ctx.msg.referenced_message.as_deref();
+    ref_msg.map(|x| x.author.clone())
 }
 
 pub async fn get_embed_from_type(embed_type: &EmbedType) -> Result<&'static str, Error> {
