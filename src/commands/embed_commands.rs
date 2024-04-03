@@ -18,8 +18,7 @@ pub async fn tieup(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::TieUp).await?;
     let bot_user = get_bot_user(ctx).await;
     if target_replied_user == ctx.author() {
@@ -82,8 +81,7 @@ pub async fn pat(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Pat).await?;
     let bot_user = get_bot_user(ctx).await;
     if target_replied_user == ctx.author() {
@@ -141,8 +139,7 @@ pub async fn hug(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Hug).await?;
     let bot_user = get_bot_user(ctx).await;
     if target_replied_user == ctx.author() {
@@ -200,8 +197,7 @@ pub async fn kiss(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let bot_user = get_bot_user(ctx).await;
     if target_replied_user == ctx.author() {
         ctx.send(
@@ -263,8 +259,7 @@ pub async fn slap(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Slap).await?;
     let bot_user = get_bot_user(ctx).await;
     if target_replied_user == ctx.author() {
@@ -327,8 +322,7 @@ pub async fn punch(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Punch).await?;
     if target_replied_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content("I won't punch you! *pouts*"))
@@ -375,8 +369,7 @@ pub async fn bonk(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bonk).await?;
     let bot_user = get_bot_user(ctx).await;
     if target_replied_user == ctx.author() {
@@ -432,8 +425,7 @@ pub async fn nom(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Nom).await?;
     let bot_user = get_bot_user(ctx).await;
     if target_replied_user == ctx.author() {
@@ -491,8 +483,7 @@ pub async fn kill(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kill).await?;
     if target_replied_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content("No."))
@@ -539,8 +530,7 @@ pub async fn kick(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kick).await?;
     if target_replied_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content(format!(
@@ -590,8 +580,7 @@ pub async fn bury(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bury).await?;
     if target_replied_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content(format!(
@@ -686,8 +675,7 @@ pub async fn avatar(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let response: String = format!("**{}**'s avatar:", target_replied_user.name);
     let user_avatar_as_embed: String = target_replied_user.face().replace(".webp", ".png");
 

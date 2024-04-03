@@ -9,7 +9,11 @@ edition = "2021"
 serde = { version = "1.0.197", features = ["derive"], optional = true }
 dotenv = "0.15.0"
 lazy_static = "1.4.0"
-poise = "0.6.1"
+# "Until I can merge my PR I'll use my own fork for this library"
+# - April 3 2024
+# It has 1 extra context method for getting the replied user so it doesn't need to be cloned.
+poise = { git = "https://github.com/1Kill2Steal/poise" }
+# poise = "0.6.1"
 serenity = "0.12.0"
 tokio = { version = "1.36.0", features = ["full"] }
 webbrowser = "0.8.12"

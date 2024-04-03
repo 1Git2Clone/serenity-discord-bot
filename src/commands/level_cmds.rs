@@ -1,5 +1,4 @@
 use super::*;
-use crate::commands::cmd_utils;
 use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME};
 use crate::data::command_data::{Context, Error};
 use crate::data::database_interactions::{
@@ -23,8 +22,8 @@ pub async fn level(
             return Ok(());
         }
     };
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
     let level_xp_and_rank_row_option = match db.await {
         Ok(pool) => {

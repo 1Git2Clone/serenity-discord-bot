@@ -44,8 +44,7 @@ pub async fn age(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let replied_user = user.or(cmd_utils::get_replied_user(ctx).await);
-    let target_replied_user = replied_user.as_ref().unwrap_or(ctx.author());
+    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let response = format!(
         "**{}**'s account was created at {}",
         target_replied_user.name,
