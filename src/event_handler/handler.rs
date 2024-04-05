@@ -52,7 +52,14 @@ pub async fn event_handler(
                     &new_message.author.name,
                     &new_message.content,
                 );
-                if msg.contains("hutao") || msg.contains("hu tao") {
+                if (msg.contains("hutao") || msg.contains("hu tao"))
+                    && msg.contains("damn")
+                    && msg.contains("mains")
+                {
+                    let mentions = data.poise_mentions.load(Ordering::SeqCst) + 1;
+                    data.poise_mentions.store(mentions, Ordering::SeqCst);
+                    new_message.reply(ctx, "Any last words?").await?;
+                } else if msg.contains("hutao") || msg.contains("hu tao") {
                     let mentions = data.poise_mentions.load(Ordering::SeqCst) + 1;
                     data.poise_mentions.store(mentions, Ordering::SeqCst);
                     new_message
