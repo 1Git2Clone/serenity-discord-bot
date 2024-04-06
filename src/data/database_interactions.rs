@@ -17,11 +17,14 @@ use super::bot_data::DATABASE_USERS;
 pub async fn connect_to_db(
     filename: impl AsRef<Path>,
 ) -> impl Future<Output = Result<SqlitePool, Error>> {
-    SqlitePoolOptions::new().max_connections(5).connect_with(
-        SqliteConnectOptions::new()
-            .filename(filename)
-            .create_if_missing(true),
-    )
+    SqlitePoolOptions::new()
+        .min_connections(1)
+        .max_connections(5)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(filename)
+                .create_if_missing(true),
+        )
 }
 
 /// Adds a new database user with the schema from `crate::data:bot_data.rs`.
