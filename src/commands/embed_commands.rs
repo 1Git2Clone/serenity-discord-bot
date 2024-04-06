@@ -1,4 +1,4 @@
-use crate::commands::{cmd_utils, cmd_utils::get_bot_avatar};
+use crate::commands::cmd_utils;
 use crate::data::command_data::{Context, Error};
 use crate::enums::command_enums::EmbedType;
 use ::serenity::all::Mentionable;
@@ -32,7 +32,7 @@ pub async fn tieup(
                         .image(embed_item.to_string())
                         .footer(
                             serenity::CreateEmbedFooter::new(bot_user.tag())
-                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
                         ),
                 ),
         )
@@ -62,7 +62,7 @@ pub async fn tieup(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -95,7 +95,7 @@ pub async fn pat(
                         .image(embed_item.to_string())
                         .footer(
                             serenity::CreateEmbedFooter::new(bot_user.tag())
-                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
                         ),
                 ),
         )
@@ -120,7 +120,7 @@ pub async fn pat(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -153,7 +153,7 @@ pub async fn hug(
                         .image(embed_item.to_string())
                         .footer(
                             serenity::CreateEmbedFooter::new(bot_user.tag())
-                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
                         ),
                 ),
         )
@@ -178,7 +178,7 @@ pub async fn hug(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -214,7 +214,7 @@ pub async fn kiss(
                         )
                         .footer(
                             serenity::CreateEmbedFooter::new(bot_user.tag())
-                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
                         ),
                 ),
         )
@@ -240,7 +240,7 @@ pub async fn kiss(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -273,7 +273,7 @@ pub async fn slap(
                         .image(embed_item.to_string())
                         .footer(
                             serenity::CreateEmbedFooter::new(bot_user.tag())
-                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
                         ),
                 ),
         )
@@ -303,7 +303,7 @@ pub async fn slap(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -350,7 +350,7 @@ pub async fn punch(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -381,7 +381,7 @@ pub async fn bonk(
                     .image(embed_item.to_string())
                     .footer(
                         serenity::CreateEmbedFooter::new(bot_user.tag())
-                            .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                            .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
                     ),
             ),
         )
@@ -406,7 +406,7 @@ pub async fn bonk(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -439,7 +439,7 @@ pub async fn nom(
                         .image(embed_item.to_string())
                         .footer(
                             serenity::CreateEmbedFooter::new(bot_user.tag())
-                                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
                         ),
                 ),
         )
@@ -464,7 +464,7 @@ pub async fn nom(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -511,7 +511,7 @@ pub async fn kill(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -561,7 +561,7 @@ pub async fn kick(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -610,7 +610,7 @@ pub async fn bury(
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default()
@@ -637,7 +637,7 @@ pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default().embed(embed);
@@ -659,7 +659,7 @@ pub async fn peek(ctx: Context<'_>) -> Result<(), Error> {
         .image(embed_item.to_string())
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
     let full_respone = poise::CreateReply::default().embed(embed);
@@ -717,7 +717,7 @@ pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
         .image(embed_item)
         .footer(
             serenity::CreateEmbedFooter::new(bot_user.tag())
-                .icon_url(get_bot_avatar(ctx, Some(bot_user)).await),
+                .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
     let full_respone = poise::CreateReply::default().embed(embed);
     ctx.send(full_respone).await?;

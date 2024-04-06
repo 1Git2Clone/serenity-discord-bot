@@ -65,7 +65,7 @@ pub async fn level(
         &username, level_xp_and_rank_row.0
     );
     let bot_user = Arc::clone(&ctx.data().bot_user);
-    let bot_avatar = bot_user.face().replace(".webp", ".png");
+    let bot_avatar = Arc::clone(&ctx.data().bot_avatar).to_string();
     let percent_left_to_level_up: f32 = (xp as f32) / (level as f32);
     ctx.send(
         poise::CreateReply::default().embed(
@@ -148,7 +148,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
 
     let response = format!("Guild: {}\n\nTop 9 Users", ctx.guild().unwrap().name);
     let bot_user = Arc::clone(&ctx.data().bot_user);
-    let bot_avatar = bot_user.face().replace(".webp", ".png");
+    let bot_avatar = Arc::clone(&ctx.data().bot_avatar).to_string();
 
     let thumbnail = ctx
         .guild()

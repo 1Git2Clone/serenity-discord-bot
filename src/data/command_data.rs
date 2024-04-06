@@ -9,8 +9,7 @@ use std::sync::Arc;
 pub struct Data {
     pub poise_mentions: AtomicU32,
     pub bot_user: Arc<serenity::CurrentUser>,
-    // I'm not sure why clippy gives a warning, this works just fine...
-    // #[cfg_attr(feature = "serde", serde(skip))]
+    pub bot_avatar: Arc<str>,
 }
 
 /// This is a useful way to test if your structs can be syncronized.
