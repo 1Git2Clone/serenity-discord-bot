@@ -1,8 +1,9 @@
-use super::*;
-use crate::commands::cmd_utils::{get_bot_avatar, get_bot_user};
+use crate::commands::{cmd_utils, cmd_utils::get_bot_avatar};
 use crate::data::command_data::{Context, Error};
 use crate::enums::command_enums::EmbedType;
 use ::serenity::all::Mentionable;
+use poise::serenity_prelude as serenity;
+use std::sync::Arc;
 
 // This is where the poise framework shines since with it you can make
 // a slash and a prefix command work in one function.
@@ -20,7 +21,7 @@ pub async fn tieup(
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::TieUp).await?;
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -83,7 +84,7 @@ pub async fn pat(
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Pat).await?;
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -141,7 +142,7 @@ pub async fn hug(
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Hug).await?;
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -198,7 +199,7 @@ pub async fn kiss(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -261,7 +262,7 @@ pub async fn slap(
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Slap).await?;
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -341,7 +342,7 @@ pub async fn punch(
         poise::Context::Application(_) => Some(target_replied_user.mention()),
     };
 
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
@@ -371,7 +372,7 @@ pub async fn bonk(
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bonk).await?;
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default().content("バカ！").embed(
@@ -427,7 +428,7 @@ pub async fn nom(
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Nom).await?;
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(
             poise::CreateReply::default()
@@ -502,7 +503,7 @@ pub async fn kill(
         poise::Context::Application(_) => Some(target_replied_user.mention()),
     };
 
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
@@ -552,7 +553,7 @@ pub async fn kick(
         poise::Context::Application(_) => Some(target_replied_user.mention()),
     };
 
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
@@ -601,7 +602,7 @@ pub async fn bury(
         poise::Context::Prefix(_) => None,
         poise::Context::Application(_) => Some(target_replied_user.mention()),
     };
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
@@ -628,7 +629,7 @@ pub async fn bury(
 pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::SelfBury).await?;
     let response: String = format!("**{}** *buries themselves*", ctx.author().name,);
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
@@ -650,7 +651,7 @@ pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn peek(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Peek).await?;
     let response: String = format!("{} is lurking . . .", ctx.author().name,);
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
@@ -708,7 +709,7 @@ pub async fn drive(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, prefix_command, rename = "chair")]
 pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Chair).await?;
-    let bot_user = get_bot_user(ctx).await;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
 
     let embed = serenity::CreateEmbed::new()
         .title("You need some motivation!")
@@ -727,7 +728,7 @@ pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
 /// Just try it.
 #[poise::command(slash_command, prefix_command, rename = "boom")]
 pub async fn boom(ctx: Context<'_>) -> Result<(), Error> {
-    let bot_user = ctx.http().get_current_user().await?;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");
 
     ctx.send(

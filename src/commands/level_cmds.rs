@@ -1,4 +1,3 @@
-use super::*;
 use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME};
 use crate::data::command_data::{Context, Error};
 use crate::data::database_interactions::{
@@ -6,7 +5,10 @@ use crate::data::database_interactions::{
 };
 use crate::enums::schemas::DatabaseSchema::*;
 use ::serenity::futures::future::try_join_all;
+use poise::serenity_prelude as serenity;
+use rayon::prelude::*;
 use sqlx::Row;
+use std::sync::Arc;
 
 /// Displays the user's level
 #[poise::command(slash_command, prefix_command, rename = "level")]
@@ -62,11 +64,7 @@ pub async fn level(
         "User stats for: **{}**\n\nRank: {}",
         &username, level_xp_and_rank_row.0
     );
-    let bot_user = ctx
-        .http()
-        .get_user(ctx.framework().bot_id)
-        .await
-        .expect("Retrieving the bot user shouldn't fail.");
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");
     let percent_left_to_level_up: f32 = (xp as f32) / (level as f32);
     ctx.send(
@@ -113,20 +111,21 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         }
     };
     let user_ids: Vec<u64> = level_and_xp_rows
-        .iter()
+        .par_iter()
         .map(|row| row.get::<i64, &str>(DATABASE_COLUMNS[&UserId]) as u64)
         .collect();
     let users = try_join_all(
         user_ids
             .into_iter()
             .map(|user_id| ctx.http().get_user(user_id.into())),
-    );
+    )
+    .await?;
 
     let mut fields: Vec<(String, String, bool)> = Vec::new();
 
     for (counter, (row, user)) in level_and_xp_rows
         .iter()
-        .zip(users.await?.into_iter())
+        .zip(users.into_iter())
         .enumerate()
         .take(9)
     {
@@ -135,14 +134,8 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
             row.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]),
         );
 
-        let name = if user.id == 1 {
-            "Unknown user.".into()
-        } else {
-            user.name
-        };
-
         fields.push((
-            format!("#{} >> {}", counter + 1, name,),
+            format!("#{} >> {}", counter + 1, user.name),
             format!(
                 "Lvl: {}\nXP: {}\nLevel progress: {:.2}%",
                 level,
@@ -154,7 +147,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     let response = format!("Guild: {}\n\nTop 9 Users", ctx.guild().unwrap().name);
-    let bot_user = ctx.http().get_current_user().await?;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");
 
     let thumbnail = ctx

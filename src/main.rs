@@ -72,6 +72,7 @@ use structs::CmdPrefixes;
 
 use poise::serenity_prelude as serenity;
 use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -186,12 +187,14 @@ async fn main() {
             manual_cooldowns: true,
             ..Default::default()
         })
-        .setup(|ctx, _ready, framework| {
+        .setup(|ctx, ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     poise_mentions: AtomicU32::new(0),
-                    // database: database,
+                    // It's better to clone the bot user once when it starts rather than do http
+                    // requests for the serenity::CurrentUser on every comman invocation.
+                    bot_user: Arc::from(ready.user.clone()),
                 })
             })
         })

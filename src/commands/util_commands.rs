@@ -1,11 +1,12 @@
-use super::*;
 use crate::data::bot_data::START_TIME;
 use crate::data::command_data::{Context, Error};
+use poise::serenity_prelude as serenity;
+use std::sync::Arc;
 
 /// Displays the bot's current uptime
 #[poise::command(slash_command, prefix_command, rename = "uptime")]
 pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
-    let bot_user = ctx.http().get_current_user().await?;
+    let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");
 
     let time = START_TIME.elapsed().as_secs();
