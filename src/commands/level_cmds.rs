@@ -116,19 +116,14 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         .collect();
     let users = try_join_all(
         user_ids
-            .into_iter()
-            .map(|user_id| ctx.http().get_user(user_id.into())),
+            .iter()
+            .map(|user_id| ctx.http().get_user((*user_id).into())),
     )
     .await?;
 
     let mut fields: Vec<(String, String, bool)> = Vec::new();
 
-    for (counter, (row, user)) in level_and_xp_rows
-        .iter()
-        .zip(users.into_iter())
-        .enumerate()
-        .take(9)
-    {
+    for (counter, (row, user)) in level_and_xp_rows.iter().zip(users.iter()).enumerate() {
         let (level, xp) = (
             row.get::<i32, &str>(DATABASE_COLUMNS[&Level]),
             row.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]),
