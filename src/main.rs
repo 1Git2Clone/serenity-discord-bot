@@ -195,6 +195,7 @@ async fn main() {
                     // It's better to clone the bot user once when it starts rather than do http
                     // requests for the serenity::CurrentUser on every comman invocation.
                     bot_user: Arc::from(ready.user.clone()),
+                    bot_avatar: Arc::<str>::from(ready.user.face().replace(".webp", ".png")),
                 })
             })
         })

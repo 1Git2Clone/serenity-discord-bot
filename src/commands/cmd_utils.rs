@@ -1,12 +1,7 @@
-use crate::data::{
-    command_data::{Context, Error},
-    embed_media::COMMANDS,
-};
+use crate::data::{command_data::Error, embed_media::COMMANDS};
 use crate::enums::command_enums::EmbedType;
-use poise::serenity_prelude as serenity;
 use rand::prelude::SliceRandom;
 use sqlx::error::BoxDynError;
-use std::sync::Arc;
 
 // Replaced with poise Context method: ctx.get_replied_msg_author()
 // As of April 3 2024 It's a PR to the main poise library and only used from my fork library
@@ -29,22 +24,22 @@ pub async fn get_embed_from_type(embed_type: &EmbedType) -> Result<&'static str,
     }
 }
 
-pub async fn get_bot_user(ctx: Context<'_>) -> Arc<serenity::CurrentUser> {
-    Arc::from(
-        ctx.http()
-            .get_current_user()
-            .await
-            .expect("Retrieving the bot user shouldn't fail."),
-    )
-}
-
-pub async fn get_bot_avatar(
-    ctx: Context<'_>,
-    bot_user: Option<Arc<serenity::CurrentUser>>,
-) -> String {
-    let match_bot_user = match bot_user {
-        Some(user) => user,
-        None => get_bot_user(ctx).await,
-    };
-    match_bot_user.face().replace(".webp", ".png")
-}
+// pub async fn get_bot_user(ctx: Context<'_>) -> Arc<serenity::CurrentUser> {
+//     Arc::from(
+//         ctx.http()
+//             .get_current_user()
+//             .await
+//             .expect("Retrieving the bot user shouldn't fail."),
+//     )
+// }
+//
+// pub async fn get_bot_avatar(
+//     ctx: Context<'_>,
+//     bot_user: Option<Arc<serenity::CurrentUser>>,
+// ) -> String {
+//     let match_bot_user = match bot_user {
+//         Some(user) => user,
+//         None => get_bot_user(ctx).await,
+//     };
+//     match_bot_user.face().replace(".webp", ".png")
+// }
