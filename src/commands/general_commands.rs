@@ -1,3 +1,4 @@
+use crate::commands::cmd_utils::get_replied_user;
 use crate::data::command_data::{Context, Error};
 use poise::serenity_prelude as serenity;
 
@@ -44,7 +45,7 @@ pub async fn age(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
+    let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let response = format!(
         "**{}**'s account was created at {}",
         target_replied_user.name,

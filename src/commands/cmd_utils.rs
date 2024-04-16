@@ -1,18 +1,18 @@
-use crate::data::{command_data::Error, embed_media::COMMANDS};
+use crate::data::{
+    command_data::{Context, Error},
+    embed_media::COMMANDS,
+};
 use crate::enums::command_enums::EmbedType;
 use rand::prelude::SliceRandom;
 use sqlx::error::BoxDynError;
 
-// Replaced with poise Context method: ctx.get_replied_msg_author()
-// As of April 3 2024 It's a PR to the main poise library and only used from my fork library
-// https://github.com/1Kill2Steal/poise
-// pub async fn get_replied_user(ctx: Context<'_>) -> Option<poise::serenity_prelude::User> {
-//     let poise::Context::Prefix(msg_ctx) = ctx else {
-//         return None;
-//     };
-//     let ref_msg = msg_ctx.msg.referenced_message.as_deref();
-//     ref_msg.map(|x| x.author.clone())
-// }
+pub async fn get_replied_user(ctx: Context<'_>) -> &poise::serenity_prelude::User {
+    let poise::Context::Prefix(msg_ctx) = ctx else {
+        return ctx.author();
+    };
+    let ref_msg = msg_ctx.msg.referenced_message.as_deref();
+    ref_msg.map_or(ctx.author(), |x| &x.author)
+}
 
 pub async fn get_embed_from_type(embed_type: &EmbedType) -> Result<&'static str, Error> {
     let embed_option = COMMANDS[embed_type].choose(&mut rand::thread_rng());

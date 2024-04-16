@@ -1,3 +1,4 @@
+use crate::commands::cmd_utils::get_replied_user;
 use crate::data::bot_data::{DATABASE_COLUMNS, DATABASE_FILENAME};
 use crate::data::command_data::{Context, Error};
 use crate::data::database_interactions::{
@@ -25,7 +26,7 @@ pub async fn level(
         }
     };
 
-    let target_replied_user = user.as_ref().unwrap_or(ctx.get_replied_msg_author());
+    let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
     let level_xp_and_rank_row_option = match db.await {
         Ok(pool) => {
@@ -110,6 +111,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
             return Ok(());
         }
     };
+    ctx.defer().await?;
     let user_ids: Vec<u64> = level_and_xp_rows
         .par_iter()
         .map(|row| row.get::<i64, &str>(DATABASE_COLUMNS[&UserId]) as u64)
