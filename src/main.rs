@@ -158,6 +158,8 @@ async fn main() {
                     .map(|x| poise::Prefix::Literal(x.to_owned()))
                     .collect::<Vec<poise::Prefix>>(),
                 mention_as_prefix: true,
+                case_insensitive_commands: true,
+                ignore_bots: true,
                 ..Default::default()
             },
             commands: vec![
