@@ -14,7 +14,7 @@ command.
   a cooldown implementation and periodic cleaning up of the users which aren't
   under cooldown (This was a bit tricky to do because of the Mutex locking and my
   overall skill issue).
-- The levelling system has a nice topranks command which gives a cool-looking embed!
+- The leveling system has a nice topranks command which gives a cool-looking embed!
 - A bot uptime command.
 
 ## Setting up
