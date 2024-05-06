@@ -5,7 +5,7 @@ pub struct CmdPrefixes {
 impl CmdPrefixes {
     pub fn set() -> Self {
         Self {
-            prefixes: vec!["hu", "ht", "!"],
+            prefixes: vec!["hu", "ht"],
         }
     }
 }
