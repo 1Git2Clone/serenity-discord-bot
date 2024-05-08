@@ -210,13 +210,7 @@ async fn main() {
         //         .expect("Something went wrong in setting the custom activity data."),
         // )
         .activity(serenity::ActivityData::custom(format!(
-            "Usable prefixes: [ {} ]",
-            bot_prefixes
-                .prefixes
-                .iter()
-                .map(|x| x.to_owned())
-                .collect::<Vec<&str>>()
-                .join(" ")
+            "Usable prefixes: [ hu, ht ]",
         )))
         .status(serenity::OnlineStatus::Idle)
         .await;
