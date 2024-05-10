@@ -10,9 +10,3 @@ pub enum DatabaseSchema {
     ExperiencePoints,
     LastQueryTimestamp,
 }
-
-fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
-#[test]
-fn normal_types() {
-    _is_normal::<DatabaseSchema>();
-}

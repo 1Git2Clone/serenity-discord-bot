@@ -65,6 +65,8 @@ use event_handler::handler::event_handler;
 mod structs;
 use structs::CmdPrefixes;
 
+mod tests;
+
 // #endregion
 
 // Used the quickstart guide for poise (serenity-rs command framework)
