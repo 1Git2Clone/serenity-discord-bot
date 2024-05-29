@@ -2,21 +2,21 @@
 
 # Define stages
 stages:
-  - build_docker_image
+  - docker_compose
   - build_rust
   - test
 
 # Docker Image CI job
 Docker_Image_CI:
-  stage: build_docker_image
+  stage: docker_compose
   image: ubuntu:latest
   variables:
     DOCKER_CLI_EXPERIMENTAL: enabled # Enabling Docker experimental CLI features
   before_script:
     - apt-get update -y # Update package index
-    - apt-get install -y docker.io # Install Docker
+    - apt-get install -y docker-compose # Install docker-compose (normal docker is deprecated)
   script:
-    - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    - docker-compose up -d
 
 # Rust job
 Rust:
