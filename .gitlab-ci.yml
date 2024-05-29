@@ -9,6 +9,12 @@ stages:
 # Docker Image CI job
 Docker_Image_CI:
   stage: build_docker_image
+  image: ubuntu:latest
+  variables:
+    DOCKER_CLI_EXPERIMENTAL: enabled # Enabling Docker experimental CLI features
+  before_script:
+    - apt-get update -y # Update package index
+    - apt-get install -y docker.io # Install Docker
   script:
     - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
 
