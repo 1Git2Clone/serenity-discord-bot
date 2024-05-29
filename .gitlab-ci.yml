@@ -13,8 +13,8 @@ Docker_Image_CI:
   variables:
     DOCKER_CLI_EXPERIMENTAL: enabled # Enabling Docker experimental CLI features
   before_script:
-    - apt-get update -y # Update package index
-    - apt-get install -y docker-compose # Install docker-compose (normal docker is deprecated)
+    - apt-get update -y
+    - apt-get install -y docker.io docker-compose python3-distutils
   script:
     - docker-compose up -d
 
