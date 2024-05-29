@@ -10,9 +10,7 @@ stages:
 Docker_Image_CI:
   stage: build_docker_image
   script:
-    - docker volume create --name database
-    - docker build -t serenity-discord-bot .
-    - docker run -v ./database:/app/database -d --env-file .env serenity-discord-bot
+    - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
 
 # Rust job
 Rust:
