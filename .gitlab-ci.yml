@@ -10,11 +10,9 @@ stages:
 Docker_Image_CI:
   stage: docker_compose
   image: ubuntu:latest
-  variables:
-    DOCKER_CLI_EXPERIMENTAL: enabled # Enabling Docker experimental CLI features
   before_script:
     - apt-get update -y
-    - apt-get install -y docker.io docker-compose
+    - apt-get install -y docker-compose
   script:
     - docker-compose up
 
