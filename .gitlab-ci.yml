@@ -6,10 +6,6 @@ stages:
   - build_rust
   - test
 
-# Docker-in-Docker service
-services:
-  - docker:dind
-
 # Docker Image CI job
 Docker_Image_CI:
   stage: build_docker_image
