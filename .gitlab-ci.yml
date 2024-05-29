@@ -11,7 +11,7 @@ stages:
 Docker_Image_CI:
   stage: build_docker_image
   script:
-    - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    - chmod +x ./auto_docker.sh && ./auto_docker.sh
 
 # Rust job
 Rust:
