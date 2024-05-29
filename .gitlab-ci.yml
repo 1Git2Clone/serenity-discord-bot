@@ -1,3 +1,32 @@
+# GitLab CI/CD configuration
+
+# Define stages
+stages:
+  - build_docker_image
+  - build_rust
+  - test
+  - security_scan
+
+# Docker Image CI job
+Docker_Image_CI:
+  stage: build_docker_image
+  script:
+    - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+
+# Rust job
+Rust:
+  stage: build_rust
+  image: rust:latest
+  script:
+    - cargo build --verbose
+
+# Run tests job
+Run_tests:
+  stage: test
+  image: rust:latest
+  script:
+    - cargo test --verbose
+
 # You can override the included template(s) by including variable overrides
 # SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
 # Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/pipeline/#customization
@@ -5,9 +34,9 @@
 # Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
 # Note that environment variables can be set in several places
 # See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
-stages:
-  - test
-sast:
-  stage: test
-include:
-  - template: Security/SAST.gitlab-ci.yml
+
+# SAST (Static Application Security Testing) job
+SAST_Security_Scan:
+  stage: security_scan
+  include:
+    - template: Security/SAST.gitlab-ci.yml
