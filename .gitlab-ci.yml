@@ -16,7 +16,7 @@ Docker_Image_CI:
     - apt-get update -y
     - apt-get install -y docker.io docker-compose
   script:
-    - docker-compose up -d
+    - docker-compose up
 
 # Rust job
 Rust:
