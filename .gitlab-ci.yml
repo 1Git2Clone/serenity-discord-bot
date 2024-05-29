@@ -10,6 +10,9 @@ stages:
 Docker_Image_CI:
   stage: docker_compose
   image: ubuntu:latest
+  before_script:
+    - apt-get update -y
+    - apt-get install -y docker-compose --upgrade
   script:
     - docker-compose up
 
