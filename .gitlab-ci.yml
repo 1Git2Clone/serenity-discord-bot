@@ -38,5 +38,5 @@ Run_tests:
 # SAST (Static Application Security Testing) job
 SAST_Security_Scan:
   stage: security_scan
-  include:
-    - template: Security/SAST.gitlab-ci.yml
+include:
+  - template: Security/SAST.gitlab-ci.yml
