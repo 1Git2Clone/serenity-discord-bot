@@ -6,7 +6,7 @@
 [GH_Build Status]: https://github.com/1git2clone/serenity-discord-bot/actions?query=branch%3Amaster
 [Build Icon]: https://gitlab.com/1k2s/serenity-discord-bot/badges/main/pipeline.svg
 [Build Status]: https://gitlab.com/1k2s/serenity-discord-bot/-/pipelines
-[License Icon]: https://img.shields.io/badge/license-MIT-blue.svg
+[License Icon]: https://img.shields.io/badge/license-Apache2.0-blue.svg
 [License]: LICENSE
 
 ## Features overview
