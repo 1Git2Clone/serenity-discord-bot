@@ -9,6 +9,26 @@
 [License Icon]: https://img.shields.io/badge/license-Apache2.0-blue.svg
 [License]: LICENSE
 
+<!-- markdownlint-disable MD033 -->
+<p>
+  <img
+    height="50px"
+    src="https://codeberg.org/1Kill2Steal/skill-icons/raw/branch/main/icons/Rust.svg"
+    alt="Rust"
+  />
+  <img
+    height="50px"
+    src="https://codeberg.org/1Kill2Steal/skill-icons/raw/branch/main/icons/SQLite.svg"
+    alt="SQLite"
+  />
+  <img
+    height="50px"
+    src="https://codeberg.org/1Kill2Steal/skill-icons/raw/branch/main/icons/Docker.svg"
+    alt="Docker"
+  />
+</p>
+<!-- markdownlint-enable MD033 -->
+
 ## Features overview
 
 This is a list of some of the Bots available features. For a more comprehensive
