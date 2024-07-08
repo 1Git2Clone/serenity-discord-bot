@@ -195,7 +195,7 @@ async fn main() {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
-                    poise_mentions: AtomicU32::new(0),
+                    poise_mentions: AtomicU32::new(1),
                     // It's better to clone the bot user once when it starts rather than do http
                     // requests for the serenity::CurrentUser on every comman invocation.
                     bot_user: Arc::from(ready.user.clone()),
