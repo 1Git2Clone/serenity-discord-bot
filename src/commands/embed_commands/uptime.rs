@@ -1,7 +1,4 @@
-use crate::data::bot_data::START_TIME;
-use crate::data::command_data::{Context, Error};
-use poise::serenity_prelude as serenity;
-use std::sync::Arc;
+use super::*;
 
 /// Displays the bot's current uptime
 #[poise::command(slash_command, prefix_command, rename = "uptime")]

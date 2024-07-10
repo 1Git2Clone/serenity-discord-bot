@@ -186,7 +186,7 @@ async fn main() {
                 commands::embed_commands::drive(),
                 commands::embed_commands::chair(),
                 commands::embed_commands::boom(),
-                commands::util_commands::uptime(),
+                commands::embed_commands::uptime(),
             ],
             manual_cooldowns: true,
             ..Default::default()
