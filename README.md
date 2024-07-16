@@ -78,7 +78,7 @@ rustc extra_utils\generate_dotenv.rs -o bin\generate_dotenv
 
 After you've configured your dotenv (.env) files, you can just run
 
-```
+```sh
 cargo install sqlx-cli
 
 sqlx database setup
