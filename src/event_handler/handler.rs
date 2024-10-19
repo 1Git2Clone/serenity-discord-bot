@@ -1,4 +1,5 @@
 //! The event handler is a unique part of Discord bots as a whole.
+//!
 //! The main purpose of it is to listen to specific events and do an action based on the event
 //! information. More information on all the ways you can manage the
 //! poise::serenity_prelude::FullEvent enum can be found on the poise documentation page:
