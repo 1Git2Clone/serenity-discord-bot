@@ -21,11 +21,6 @@ pub async fn event_handler(
     _framework: poise::FrameworkContext<'_, Data, Error>,
     data: &Data,
 ) -> Result<(), Error> {
-    // TODO Add normal prefix message command handling
-    // // To surpress the single match arm clippy warning.
-    // if let serenity::FullEvent::Ready { data_about_bot, .. } = event {
-    //     println!("{} logged in!", data_about_bot.user.name);
-    // }
     match event {
         serenity::FullEvent::Ready { data_about_bot, .. } => {
             println!(
