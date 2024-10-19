@@ -1,5 +1,3 @@
-#[cfg(test)]
-
 /// This is a useful way to test if your structs can be syncronized.
 /// Take for example using Rc<T> instead of Arc<T>
 /// It'll give an error on compile time telling you that you can't synchronize the data safely.
@@ -18,6 +16,7 @@
 ///
 /// Tutorial vid for the topic:
 /// https://www.youtube.com/watch?v=Nzclc6MswaI
+#[cfg(test)]
 fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
 
 #[test]
