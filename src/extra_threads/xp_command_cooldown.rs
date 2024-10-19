@@ -1,4 +1,5 @@
 //! This file is running on a seperate thread for optimization purposes.
+//!
 //! We don't want a GC-line part of the code interrupt the main flow of the program so we just take
 //! it out and move it to another thread. This is the nice part about global state management.
 
