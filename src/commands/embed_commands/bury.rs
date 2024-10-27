@@ -6,16 +6,17 @@ pub async fn bury(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bury).await?;
-    if target_replied_user == ctx.author() {
+    if user.is_none() {
         ctx.send(poise::CreateReply::default().content(format!(
             "{} Just use the `!selfbury` or `/selfbury` command bruh...",
-            target_replied_user.mention()
+            ctx.author().mention()
         )))
         .await?;
         return Ok(());
     }
+
+    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bury).await?;
+    let target_replied_user = user.as_ref().unwrap();
 
     let response: String = format!(
         "**{}** *buries* **{}**",
