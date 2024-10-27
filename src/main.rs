@@ -167,6 +167,7 @@ async fn main() {
             commands: vec![
                 commands::general_commands::help(),
                 commands::general_commands::age(),
+                commands::general_commands::cookie(),
                 commands::level_cmds::level(),
                 commands::level_cmds::toplevels(),
                 commands::embed_commands::tieup(),
