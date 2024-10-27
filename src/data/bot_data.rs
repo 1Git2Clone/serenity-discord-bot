@@ -1,4 +1,6 @@
-use crate::enums::schemas::DatabaseSchema;
+use crate::{
+    enums::schemas::DatabaseSchema, utils::string_manipulation::upper_lowercase_permutations,
+};
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
@@ -24,4 +26,11 @@ lazy_static! {
         ])
     };
     pub(crate) static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
+    pub(crate) static ref BOT_PREFIXES: Vec<String> = {
+            let mut temp = vec![];
+            temp.append(&mut upper_lowercase_permutations("hu"));
+            temp.append(&mut upper_lowercase_permutations("ht"));
+
+            temp
+    };
 }

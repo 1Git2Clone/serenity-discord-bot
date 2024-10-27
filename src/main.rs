@@ -51,7 +51,7 @@ mod commands;
 // use commands::general_commands::*;
 
 mod data;
-use data::bot_data::{BOT_TOKEN, START_TIME};
+use data::bot_data::{BOT_PREFIXES, BOT_TOKEN, START_TIME};
 use data::command_data::Data;
 
 mod enums;
@@ -62,8 +62,7 @@ use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
 mod event_handler;
 use event_handler::handler::event_handler;
 
-mod structs;
-use structs::CmdPrefixes;
+mod utils;
 
 mod tests;
 
@@ -79,8 +78,6 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
-
-    let bot_prefixes = CmdPrefixes::set();
 
     dotenv::dotenv().ok();
     periodically_clean_users_on_diff_thread();
@@ -154,10 +151,9 @@ async fn main() {
 
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: None,
-                additional_prefixes: bot_prefixes
-                    .prefixes
+                additional_prefixes: BOT_PREFIXES
                     .iter()
-                    .map(|x| poise::Prefix::Literal(x.to_owned()))
+                    .map(|x| poise::Prefix::Literal(x.as_str()))
                     .collect::<Vec<poise::Prefix>>(),
                 mention_as_prefix: true,
                 case_insensitive_commands: true,
@@ -214,8 +210,7 @@ async fn main() {
         // )
         .activity(serenity::ActivityData::custom(format!(
             "Usable prefixes: [ {} ]",
-            bot_prefixes
-                .prefixes
+            BOT_PREFIXES
                 .iter()
                 .filter(|&x| x.chars().all(|c| c.is_lowercase()))
                 .map(|x| x.to_string())
