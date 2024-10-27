@@ -24,10 +24,8 @@ fn normal_types() {
     use crate::data::command_data::Data;
     use crate::enums::command_enums::EmbedType;
     use crate::enums::schemas::DatabaseSchema;
-    use crate::structs::CmdPrefixes;
 
     _is_normal::<Data>();
     _is_normal::<EmbedType>();
     _is_normal::<DatabaseSchema>();
-    _is_normal::<CmdPrefixes>();
 }
