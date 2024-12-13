@@ -12,11 +12,11 @@ lazy_static = "1.4.0"
 poise = "0.6.1"
 serenity = "0.12.0"
 tokio = { version = "1.36.0", features = ["full"] }
-webbrowser = "0.8.12"
 rand = "0.8.5"
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite"] }
+sqlx = { version = "0.8.2", features = ["runtime-tokio-rustls", "sqlite"] }
 chrono = "0.4.35"
 rayon = "1.10.0"
 
 [features]
 serde = ["dep:serde"]
+debug = []

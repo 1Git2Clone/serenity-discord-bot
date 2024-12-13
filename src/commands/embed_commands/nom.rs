@@ -33,11 +33,6 @@ pub async fn nom(
         target_replied_user.name
     );
 
-    let ping_on_shash_command: Option<poise::serenity_prelude::Mention> = match ctx {
-        poise::Context::Prefix(_) => None,
-        poise::Context::Application(_) => Some(target_replied_user.mention()),
-    };
-
     let embed = serenity::CreateEmbed::new()
         .title(response)
         .color((255, 0, 0))
@@ -47,12 +42,7 @@ pub async fn nom(
                 .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
         );
 
-    let full_respone = poise::CreateReply::default()
-        .content(match ping_on_shash_command {
-            Some(ping) => format!("{}", ping),
-            None => "".to_owned(),
-        })
-        .embed(embed);
+    let full_respone = make_full_response(&ctx, target_replied_user, Some(embed)).await;
     ctx.send(full_respone).await?;
 
     Ok(())

@@ -56,12 +56,12 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
 
     let response = format!("Guild: {}\n\nTop 9 Users", ctx.guild().unwrap().name);
     let bot_user = Arc::clone(&ctx.data().bot_user);
-    let bot_avatar = Arc::clone(&ctx.data().bot_avatar).to_string();
+    let bot_avatar = Arc::clone(&ctx.data().bot_avatar);
 
     let thumbnail = ctx
         .guild()
         .and_then(|guild| guild.icon_url())
-        .unwrap_or_else(|| bot_avatar.to_owned());
+        .unwrap_or_else(|| bot_avatar.to_string());
 
     ctx.send(
         poise::CreateReply::default().embed(
@@ -70,7 +70,10 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
                 .fields(fields)
                 .thumbnail(thumbnail)
                 .color((255, 0, 0))
-                .footer(serenity::CreateEmbedFooter::new(bot_user.tag()).icon_url(bot_avatar)),
+                .footer(
+                    serenity::CreateEmbedFooter::new(bot_user.tag())
+                        .icon_url(bot_avatar.to_string()),
+                ),
         ),
     )
     .await?;

@@ -1,23 +1,5 @@
-/// This is a useful way to test if your structs can be syncronized.
-/// Take for example using Rc<T> instead of Arc<T>
-/// It'll give an error on compile time telling you that you can't synchronize the data safely.
-///
-/// NOTE - The Arc<T> vs Rc<T> example won't work with this exact code sample because both of
-/// them can't be serialized. (serde::Serialize)
-/// In order to use data that can't be serialized or deserlialized you need to do the following:
-///
-/// ```rust
-/// pub struct Data {
-///     // Existing data...
-///     #[cfg_attr(feature = "serde", serde(skip))]
-///     pub some_unserializable_data: std::sync::Arc<i32>,
-/// }
-/// ```
-///
-/// Tutorial vid for the topic:
-/// https://www.youtube.com/watch?v=Nzclc6MswaI
 #[cfg(test)]
-fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
+fn sized_send_sunc_unpin<T: Sized + Send + Sync + Unpin>() {}
 
 #[test]
 fn normal_types() {
@@ -25,7 +7,7 @@ fn normal_types() {
     use crate::enums::command_enums::EmbedType;
     use crate::enums::schemas::DatabaseSchema;
 
-    _is_normal::<Data>();
-    _is_normal::<EmbedType>();
-    _is_normal::<DatabaseSchema>();
+    sized_send_sunc_unpin::<Data>();
+    sized_send_sunc_unpin::<EmbedType>();
+    sized_send_sunc_unpin::<DatabaseSchema>();
 }

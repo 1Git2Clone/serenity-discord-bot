@@ -5,15 +5,16 @@
 //! poise::serenity_prelude::FullEvent enum can be found on the poise documentation page:
 //! https://docs.rs/poise/latest/poise/serenity_prelude/enum.FullEvent.html
 
-use crate::data::{
-    // bot_data::BOT_PREFIX,
-    bot_data::{DATABASE_FILENAME, START_TIME},
-    command_data::{Data, Error},
-    database_interactions::*,
+use crate::{
+    data::{
+        bot_data::{DATABASE_FILENAME, START_TIME},
+        command_data::{Data, Error},
+        database_interactions::*,
+    },
+    utils::{replies::handle_replies, string_manipulation::is_in_emoji},
 };
 use poise::serenity_prelude as serenity;
 use rand::Rng;
-use std::sync::atomic::Ordering;
 
 pub async fn event_handler(
     ctx: &serenity::Context,
@@ -23,6 +24,7 @@ pub async fn event_handler(
 ) -> Result<(), Error> {
     match event {
         serenity::FullEvent::Ready { data_about_bot, .. } => {
+            #[cfg(feature = "debug")]
             println!(
                 "\n!!! DISCORD BOT STARTED SUCCESSFULLY IN {} MILISECONDS !!!\nFrameworks   : [serenity, poise]\nAsync runtime: [tokio]\n\n=> Logged in as: {}",
                 START_TIME.elapsed().as_millis(),
@@ -41,6 +43,7 @@ pub async fn event_handler(
             _ if new_message.author.bot => {}
 
             msg => {
+                #[cfg(feature = "debug")]
                 println!(
                     "! NEW MESSAGE !\nGuildID:  {}\nUserID:   {}\nUsername: {}\nMsg:      {}\n",
                     &new_message.guild_id.unwrap_or_default(),
@@ -48,31 +51,36 @@ pub async fn event_handler(
                     &new_message.author.name,
                     &new_message.content,
                 );
-                if (msg.contains("hutao") || msg.contains("hu tao"))
-                    && msg.contains("damn")
-                    && msg.contains("mains")
-                {
-                    data.poise_mentions.fetch_add(1, Ordering::SeqCst);
-                    new_message.reply(ctx, "Any last words?").await?;
-                } else if msg.contains("hutao") || msg.contains("hu tao") {
-                    let mentions = data.poise_mentions.fetch_add(1, Ordering::SeqCst);
-                    new_message
-                        .reply(ctx, format!("Hu Tao has been mentioned {} times", mentions))
-                        .await?;
-                }
+                let emoji_pattern = "hutao";
+                match is_in_emoji(&msg.to_lowercase(), emoji_pattern) {
+                    Some(is_emoji) if !is_emoji => {
+                        handle_replies(ctx, new_message, data, msg).await?
+                    }
+                    Some(_emoji) => {
+                        #[cfg(feature = "debug")]
+                        println!("Msg: {} has an emoji!", msg);
+                    }
+                    None => {
+                        #[cfg(feature = "debug")]
+                        println!(
+                            "Emoji pattern {} not found in message: {}",
+                            emoji_pattern, msg
+                        );
+                    }
+                };
 
                 let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
                 match db.await {
                     Ok(pool) => {
                         let obtained_xp: i32 = rand::thread_rng().gen_range(5..=15);
+
+                        #[cfg(feature = "debug")]
                         println!("Connected to the database: {pool:?}");
-                        let status = add_or_update_db_user(
-                            pool,
-                            new_message.to_owned(),
-                            ctx.to_owned(),
-                            obtained_xp,
-                        )
-                        .await;
+
+                        let status =
+                            add_or_update_db_user(pool, new_message, ctx, obtained_xp).await;
+
+                        #[cfg(feature = "debug")]
                         println!("Status: {:#?}", status);
                     }
                     Err(why) => eprintln!("Failed to connect to the database: {why:?}"),

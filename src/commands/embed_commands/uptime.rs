@@ -15,9 +15,10 @@ pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
         .unwrap_or(&("seconds", 1));
 
     let parsed_time = match value {
-        1 => format!("{} seconds", time as f64 / value.to_owned() as f64),
-        _ => format!("{:.2} {} ", time as f64 / value.to_owned() as f64, unit),
+        1 => format!("{} seconds", time as f64 / *value as f64),
+        _ => format!("{:.2} {} ", time as f64 / *value as f64, unit),
     };
+
     ctx.send(
         poise::CreateReply::default().embed(
             serenity::CreateEmbed::default()

@@ -1,10 +1,5 @@
 use super::*;
 
-// const LEVEL_STEPS: [f32; 15] = [
-//     6.66, 13.33, 20.0, 26.66, 33.33, 40.0, 46.66, 53.33, 59.99, 66.66, 73.33, 80.0, 86.66, 93.33,
-//     100.0,
-// ];
-
 const LEVEL_STEPS: [f32; 14] = [
     7.14, 14.28, 21.41, 28.56, 35.69, 42.83, 49.98, 57.12, 64.25, 71.39, 78.53, 85.67, 92.82, 99.96,
 ];
@@ -67,17 +62,6 @@ pub async fn level(
     let bot_avatar = Arc::clone(&ctx.data().bot_avatar).to_string();
     let percent_left_to_level_up: f32 = (xp as f32) / (level as f32);
     let progress_bar: String = {
-        // let step: i32 = 10;
-        // (step..=100)
-        //     .step_by(step as usize)
-        //     .map(|x| {
-        //         if percent_left_to_level_up as i32 > x {
-        //             return "█";
-        //         };
-        //         "▒"
-        //     })
-        //     .collect()
-
         LEVEL_STEPS
             .iter()
             .map(|x| {

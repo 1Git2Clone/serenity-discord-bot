@@ -8,7 +8,7 @@ use sqlx::Row;
 use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, Error, SqlitePool};
 use std::{future::Future, path::Path};
 
-use crate::data::bot_data::{DATABASE_COLUMNS, XP_COOLDOWN_NUMBER_SECS};
+use crate::data::bot_data::{DATABASE_COLUMNS, DEFAULT_LEVEL, DEFAULT_XP, XP_COOLDOWN_NUMBER_SECS};
 use crate::data::user_data::USER_COOLDOWNS;
 
 use super::bot_data::DATABASE_USERS;
@@ -38,7 +38,7 @@ async fn add_user_if_not_exists(
     let query = format!(
         "INSERT INTO `{}` (`{}`, `{}`, `{}`, `{}`)
          VALUES (?, ?, ?, ?)",
-        DATABASE_USERS.to_owned(),
+        DATABASE_USERS,
         DATABASE_COLUMNS[&UserId],
         DATABASE_COLUMNS[&GuildId],
         DATABASE_COLUMNS[&ExperiencePoints],
@@ -48,8 +48,8 @@ async fn add_user_if_not_exists(
     sqlx::query(&query)
         .bind(user.id.to_string())
         .bind(guild_id.to_string())
-        .bind(0)
-        .bind(1)
+        .bind(DEFAULT_XP)
+        .bind(DEFAULT_LEVEL)
         .execute(&db)
         .await?;
 
@@ -70,7 +70,7 @@ pub async fn fetch_user_level(
             DATABASE_COLUMNS[&ExperiencePoints],
             DATABASE_COLUMNS[&Level],
             //
-            DATABASE_USERS.to_owned(),
+            DATABASE_USERS,
             //
             DATABASE_COLUMNS[&UserId],
             DATABASE_COLUMNS[&GuildId]
@@ -135,7 +135,7 @@ pub async fn fetch_top_nine_levels_in_guild(
             DATABASE_COLUMNS[&Level],
             DATABASE_COLUMNS[&Level],
             //
-            DATABASE_USERS.to_owned(),
+            DATABASE_USERS,
             DATABASE_COLUMNS[&GuildId],
             DATABASE_COLUMNS[&Level],
             DATABASE_COLUMNS[&ExperiencePoints],
@@ -157,8 +157,8 @@ pub async fn fetch_top_nine_levels_in_guild(
 /// parameter for add_user_if_not_exists() in order to save computing resources.
 pub async fn add_or_update_db_user(
     db: SqlitePool,
-    message: serenity::Message,
-    ctx: serenity::Context,
+    message: &serenity::Message,
+    ctx: &serenity::Context,
     obtained_xp: i32,
 ) -> Result<(), Error> {
     let query_cooldown_secs: i64 = *XP_COOLDOWN_NUMBER_SECS;
@@ -174,20 +174,31 @@ pub async fn add_or_update_db_user(
         // https://doc.rust-lang.org/std/sync/struct.Mutex.html
 
         let mut cooldown_timestamps = USER_COOLDOWNS.lock().unwrap();
+        #[cfg(feature = "debug")]
         println!("{:#?}", cooldown_timestamps);
 
-        if let Some(user_in_guild_timestamp) = cooldown_timestamps.get(&(user.id, guild_id)) {
-            if user_in_guild_timestamp + query_cooldown_secs > current_timestamp {
-                println!(
-                    "> The user {} is on cooldown!\n Time remaining: {:#?}",
-                    user.name,
-                    current_timestamp - (user_in_guild_timestamp + query_cooldown_secs)
-                );
-                return Ok(());
+        let key = &(user.id, guild_id);
+
+        if let Some(user_in_guild_timestamp) = cooldown_timestamps.get(key) {
+            match user_in_guild_timestamp + query_cooldown_secs > current_timestamp {
+                true => {
+                    #[cfg(feature = "debug")]
+                    println!(
+                        "> The user {} is on cooldown!\n Time remaining: {:#?}",
+                        user.name,
+                        current_timestamp - (user_in_guild_timestamp + query_cooldown_secs)
+                    );
+
+                    return Ok(());
+                }
+                false => {
+                    cooldown_timestamps.remove(key);
+                }
             }
+        } else {
+            cooldown_timestamps.insert(*key, current_timestamp);
         };
 
-        cooldown_timestamps.insert((user.id, guild_id), current_timestamp);
         println!("{:#?}", cooldown_timestamps);
     }
 
@@ -246,7 +257,7 @@ pub async fn add_or_update_db_user(
         "UPDATE `{}`
          SET `{}` = ?, `{}` = ?
          WHERE `{}` = ? AND `{}` = ?",
-        DATABASE_USERS.to_owned(),
+        DATABASE_USERS,
         //
         DATABASE_COLUMNS[&ExperiencePoints],
         DATABASE_COLUMNS[&Level],
