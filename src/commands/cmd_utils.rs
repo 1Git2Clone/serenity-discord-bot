@@ -3,10 +3,12 @@ use crate::data::{
     embed_media::COMMANDS,
 };
 use crate::enums::command_enums::EmbedType;
+use ::serenity::all::Mentionable;
+use poise::serenity_prelude as serenity;
 use rand::prelude::SliceRandom;
 use sqlx::error::BoxDynError;
 
-pub async fn get_replied_user(ctx: Context<'_>) -> &poise::serenity_prelude::User {
+pub async fn get_replied_user(ctx: Context<'_>) -> &serenity::User {
     let poise::Context::Prefix(msg_ctx) = ctx else {
         return ctx.author();
     };
@@ -24,22 +26,24 @@ pub async fn get_embed_from_type(embed_type: &EmbedType) -> Result<&'static str,
     }
 }
 
-// pub async fn get_bot_user(ctx: Context<'_>) -> Arc<serenity::CurrentUser> {
-//     Arc::from(
-//         ctx.http()
-//             .get_current_user()
-//             .await
-//             .expect("Retrieving the bot user shouldn't fail."),
-//     )
-// }
-//
-// pub async fn get_bot_avatar(
-//     ctx: Context<'_>,
-//     bot_user: Option<Arc<serenity::CurrentUser>>,
-// ) -> String {
-//     let match_bot_user = match bot_user {
-//         Some(user) => user,
-//         None => get_bot_user(ctx).await,
-//     };
-//     match_bot_user.face().replace(".webp", ".png")
-// }
+pub async fn make_full_response(
+    ctx: &Context<'_>,
+    target_replied_user: &serenity::User,
+    embed: Option<serenity::CreateEmbed>,
+) -> poise::CreateReply {
+    let ping_on_shash_command: Option<poise::serenity_prelude::Mention> = match ctx {
+        poise::Context::Prefix(_) => None,
+        poise::Context::Application(_) => Some(target_replied_user.mention()),
+    };
+
+    let mut reply = poise::CreateReply::default().content(match ping_on_shash_command {
+        Some(ping) => format!("{}", ping),
+        None => "".into(),
+    });
+
+    if let Some(e) = embed {
+        reply = reply.embed(e);
+    };
+
+    reply
+}

@@ -1,5 +1,5 @@
 /// dependencies for the commands.
-use crate::commands::{cmd_utils, cmd_utils::get_replied_user};
+use crate::commands::{cmd_utils, cmd_utils::get_replied_user, cmd_utils::make_full_response};
 use crate::data::bot_data::START_TIME;
 use crate::data::command_data::{Context, Error};
 use crate::enums::command_enums::EmbedType;

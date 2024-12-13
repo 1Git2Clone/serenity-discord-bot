@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Data {
-    pub poise_mentions: AtomicU32,
+    pub hutao_mentions: AtomicU32,
     pub bot_user: Arc<serenity::CurrentUser>,
     pub bot_avatar: Arc<str>,
 }

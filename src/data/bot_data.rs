@@ -8,6 +8,9 @@ use lazy_static::lazy_static;
 pub const DATABASE_FILENAME: &str = "database/bot_database.sqlite";
 pub const DATABASE_USERS: &str = "user_stats";
 
+pub const DEFAULT_XP: i64 = 0;
+pub const DEFAULT_LEVEL: i64 = 1;
+
 lazy_static! {
     #[derive(Debug)] // So it can be printed in main.rs (you shouldn't do it tho)
     pub(crate) static ref BOT_TOKEN: String =
