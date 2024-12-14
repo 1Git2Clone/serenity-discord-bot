@@ -38,6 +38,6 @@ lazy_static! {
             temp
     };
 
-    // https://regex101.com/r/aX8vec/2
-    pub(crate) static ref EMOJIS_AND_IMAGE_EMOJIS_REGEX: Regex = Regex::new(r"(:|\[)([a-zA-Z0-9_]+)(:|\])").unwrap();
+    // https://regex101.com/r/aX8vec/3
+    pub(crate) static ref EMOJIS_AND_IMAGE_EMOJIS_REGEX: Regex = Regex::new(r"((:|\[)([a-zA-Z0-9_]+)(:|\]))|\([^()]*\)").unwrap();
 }
