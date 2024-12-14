@@ -11,7 +11,7 @@ use crate::{
         command_data::{Data, Error},
         database_interactions::*,
     },
-    utils::{replies::handle_replies, string_manipulation::non_emoji_match},
+    utils::{replies::handle_replies, string_manipulation::remove_emojis_from_str},
 };
 use poise::serenity_prelude as serenity;
 use rand::Rng;
@@ -51,8 +51,13 @@ pub async fn event_handler(
                     &new_message.author.name,
                     &new_message.content,
                 );
-                let emoji_pattern = "hutao";
-                match non_emoji_match(&msg.to_lowercase(), emoji_pattern) {
+                let text_patterns = ["hutao", "hu tao"];
+                let lowercase_msg = msg.to_lowercase();
+                let trimmed_emojis = remove_emojis_from_str(&lowercase_msg);
+                match text_patterns
+                    .iter()
+                    .any(|text| trimmed_emojis.contains(text))
+                {
                     true => handle_replies(ctx, new_message, data, msg).await?,
                     false => {
                         #[cfg(feature = "debug")]
