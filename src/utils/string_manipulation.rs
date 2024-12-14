@@ -1,4 +1,4 @@
-use crate::data::bot_data::EMOJIS_REGEX;
+use crate::data::bot_data::EMOJIS_AND_IMAGE_EMOJIS_REGEX;
 
 pub fn upper_lowercase_permutations(data: &str) -> Vec<String> {
     if data.is_empty() {
@@ -33,8 +33,11 @@ pub fn upper_lowercase_permutations(data: &str) -> Vec<String> {
 /// assert_eq!(non_emoji_match(":message hutao:", "hutao"), true);
 /// assert_eq!(non_emoji_match(":hutaoemoji:", "hutao"), false);
 /// assert_eq!(non_emoji_match(":htaoemoji:", "hutao"), false);
+/// assert_eq!(non_emoji_match("[message hutao]", "hutao"), true);
+/// assert_eq!(non_emoji_match("[hutaoemoji]", "hutao"), false);
+/// assert_eq!(non_emoji_match("[htaoemoji]", "hutao"), false);
 /// ```
 pub fn non_emoji_match(whole_str: &str, lookup_pattern: &str) -> bool {
-    let trimmed_emojis = EMOJIS_REGEX.replace_all(whole_str, "");
+    let trimmed_emojis = EMOJIS_AND_IMAGE_EMOJIS_REGEX.replace_all(whole_str, "");
     trimmed_emojis.contains(lookup_pattern)
 }
