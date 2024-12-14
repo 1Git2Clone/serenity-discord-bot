@@ -4,6 +4,7 @@ use crate::{
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
+use regex::Regex;
 
 pub const DATABASE_FILENAME: &str = "database/bot_database.sqlite";
 pub const DATABASE_USERS: &str = "user_stats";
@@ -36,4 +37,7 @@ lazy_static! {
 
             temp
     };
+
+    // https://regex101.com/r/aX8vec/1
+    pub(crate) static ref EMOJIS_REGEX: Regex = Regex::new(r"(^|\s):([a-zA-Z0-9_]+):(\s|$)").unwrap();
 }
