@@ -1,3 +1,5 @@
+use regex::Regex;
+
 pub fn upper_lowercase_permutations(data: &str) -> Vec<String> {
     if data.is_empty() {
         return vec![String::new()];
@@ -22,35 +24,19 @@ pub fn upper_lowercase_permutations(data: &str) -> Vec<String> {
 ///
 ///
 /// ```rust
-/// use serenity_discord_bot::utils::string_manipulation::is_in_emoji;
+/// use serenity_discord_bot::utils::string_manipulation::non_emoji_match;
 ///
-/// assert_eq!(is_in_emoji(":hutao:", "hutao"), Some(true));
-/// assert_eq!(is_in_emoji(":hutao", "hutao"), Some(false));
-/// assert_eq!(is_in_emoji("hutao:", "hutao"), Some(false));
-/// assert_eq!(is_in_emoji("Some longer example : messsage hutao:", "hutao"), Some(false));
-/// assert_eq!(is_in_emoji(":message hutao:", "hutao"), Some(false));
-/// assert_eq!(is_in_emoji(":hutaoemoji:", "hutao"), Some(true));
-/// assert_eq!(is_in_emoji(":htaoemoji:", "hutao"), None);
+/// assert_eq!(non_emoji_match(":hutao:", "hutao"), false);
+/// assert_eq!(non_emoji_match(":hutao", "hutao"), true);
+/// assert_eq!(non_emoji_match("hutao:", "hutao"), true);
+/// assert_eq!(non_emoji_match("Some longer example : messsage hutao:", "hutao"), true);
+/// assert_eq!(non_emoji_match(":message hutao:", "hutao"), true);
+/// assert_eq!(non_emoji_match(":hutaoemoji:", "hutao"), false);
+/// assert_eq!(non_emoji_match(":htaoemoji:", "hutao"), false);
 /// ```
-pub fn is_in_emoji(whole_str: &str, lookup_pattern: &str) -> Option<bool> {
-    whole_str.find(lookup_pattern).map(|pos| {
-        let mut before = false;
-        for char in whole_str.chars().take(pos) {
-            match char {
-                ' ' => before = false,
-                ':' => before = true,
-                _ => (),
-            }
-        }
-        let mut after = false;
-        for char in whole_str.chars().skip(pos) {
-            match char {
-                ' ' => break,
-                ':' => after = true,
-                _ => (),
-            }
-        }
-
-        before && after
-    })
+pub fn non_emoji_match(whole_str: &str, lookup_pattern: &str) -> bool {
+    // https://regex101.com/r/aX8vec/1
+    let re = Regex::new(r"(^|\s):([a-zA-Z0-9_]+):(\s|$)").unwrap();
+    let trimmed_emojis = re.replace_all(whole_str, "");
+    trimmed_emojis.contains(lookup_pattern)
 }

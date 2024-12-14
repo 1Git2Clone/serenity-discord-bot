@@ -11,7 +11,7 @@ use crate::{
         command_data::{Data, Error},
         database_interactions::*,
     },
-    utils::{replies::handle_replies, string_manipulation::is_in_emoji},
+    utils::{replies::handle_replies, string_manipulation::non_emoji_match},
 };
 use poise::serenity_prelude as serenity;
 use rand::Rng;
@@ -52,20 +52,11 @@ pub async fn event_handler(
                     &new_message.content,
                 );
                 let emoji_pattern = "hutao";
-                match is_in_emoji(&msg.to_lowercase(), emoji_pattern) {
-                    Some(is_emoji) if !is_emoji => {
-                        handle_replies(ctx, new_message, data, msg).await?
-                    }
-                    Some(_emoji) => {
+                match non_emoji_match(&msg.to_lowercase(), emoji_pattern) {
+                    true => handle_replies(ctx, new_message, data, msg).await?,
+                    false => {
                         #[cfg(feature = "debug")]
                         println!("Msg: {} has an emoji!", msg);
-                    }
-                    None => {
-                        #[cfg(feature = "debug")]
-                        println!(
-                            "Emoji pattern {} not found in message: {}",
-                            emoji_pattern, msg
-                        );
                     }
                 };
 
