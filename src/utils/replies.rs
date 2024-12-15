@@ -13,6 +13,7 @@ pub async fn handle_replies(
         .split_whitespace()
         .collect::<Vec<&str>>()
         .join("");
+    let time_or_times = |count| if count > 1 { "times" } else { "time" };
     let hutao_count = no_whitespace.matches("hutao").count();
     if no_whitespace.matches("damnhutaomains").count() > 0 {
         add_mentions(db, hutao_count).await?;
@@ -20,8 +21,11 @@ pub async fn handle_replies(
     } else if hutao_count > 0 {
         let mentions = add_mentions(db, hutao_count).await?;
         let mut reply = format!(
-            "Hu Tao has been mentioned {} times | +{} times.",
-            mentions, hutao_count
+            "Hu Tao has been mentioned {} {}| +{} {}.",
+            mentions,
+            time_or_times(mentions),
+            hutao_count,
+            time_or_times(hutao_count)
         );
         match hutao_count {
             10..=50 => {
