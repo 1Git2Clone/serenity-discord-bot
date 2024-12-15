@@ -17,7 +17,9 @@ sqlx = { version = "0.8.2", features = ["runtime-tokio-rustls", "sqlite"] }
 chrono = "0.4.35"
 rayon = "1.10.0"
 regex = "1.11.1"
+reqwest = "0.12.9"
 
 [features]
 serde = ["dep:serde"]
 debug = []
+network_test = []

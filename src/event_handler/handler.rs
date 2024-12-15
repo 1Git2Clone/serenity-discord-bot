@@ -5,9 +5,11 @@
 //! poise::serenity_prelude::FullEvent enum can be found on the poise documentation page:
 //! https://docs.rs/poise/latest/poise/serenity_prelude/enum.FullEvent.html
 
+#[cfg(feature = "debug")]
+use crate::data::bot_data::START_TIME;
 use crate::{
     data::{
-        bot_data::{DATABASE_FILENAME, START_TIME},
+        bot_data::DATABASE_FILENAME,
         command_data::{Data, Error},
         database_interactions::*,
     },
@@ -23,14 +25,15 @@ pub async fn event_handler(
     data: &Data,
 ) -> Result<(), Error> {
     match event {
+        #[cfg(feature = "debug")]
         serenity::FullEvent::Ready { data_about_bot, .. } => {
-            #[cfg(feature = "debug")]
             println!(
                 "\n!!! DISCORD BOT STARTED SUCCESSFULLY IN {} MILISECONDS !!!\nFrameworks   : [serenity, poise]\nAsync runtime: [tokio]\n\n=> Logged in as: {}",
                 START_TIME.elapsed().as_millis(),
                 data_about_bot.user.tag()
             );
         }
+
         serenity::FullEvent::Ratelimit { data } => {
             eprintln!(
                 "- (!) - There's a rate limit for the bot right now! [{:?} seconds left!]",
@@ -45,8 +48,8 @@ pub async fn event_handler(
             msg => {
                 #[cfg(feature = "debug")]
                 println!(
-                    "! NEW MESSAGE !\nGuildID:  {}\nUserID:   {}\nUsername: {}\nMsg:      {}\n",
-                    &new_message.guild_id.unwrap_or_default(),
+                    "! NEW MESSAGE !\nGuildID:  {:?}\nUserID:   {}\nUsername: {}\nMsg:      {}\n",
+                    &new_message.guild_id,
                     &new_message.author.id,
                     &new_message.author.name,
                     &new_message.content,
@@ -76,8 +79,9 @@ pub async fn event_handler(
                         let status =
                             add_or_update_db_user(pool, new_message, ctx, obtained_xp).await;
 
-                        #[cfg(feature = "debug")]
-                        println!("Status: {:#?}", status);
+                        if let Err(err) = status {
+                            eprintln!("{}", err);
+                        }
                     }
                     Err(why) => eprintln!("Failed to connect to the database: {why:?}"),
                 }

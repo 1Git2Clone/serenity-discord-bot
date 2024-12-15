@@ -8,6 +8,33 @@ use poise::serenity_prelude as serenity;
 use rand::prelude::SliceRandom;
 use sqlx::error::BoxDynError;
 
+/// Works by prepending the `ASSETS_URL` to the `asset_file_name`.
+///
+/// ```rust
+/// use serenity_discord_bot::asset_url;
+/// use serenity_discord_bot::commands::cmd_utils::HU_BOOM_URL;
+///
+/// assert_eq!(
+///     "https://raw.githubusercontent.com/1Git2Clone/serenity-discord-bot/main/src/assets/hu_boom.jpg",
+///     asset_url!("hu_boom.jpg")
+/// );
+/// assert_eq!(
+///     "https://raw.githubusercontent.com/1Git2Clone/serenity-discord-bot/main/src/assets/hu_boom.jpg",
+///     HU_BOOM_URL
+/// );
+/// ```
+#[macro_export]
+macro_rules! asset_url {
+    ($expr:expr) => {
+        concat!(
+            "https://raw.githubusercontent.com/1Git2Clone/serenity-discord-bot/main/src/assets/",
+            $expr
+        )
+    };
+}
+
+pub const HU_BOOM_URL: &str = asset_url!("hu_boom.jpg");
+
 pub async fn get_replied_user(ctx: Context<'_>) -> &serenity::User {
     let poise::Context::Prefix(msg_ctx) = ctx else {
         return ctx.author();
