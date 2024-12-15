@@ -1,7 +1,7 @@
 use super::*;
 
 /// Get a motivation chair GIF
-#[poise::command(slash_command, prefix_command, rename = "chair")]
+#[poise::command(slash_command, prefix_command)]
 pub async fn chair(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Chair)?;
     let bot_user = Arc::clone(&ctx.data().bot_user);

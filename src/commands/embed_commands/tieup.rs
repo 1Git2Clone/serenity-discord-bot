@@ -1,7 +1,7 @@
 use super::*;
 
 /// Tie someone up (HUH?)
-#[poise::command(prefix_command, slash_command, rename = "tieup")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn tieup(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

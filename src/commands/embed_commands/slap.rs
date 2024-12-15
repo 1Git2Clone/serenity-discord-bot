@@ -1,7 +1,7 @@
 use super::*;
 
 /// Slap someone
-#[poise::command(prefix_command, slash_command, rename = "slap")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn slap(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

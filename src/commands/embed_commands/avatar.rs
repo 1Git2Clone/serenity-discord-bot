@@ -1,7 +1,7 @@
 use super::*;
 
 /// Get the avatar for someone.
-#[poise::command(slash_command, prefix_command, rename = "avatar")]
+#[poise::command(slash_command, prefix_command)]
 pub async fn avatar(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

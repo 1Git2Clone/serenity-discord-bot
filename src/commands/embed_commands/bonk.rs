@@ -1,7 +1,7 @@
 use super::*;
 
 /// Bonk someone who's horknee
-#[poise::command(prefix_command, slash_command, rename = "bonk")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn bonk(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

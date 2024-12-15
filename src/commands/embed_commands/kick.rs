@@ -1,7 +1,7 @@
 use super::*;
 
 /// Kick someone
-#[poise::command(prefix_command, slash_command, rename = "kick")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn kick(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
