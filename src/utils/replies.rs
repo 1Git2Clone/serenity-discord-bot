@@ -21,7 +21,7 @@ pub async fn handle_replies(
     } else if hutao_count > 0 {
         let mentions = add_mentions(db, hutao_count).await?;
         let mut reply = format!(
-            "Hu Tao has been mentioned {} {}| +{} {}.",
+            "Hu Tao has been mentioned {} {} | +{} {}.",
             mentions,
             time_or_times(mentions),
             hutao_count,
