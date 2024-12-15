@@ -1,11 +1,13 @@
 mod commands;
 mod data;
+mod database;
 mod enums;
 mod event_handler;
 mod extra_threads;
 mod tests;
 mod utils;
 
+use data::command_data::Error;
 use data::{
     bot_data::{BOT_PREFIXES, BOT_TOKEN, START_TIME},
     command_data::Data,
@@ -13,10 +15,10 @@ use data::{
 use event_handler::handler::event_handler;
 use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
 use poise::serenity_prelude as serenity;
-use std::sync::{atomic::AtomicU32, Arc};
+use std::sync::Arc;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Error> {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
 
     dotenv::dotenv().ok();
@@ -88,7 +90,6 @@ async fn main() {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
-                    hutao_mentions: AtomicU32::new(1),
                     // It's better to clone the bot user once when it starts rather than do http
                     // requests for the serenity::CurrentUser on every comman invocation.
                     bot_user: Arc::from(ready.user.clone()),
@@ -113,4 +114,6 @@ async fn main() {
         .await;
 
     client.unwrap().start().await.unwrap();
+
+    Ok(())
 }

@@ -1,11 +1,11 @@
-use crate::data::command_data::{Data, Error};
+use crate::{data::command_data::Error, database::bot_mentions::add_mentions};
 use poise::serenity_prelude as serenity;
-use std::sync::atomic::Ordering;
+use sqlx::SqlitePool;
 
 pub async fn handle_replies(
+    db: &SqlitePool,
     ctx: &serenity::Context,
     new_message: &serenity::Message,
-    data: &Data,
     msg: &str,
 ) -> Result<(), Error> {
     if msg
@@ -15,10 +15,12 @@ pub async fn handle_replies(
         .join("")
         == "damnhutaomains"
     {
-        data.hutao_mentions.fetch_add(1, Ordering::SeqCst);
+        add_mentions(db, 1).await?;
         new_message.reply(ctx, "Any last words?").await?;
     } else if msg.contains("hutao") || msg.contains("hu tao") {
-        let mentions = data.hutao_mentions.fetch_add(1, Ordering::SeqCst);
+        let mentions = add_mentions(db, 1).await?;
+        #[cfg(feature = "debug")]
+        println!("Mentions: {}", mentions);
         new_message
             .reply(ctx, format!("Hu Tao has been mentioned {} times", mentions))
             .await?;
