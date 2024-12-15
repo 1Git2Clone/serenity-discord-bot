@@ -1,7 +1,7 @@
 use super::*;
 
 /// Nom someone
-#[poise::command(prefix_command, slash_command, rename = "nom")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn nom(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

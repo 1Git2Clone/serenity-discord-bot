@@ -1,7 +1,7 @@
 use super::*;
 
 /// Kill someone (Sadge)
-#[poise::command(prefix_command, slash_command, rename = "kill")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn kill(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

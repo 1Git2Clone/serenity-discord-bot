@@ -1,7 +1,7 @@
 use super::*;
 
 /// Send a peek GIF in the chat (you lurker)
-#[poise::command(prefix_command, slash_command, rename = "peek")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn peek(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Peek)?;
     let response: String = format!("{} is lurking . . .", ctx.author().name,);

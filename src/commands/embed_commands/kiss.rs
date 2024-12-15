@@ -1,7 +1,7 @@
 use super::*;
 
 /// Kiss someone
-#[poise::command(prefix_command, slash_command, rename = "kiss")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn kiss(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

@@ -5,7 +5,7 @@ const LEVEL_STEPS: [f32; 14] = [
 ];
 
 /// Displays the user's level
-#[poise::command(slash_command, prefix_command, rename = "level")]
+#[poise::command(slash_command, prefix_command)]
 pub async fn level(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

@@ -1,7 +1,7 @@
 use super::*;
 
 /// Bury someone
-#[poise::command(prefix_command, slash_command, rename = "bury")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn bury(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

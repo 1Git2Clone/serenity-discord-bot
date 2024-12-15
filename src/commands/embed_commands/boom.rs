@@ -3,7 +3,7 @@ use cmd_utils::HU_BOOM_URL;
 use super::*;
 
 /// Just try it.
-#[poise::command(slash_command, prefix_command, rename = "boom")]
+#[poise::command(slash_command, prefix_command)]
 pub async fn boom(ctx: Context<'_>) -> Result<(), Error> {
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");

@@ -1,7 +1,7 @@
 use super::*;
 
 /// Punch someone
-#[poise::command(prefix_command, slash_command, rename = "punch")]
+#[poise::command(prefix_command, slash_command)]
 pub async fn punch(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,

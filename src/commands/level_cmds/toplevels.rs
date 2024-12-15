@@ -1,7 +1,7 @@
 use super::*;
 
 /// Displays the levels for the top 9 users.
-#[poise::command(slash_command, prefix_command, rename = "toplevels")]
+#[poise::command(slash_command, prefix_command)]
 pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
     let message_guild_id = match ctx.guild_id() {
         Some(msg) => msg,
