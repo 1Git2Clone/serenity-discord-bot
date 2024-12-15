@@ -12,8 +12,7 @@ use crate::{
         command_data::{Data, Error},
         database::DATABASE_FILENAME,
     },
-    database::connect_to_db,
-    database::level_system::*,
+    database::{connect_to_db, level_system::*},
     utils::{replies::handle_replies, string_manipulation::remove_emojis_and_embeds_from_str},
 };
 use poise::serenity_prelude as serenity;
