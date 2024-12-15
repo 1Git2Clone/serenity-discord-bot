@@ -1,3 +1,5 @@
+use serenity_discord_bot_derive::IterateVariants;
+
 /// Discord emojis are sent like this:
 ///
 /// `<EmojiName:EmojiId>`
@@ -45,13 +47,38 @@ macro_rules! display_emoji_impl {
                 }
             }
         }
+        impl $crate::enums::emojis::GetId for $enum_name {
+            fn get_id(&self) -> &'static str {
+                match self {
+                    $(Self::$variant => $id,)*
+                }
+            }
+        }
+        impl $crate::enums::emojis::GetVariantStr for $enum_name {
+            fn get_variant_str(&self) -> &'static str {
+                match self {
+                    $(Self::$variant => stringify!($variant),)*
+                }
+            }
+        }
     };
+}
+
+#[allow(dead_code)]
+pub trait GetId {
+    fn get_id(&self) -> &'static str;
+}
+
+#[allow(dead_code)]
+pub trait GetVariantStr {
+    fn get_variant_str(&self) -> &'static str;
 }
 
 /// NOTE: This allows non-PascalCase because the emoji itself could have a non-PascalCase name. I'd
 /// still try to have them all be PascalCase though.
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IterateVariants)]
 pub enum Emojis {
     HuTaoHeh,
 }

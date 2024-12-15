@@ -1,6 +1,8 @@
 #![cfg(test)]
 
 #[cfg(feature = "network_test")]
+mod emojis;
+#[cfg(feature = "network_test")]
 mod urls;
 
 fn sized_send_sunc_unpin<T: Sized + Send + Sync + Unpin>() {}
