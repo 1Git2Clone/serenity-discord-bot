@@ -47,10 +47,10 @@ pub async fn level(
     };
     let level = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(DATABASE_COLUMNS[&Level]);
+        .get::<i32, &str>(LEVELS_TABLE[&Level]);
     let xp = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]);
+        .get::<i32, &str>(LEVELS_TABLE[&ExperiencePoints]);
 
     let avatar = target_replied_user.face().replace(".webp", ".png");
     let username = &target_replied_user.name;

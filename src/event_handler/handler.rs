@@ -9,10 +9,11 @@
 use crate::data::bot_data::START_TIME;
 use crate::{
     data::{
-        bot_data::DATABASE_FILENAME,
         command_data::{Data, Error},
-        database_interactions::*,
+        database::DATABASE_FILENAME,
     },
+    database::connect_to_db,
+    database::level_system::*,
     utils::{replies::handle_replies, string_manipulation::remove_emojis_and_embeds_from_str},
 };
 use poise::serenity_prelude as serenity;
@@ -22,7 +23,7 @@ pub async fn event_handler(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,
     _framework: poise::FrameworkContext<'_, Data, Error>,
-    data: &Data,
+    _data: &Data,
 ) -> Result<(), Error> {
     match event {
         #[cfg(feature = "debug")]
@@ -57,24 +58,29 @@ pub async fn event_handler(
                 let text_patterns = ["hutao", "hu tao"];
                 let lowercase_msg = msg.to_lowercase();
                 let trimmed_emojis = remove_emojis_and_embeds_from_str(&lowercase_msg);
-                match text_patterns
-                    .iter()
-                    .any(|text| trimmed_emojis.contains(text))
-                {
-                    true => handle_replies(ctx, new_message, data, msg).await?,
-                    false => {
-                        #[cfg(feature = "debug")]
-                        println!("Msg: {} has an emoji!", msg);
-                    }
-                };
 
                 let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
                 match db.await {
-                    Ok(pool) => {
+                    Ok(ref pool) => {
                         let obtained_xp: i32 = rand::thread_rng().gen_range(5..=15);
 
                         #[cfg(feature = "debug")]
                         println!("Connected to the database: {pool:?}");
+
+                        match text_patterns
+                            .iter()
+                            .any(|text| trimmed_emojis.contains(text))
+                        {
+                            true => handle_replies(pool, ctx, new_message, &trimmed_emojis).await?,
+                            false => {
+                                #[cfg(feature = "debug")]
+                                println!(
+                                    "Msg: {} has an emoji or doesn't contain: [{}]",
+                                    msg,
+                                    text_patterns.join(" / ")
+                                );
+                            }
+                        };
 
                         let status =
                             add_or_update_db_user(pool, new_message, ctx, obtained_xp).await;

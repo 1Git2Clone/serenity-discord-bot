@@ -1,33 +1,21 @@
 use crate::commands::level_logic::update_level;
-use crate::enums::schemas::DatabaseSchema::*;
+use crate::enums::schemas::LevelsSchema::*;
 use poise::serenity_prelude as serenity;
 use serenity::User;
 use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 /// https://stackoverflow.com/questions/72763578/how-to-create-a-sqlite-database-with-rust-sqlx
-use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, Error, SqlitePool};
-use std::{future::Future, path::Path};
+use sqlx::{Error, SqlitePool};
 
-use crate::data::bot_data::{DATABASE_COLUMNS, DEFAULT_LEVEL, DEFAULT_XP, XP_COOLDOWN_NUMBER_SECS};
+use crate::data::bot_data::{DEFAULT_LEVEL, DEFAULT_XP, XP_COOLDOWN_NUMBER_SECS};
+use crate::data::database::{DATABASE_USERS, LEVELS_TABLE};
+
 use crate::data::user_data::USER_COOLDOWNS;
-
-use super::bot_data::DATABASE_USERS;
-
-/// Used to establish the database connection with its predetermined parameters.
-pub async fn connect_to_db(
-    filename: impl AsRef<Path>,
-) -> impl Future<Output = Result<SqlitePool, Error>> {
-    SqlitePoolOptions::new().connect_with(
-        SqliteConnectOptions::new()
-            .filename(filename)
-            .create_if_missing(true),
-    )
-}
 
 /// Adds a new database user with the schema from `crate::data:bot_data.rs`.
 /// That's the reason why the function isn't public.
 async fn add_user_if_not_exists(
-    db: SqlitePool,
+    db: &SqlitePool,
     user: &User,
     guild_id: serenity::GuildId,
 ) -> Result<(), Error> {
@@ -39,10 +27,10 @@ async fn add_user_if_not_exists(
         "INSERT INTO `{}` (`{}`, `{}`, `{}`, `{}`)
          VALUES (?, ?, ?, ?)",
         DATABASE_USERS,
-        DATABASE_COLUMNS[&UserId],
-        DATABASE_COLUMNS[&GuildId],
-        DATABASE_COLUMNS[&ExperiencePoints],
-        DATABASE_COLUMNS[&Level],
+        LEVELS_TABLE[&UserId],
+        LEVELS_TABLE[&GuildId],
+        LEVELS_TABLE[&ExperiencePoints],
+        LEVELS_TABLE[&Level],
     );
 
     sqlx::query(&query)
@@ -50,7 +38,7 @@ async fn add_user_if_not_exists(
         .bind(guild_id.to_string())
         .bind(DEFAULT_XP)
         .bind(DEFAULT_LEVEL)
-        .execute(&db)
+        .execute(db)
         .await?;
 
     Ok(())
@@ -66,14 +54,14 @@ pub async fn fetch_user_level(
             "SELECT `{}`, `{}`, `{}`
              FROM `{}`
              WHERE `{}` = ? AND `{}` = ?",
-            DATABASE_COLUMNS[&UserId],
-            DATABASE_COLUMNS[&ExperiencePoints],
-            DATABASE_COLUMNS[&Level],
+            LEVELS_TABLE[&UserId],
+            LEVELS_TABLE[&ExperiencePoints],
+            LEVELS_TABLE[&Level],
             //
             DATABASE_USERS,
             //
-            DATABASE_COLUMNS[&UserId],
-            DATABASE_COLUMNS[&GuildId]
+            LEVELS_TABLE[&UserId],
+            LEVELS_TABLE[&GuildId]
         )
         .as_str(),
     )
@@ -126,19 +114,19 @@ pub async fn fetch_top_nine_levels_in_guild(
             WHERE `{}` = ?
             ORDER BY {} DESC, {} DESC
             LIMIT 9",
-            DATABASE_COLUMNS[&UserId],
-            DATABASE_COLUMNS[&UserId],
+            LEVELS_TABLE[&UserId],
+            LEVELS_TABLE[&UserId],
             //
-            DATABASE_COLUMNS[&ExperiencePoints],
-            DATABASE_COLUMNS[&ExperiencePoints],
+            LEVELS_TABLE[&ExperiencePoints],
+            LEVELS_TABLE[&ExperiencePoints],
             //
-            DATABASE_COLUMNS[&Level],
-            DATABASE_COLUMNS[&Level],
+            LEVELS_TABLE[&Level],
+            LEVELS_TABLE[&Level],
             //
             DATABASE_USERS,
-            DATABASE_COLUMNS[&GuildId],
-            DATABASE_COLUMNS[&Level],
-            DATABASE_COLUMNS[&ExperiencePoints],
+            LEVELS_TABLE[&GuildId],
+            LEVELS_TABLE[&Level],
+            LEVELS_TABLE[&ExperiencePoints],
         )
         .as_str(),
     )
@@ -156,7 +144,7 @@ pub async fn fetch_top_nine_levels_in_guild(
 /// Additionally, we directly use the guild_id instead of the event as the
 /// parameter for add_user_if_not_exists() in order to save computing resources.
 pub async fn add_or_update_db_user(
-    db: SqlitePool,
+    db: &SqlitePool,
     message: &serenity::Message,
     ctx: &serenity::Context,
     obtained_xp: i32,
@@ -203,7 +191,7 @@ pub async fn add_or_update_db_user(
     }
 
     // First we need to check if there's some user_id+guild_id pair that matches
-    let level_query: Option<SqliteRow> = fetch_user_level(&db, user, guild_id).await?;
+    let level_query: Option<SqliteRow> = fetch_user_level(db, user, guild_id).await?;
 
     let query_row = match level_query {
         Some(row) => row,
@@ -214,8 +202,8 @@ pub async fn add_or_update_db_user(
         }
     };
 
-    let queried_level = query_row.get::<i32, &str>(DATABASE_COLUMNS[&Level]);
-    let queried_experience_points = query_row.get::<i32, &str>(DATABASE_COLUMNS[&ExperiencePoints]);
+    let queried_level = query_row.get::<i32, &str>(LEVELS_TABLE[&Level]);
+    let queried_experience_points = query_row.get::<i32, &str>(LEVELS_TABLE[&ExperiencePoints]);
     let added_experience_points = queried_experience_points + obtained_xp;
 
     let update = update_level(added_experience_points, queried_level).await;
@@ -259,11 +247,11 @@ pub async fn add_or_update_db_user(
          WHERE `{}` = ? AND `{}` = ?",
         DATABASE_USERS,
         //
-        DATABASE_COLUMNS[&ExperiencePoints],
-        DATABASE_COLUMNS[&Level],
+        LEVELS_TABLE[&ExperiencePoints],
+        LEVELS_TABLE[&Level],
         //
-        DATABASE_COLUMNS[&UserId],
-        DATABASE_COLUMNS[&GuildId],
+        LEVELS_TABLE[&UserId],
+        LEVELS_TABLE[&GuildId],
     );
 
     sqlx::query(&query)
@@ -271,7 +259,7 @@ pub async fn add_or_update_db_user(
         .bind(updated_level)
         .bind(user.id.to_string())
         .bind(guild_id.to_string())
-        .execute(&db)
+        .execute(db)
         .await?;
 
     Ok(())
