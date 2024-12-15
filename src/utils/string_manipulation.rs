@@ -42,6 +42,6 @@ pub fn upper_lowercase_permutations(data: &str) -> Vec<String> {
 ///     "Some longer example : messsage hutao: "
 /// );
 /// ```
-pub fn remove_emojis_and_embeds_from_str(whole_str: &str) -> Cow<str> {
+pub fn remove_emojis_and_embeds_from_str(whole_str: &str) -> Cow<'_, str> {
     EMOJIS_AND_EMBEDS_REGEX.replace_all(whole_str, "")
 }

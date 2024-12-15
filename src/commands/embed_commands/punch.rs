@@ -7,7 +7,7 @@ pub async fn punch(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Punch).await?;
+    let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Punch)?;
     if target_replied_user == ctx.author() {
         ctx.send(poise::CreateReply::default().content("I won't punch you! *pouts*"))
             .await?;

@@ -15,11 +15,7 @@ pub async fn kiss(
                 .embed(
                     serenity::CreateEmbed::new()
                         .color((255, 0, 0))
-                        .image(
-                            cmd_utils::get_embed_from_type(&EmbedType::Slap)
-                                .await?
-                                .to_string(),
-                        )
+                        .image(cmd_utils::get_rand_embed_from_type(&EmbedType::Slap)?.to_string())
                         .footer(
                             serenity::CreateEmbedFooter::new(bot_user.tag())
                                 .icon_url(Arc::clone(&ctx.data().bot_avatar).to_string()),
@@ -29,7 +25,7 @@ pub async fn kiss(
         .await?;
         return Ok(());
     }
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Kiss).await?;
+    let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Kiss)?;
 
     let response: String = format!(
         "**{}** *kisses* **{}**",
