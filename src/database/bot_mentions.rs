@@ -44,5 +44,5 @@ pub async fn add_mentions(db: &SqlitePool, n: usize) -> Result<usize, Error> {
 
     update_mentions(db, fetched_mentions + n).await?;
 
-    fetch_mentions(db).await
+    Ok(fetched_mentions + n)
 }
