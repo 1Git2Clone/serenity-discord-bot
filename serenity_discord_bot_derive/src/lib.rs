@@ -10,7 +10,7 @@ pub fn derive_all_variants(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
 
     let syn::Data::Enum(enum_item) = ast.data else {
-        return quote!(compile_error!("AllVariants only works on enums")).into();
+        return quote!(compile_error!("IterateVariants only works on enums")).into();
     };
 
     let enum_name = ast.ident;
