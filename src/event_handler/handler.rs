@@ -56,8 +56,7 @@ pub async fn event_handler(
                     &new_message.content,
                 );
                 let text_patterns = ["hutao", "hu tao"];
-                let lowercase_msg = msg.to_lowercase();
-                let trimmed_emojis = remove_emojis_and_embeds_from_str(&lowercase_msg);
+                let trimmed_emojis = remove_emojis_and_embeds_from_str(msg);
 
                 let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
                 match db.await {
