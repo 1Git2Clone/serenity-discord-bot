@@ -5,7 +5,7 @@ use sqlx::sqlite::SqliteQueryResult;
 use sqlx::Row;
 use sqlx::SqlitePool;
 
-pub async fn fetch_mentions(db: &SqlitePool) -> Result<i64, Error> {
+pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, Error> {
     let query = format!(
         "SELECT `{}` FROM `{}`",
         MENTIONS_TABLE[&MentionsSchema::Mentions],
@@ -18,14 +18,14 @@ pub async fn fetch_mentions(db: &SqlitePool) -> Result<i64, Error> {
         None => return Err(format!("Couldn't find a row to select (SQL: {})", query).into()),
     };
 
-    let queried_mentions = row.get::<i64, &str>(MENTIONS_TABLE[&MentionsSchema::Mentions]);
+    let queried_mentions = row.get::<u64, &str>(MENTIONS_TABLE[&MentionsSchema::Mentions]);
 
-    Ok(queried_mentions)
+    Ok(queried_mentions as usize)
 }
 
 pub async fn update_mentions(
     db: &SqlitePool,
-    updated_mentions: i64,
+    updated_mentions: usize,
 ) -> Result<SqliteQueryResult, sqlx::Error> {
     let query = format!(
         "UPDATE `{}` SET `{}` = ?",
@@ -33,10 +33,13 @@ pub async fn update_mentions(
         MENTIONS_TABLE[&MentionsSchema::Mentions]
     );
 
-    sqlx::query(&query).bind(updated_mentions).execute(db).await
+    sqlx::query(&query)
+        .bind(updated_mentions as i64)
+        .execute(db)
+        .await
 }
 
-pub async fn add_mentions(db: &SqlitePool, n: i64) -> Result<i64, Error> {
+pub async fn add_mentions(db: &SqlitePool, n: usize) -> Result<usize, Error> {
     let fetched_mentions = fetch_mentions(db).await?;
 
     update_mentions(db, fetched_mentions + n).await?;
