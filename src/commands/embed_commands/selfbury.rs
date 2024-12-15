@@ -3,7 +3,7 @@ use super::*;
 /// Bury yourself (perhaps to help Hu Tao's busines idk...)
 #[poise::command(prefix_command, slash_command, rename = "selfbury")]
 pub async fn selfbury(ctx: Context<'_>) -> Result<(), Error> {
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::SelfBury).await?;
+    let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::SelfBury)?;
     let response: String = format!("**{}** *buries themselves*", ctx.author().name,);
     let bot_user = Arc::clone(&ctx.data().bot_user);
 

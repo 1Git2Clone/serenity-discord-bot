@@ -15,7 +15,7 @@ pub async fn bury(
         return Ok(());
     }
 
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Bury).await?;
+    let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Bury)?;
     let target_replied_user = user.as_ref().unwrap();
 
     let response: String = format!(

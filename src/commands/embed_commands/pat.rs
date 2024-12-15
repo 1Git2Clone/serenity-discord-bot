@@ -7,7 +7,7 @@ pub async fn pat(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
-    let embed_item: &str = cmd_utils::get_embed_from_type(&EmbedType::Pat).await?;
+    let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Pat)?;
     let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(

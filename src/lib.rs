@@ -1,3 +1,5 @@
+#![warn(clippy::unused_async, rust_2018_idioms)]
+
 pub mod commands;
 pub mod data;
 pub mod database;
