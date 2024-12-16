@@ -42,7 +42,7 @@ lazy_static! {
     pub(crate) static ref EMOJIS_AND_EMBEDS_REGEX: Regex = Regex::new(
         concat!(
             "(?<emoji>",
-                r"(:[^:\s]*:)",
+                r":[^:\s]*:",
             ")|(?<embed_emoji>",
                 r"\[[^\[\]\s]*\]\([^()]*\)",
             ")",
