@@ -21,7 +21,32 @@ lazy_static! {
             temp
     };
 
-    // https://regex101.com/r/aX8vec/5
-    pub(crate) static ref EMOJIS_AND_EMBEDS_REGEX: Regex = Regex::new(r"(?<emoji>(:)([a-zA-Z0-9_]+)(:))|(?<embed>(\[)([a-zA-Z0-9_]+)(\])\([^()]*\))").unwrap();
+    /// # 2 groups
+    ///
+    /// *(matched via bitwise or `|`)*
+    ///
+    /// 1. emoji
+    /// - `:UTF-8:`
+    ///   - Exceptions for the `UTF-8` group:
+    ///     - `:` & `<any-whitespace>` at both ends
+    /// 2. embed_emoji
+    /// - `[UTF-8](<any-pattern/nothing>)`
+    ///   - Exceptions for the `UTF-8` group:
+    ///     - `<any-whitespace>` at both ends
+    ///     - `[` at the start
+    ///     - `]` at the end
+    ///
+    /// ---
+    ///
+    /// <https://regex101.com/r/Yi782B/1>
+    pub(crate) static ref EMOJIS_AND_EMBEDS_REGEX: Regex = Regex::new(
+        concat!(
+            "(?<emoji>",
+                r"(:)([[^:\s]&&\u0000-\u{10FFFF}&&[^:\s]]+)(:)",
+            ")|(?<embed_emoji>",
+                r"(\[)([[^\[\s]&&\u0000-\u{10FFFF}&&[^\]\s]]+)(\])\([^()]*\)",
+            ")"
+        )
+    ).unwrap();
 
 }
