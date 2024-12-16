@@ -38,14 +38,14 @@ lazy_static! {
     ///
     /// ---
     ///
-    /// <https://regex101.com/r/Yi782B/1>
+    /// <https://regex101.com/r/Yi782B/2>
     pub(crate) static ref EMOJIS_AND_EMBEDS_REGEX: Regex = Regex::new(
         concat!(
             "(?<emoji>",
-                r"(:)([[^:\s]&&\u0000-\u{10FFFF}&&[^:\s]]+)(:)",
+                r"(:[^:\s]*:)",
             ")|(?<embed_emoji>",
-                r"(\[)([[^\[\s]&&\u0000-\u{10FFFF}&&[^\]\s]]+)(\])\([^()]*\)",
-            ")"
+                r"\[[^\[\]\s]*\]\([^()]*\)",
+            ")",
         )
     ).unwrap();
 
