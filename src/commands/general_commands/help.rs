@@ -1,5 +1,13 @@
 use super::*;
 
+const HELP_COMMAND_TEXT: &str = concat!(
+    "This bot has been made using Rust with the ",
+    "[serenity-rs](<https://github.com/serenity-rs/serenity>) and [poise]",
+    "(<https://github.com/serenity-rs/poise>) frameworks.\nIt's open source and the ",
+    "source code is on my [github profile]",
+    "(<https://github.com/1Git2Clone/serenity-discord-bot>).\n"
+);
+
 /// Show this help menu
 #[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn help(
@@ -26,9 +34,8 @@ pub async fn help(
     }
 
     ctx.defer_ephemeral().await?;
-    let reply_text = "This bot has been made using Rust with the [serenity-rs](<https://github.com/serenity-rs/serenity>) and [poise](<https://github.com/serenity-rs/poise>) frameworks.\nIt's open source and the source code is on my [github profile](<https://github.com/1Kill2Steal/serenity-discord-bot>).\n";
     let reply = poise::CreateReply::default()
-        .content(reply_text)
+        .content(HELP_COMMAND_TEXT)
         .ephemeral(true);
     ctx.send(reply).await?;
 
