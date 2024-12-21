@@ -77,6 +77,7 @@ pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> Levenshtein
         // The message is indeed a valid command.
         let cmd = format!("{}{}", data.prefix, command);
         if cmd == lower {
+            data.command_matches = Vec::new();
             return data;
         }
         if strsim::levenshtein(&cmd, &lower) <= 2 {
