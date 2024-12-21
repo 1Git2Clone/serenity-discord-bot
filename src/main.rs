@@ -95,6 +95,12 @@ async fn main() -> Result<(), Error> {
                     // requests for the serenity::CurrentUser on every comman invocation.
                     bot_user: Arc::from(ready.user.clone()),
                     bot_avatar: Arc::<str>::from(ready.user.face().replace(".webp", ".png")),
+                    available_commands: framework
+                        .options()
+                        .commands
+                        .iter()
+                        .map(|cmd| cmd.name.clone())
+                        .collect(),
                 })
             })
         })

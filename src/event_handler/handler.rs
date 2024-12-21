@@ -13,7 +13,10 @@ use crate::{
         database::DATABASE_FILENAME,
     },
     database::{connect_to_db, level_system::*},
-    utils::{replies::handle_replies, string_manipulation::remove_emojis_and_embeds_from_str},
+    utils::{
+        replies::handle_replies,
+        string_manipulation::{levenshtein_cmd, remove_emojis_and_embeds_from_str},
+    },
 };
 use poise::serenity_prelude as serenity;
 use rand::Rng;
@@ -22,7 +25,7 @@ pub async fn event_handler(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,
     _framework: poise::FrameworkContext<'_, Data, Error>,
-    _data: &Data,
+    data: &Data,
 ) -> Result<(), Error> {
     match event {
         #[cfg(feature = "debug")]
@@ -54,6 +57,7 @@ pub async fn event_handler(
                     &new_message.author.name,
                     &new_message.content,
                 );
+                levenshtein_cmd(ctx, new_message, &data.available_commands).await?;
                 let text_patterns = ["hutao", "hu tao"];
                 let trimmed_emojis = remove_emojis_and_embeds_from_str(msg);
 
