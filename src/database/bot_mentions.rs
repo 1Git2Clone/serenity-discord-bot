@@ -2,7 +2,6 @@ use crate::data::command_data::Error;
 use crate::data::database::{MENTIONS_TABLE, MENTIONS_TABLE_NAME};
 use crate::enums::schemas::MentionsSchema;
 use sqlx::sqlite::SqliteQueryResult;
-use sqlx::Row;
 use sqlx::SqlitePool;
 
 pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, Error> {
@@ -11,16 +10,9 @@ pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, Error> {
         MENTIONS_TABLE[&MentionsSchema::Mentions],
         MENTIONS_TABLE_NAME,
     );
-    let sql = sqlx::query(&query).fetch_optional(db).await?;
+    let queried_mentions: Option<i64> = sqlx::query_scalar(&query).fetch_one(db).await?;
 
-    let row = match sql {
-        Some(row) => row,
-        None => return Err(format!("Couldn't find a row to select (SQL: {})", query).into()),
-    };
-
-    let queried_mentions = row.get::<u64, &str>(MENTIONS_TABLE[&MentionsSchema::Mentions]);
-
-    Ok(queried_mentions as usize)
+    Ok(queried_mentions.unwrap_or(0) as usize)
 }
 
 pub async fn update_mentions(
