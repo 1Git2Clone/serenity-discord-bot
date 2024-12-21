@@ -81,7 +81,7 @@ pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> Levenshtein
             if cmd == lower {
                 return data;
             }
-            if strsim::levenshtein(&cmd, &lower) <= 2 {
+            if strsim::levenshtein(&cmd, &lower) <= 1 {
                 tmp.push(cmd);
             }
         }
