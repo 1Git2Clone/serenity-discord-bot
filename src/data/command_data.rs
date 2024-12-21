@@ -8,6 +8,7 @@ use std::sync::Arc;
 pub struct Data {
     pub bot_user: Arc<serenity::CurrentUser>,
     pub bot_avatar: Arc<str>,
+    pub available_commands: Vec<String>,
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
