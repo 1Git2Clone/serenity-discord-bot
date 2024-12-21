@@ -81,6 +81,7 @@ async fn main() -> Result<(), Error> {
                 commands::embed_commands::drive(),
                 commands::embed_commands::chair(),
                 commands::embed_commands::boom(),
+                commands::embed_commands::quote(),
                 commands::embed_commands::uptime(),
             ],
             manual_cooldowns: true,
