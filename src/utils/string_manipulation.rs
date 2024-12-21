@@ -73,17 +73,20 @@ pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> Levenshtein
     if data.prefix.is_empty() {
         return data;
     }
-    for command in commands {
-        // The message is indeed a valid command.
-        let cmd = format!("{}{}", data.prefix, command);
-        if cmd == lower {
-            data.command_matches = Vec::new();
-            return data;
+    data.command_matches = {
+        let mut tmp = Vec::new();
+        for command in commands {
+            // The message is indeed a valid command.
+            let cmd = format!("{}{}", data.prefix, command);
+            if cmd == lower {
+                return data;
+            }
+            if strsim::levenshtein(&cmd, &lower) <= 2 {
+                tmp.push(cmd);
+            }
         }
-        if strsim::levenshtein(&cmd, &lower) <= 2 {
-            data.command_matches.push(cmd);
-        }
-    }
+        tmp
+    };
     data
 }
 
