@@ -1,6 +1,6 @@
 use crate::data::{
     command_data::{Context, Error},
-    embed_media::COMMANDS,
+    embed_media::COMMAND_EMBEDS,
 };
 use crate::enums::command_enums::EmbedType;
 use ::serenity::all::Mentionable;
@@ -44,7 +44,7 @@ pub async fn get_replied_user(ctx: Context<'_>) -> &serenity::User {
 }
 
 pub fn get_rand_embed_from_type(embed_type: &EmbedType) -> Result<&'static str, Error> {
-    let embed_option = COMMANDS[embed_type].choose(&mut rand::thread_rng());
+    let embed_option = COMMAND_EMBEDS[embed_type].choose(&mut rand::thread_rng());
     match embed_option {
         Some(embed) => Ok(embed),
         None => Err(BoxDynError::from(

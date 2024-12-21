@@ -17,7 +17,7 @@ macro_rules! media_url {
 }
 
 lazy_static! {
-    pub(crate) static ref COMMANDS: HashMap<EmbedType, Vec<&'static str>> = {
+    pub(crate) static ref COMMAND_EMBEDS: HashMap<EmbedType, Vec<&'static str>> = {
         let tieup_array = vec![
             cdn_url!("614790390020833280/1183349571468918814/tied-up-aiura.gif"),
             cdn_url!("1180115044218978425/1183694079847059517/ezgif.com-video-to-gif.gif"),
@@ -133,7 +133,7 @@ mod tests {
     /// from the key-value HashMap pair.
     #[test]
     fn test_vecs_not_empty() -> Result<(), Error> {
-        for (embed_type, vec) in COMMANDS.iter() {
+        for (embed_type, vec) in COMMAND_EMBEDS.iter() {
             assert!(!vec.is_empty(), "{:?} array is empty", embed_type);
         }
 
@@ -148,7 +148,7 @@ mod tests {
         use reqwest::{Client, StatusCode};
         let client = Client::new();
 
-        for (_, vec) in COMMANDS.iter() {
+        for (_, vec) in COMMAND_EMBEDS.iter() {
             for url in vec.iter() {
                 match client.head(*url).send().await {
                     Ok(resp) => match resp.status() {
