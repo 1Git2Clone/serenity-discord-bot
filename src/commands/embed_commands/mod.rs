@@ -62,5 +62,8 @@ pub use chair::chair;
 pub mod boom;
 pub use boom::boom;
 
+pub mod quote;
+pub use quote::quote;
+
 pub mod uptime;
 pub use uptime::uptime;
