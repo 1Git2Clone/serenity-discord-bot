@@ -62,9 +62,9 @@ pub async fn event_handler(
                 let trimmed_emojis = remove_emojis_and_embeds_from_str(msg);
 
                 let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
-                match db.await {
+                match db {
                     Ok(ref pool) => {
-                        let obtained_xp: i32 = rand::thread_rng().gen_range(5..=15);
+                        let obtained_xp = rand::thread_rng().gen_range(5..=15);
 
                         #[cfg(feature = "debug")]
                         println!("Connected to the database: {pool:?}");
