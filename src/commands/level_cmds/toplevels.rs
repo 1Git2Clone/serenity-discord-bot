@@ -1,3 +1,5 @@
+use crate::commands::level_logic::calculate_xp_to_level_up;
+
 use super::*;
 
 /// Displays the levels for the top 9 users.
@@ -14,7 +16,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
 
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
 
-    let level_and_xp_rows = match db.await {
+    let level_and_xp_rows = match db {
         Ok(pool) => fetch_top_nine_levels_in_guild(&pool, message_guild_id).await?,
         Err(_) => {
             ctx.reply("Please wait for the guild members to chat more.")
@@ -38,17 +40,19 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
 
     for (counter, (row, user)) in level_and_xp_rows.iter().zip(users.iter()).enumerate() {
         let (level, xp) = (
-            row.get::<i32, &str>(LEVELS_TABLE[&Level]),
-            row.get::<i32, &str>(LEVELS_TABLE[&ExperiencePoints]),
+            row.get::<u32, &str>(LEVELS_TABLE[&Level]),
+            row.get::<u32, &str>(LEVELS_TABLE[&ExperiencePoints]),
         );
+        let xp_to_level_up = calculate_xp_to_level_up(level);
 
         fields.push((
             format!("#{} >> {}", counter + 1, user.name),
             format!(
-                "Lvl: {}\nXP: {}\nLevel progress: {:.2}%",
+                "Lvl: {} | XP: {}/{} ({:.2}%)",
                 level,
                 xp,
-                ((xp as f32) / (level as f32))
+                xp_to_level_up,
+                ((xp as f64) / (xp_to_level_up as f64)) * 100.
             ),
             false,
         ));

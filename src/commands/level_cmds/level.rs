@@ -21,7 +21,7 @@ pub async fn level(
 
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
-    let level_xp_and_rank_row_option = match db.await {
+    let level_xp_and_rank_row_option = match db {
         Ok(pool) => {
             println!("Connected to the database: {pool:?}");
             fetch_user_level_and_rank(&pool, target_replied_user, message_guild_id).await?

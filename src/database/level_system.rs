@@ -147,7 +147,7 @@ pub async fn add_or_update_db_user(
     db: &SqlitePool,
     message: &serenity::Message,
     ctx: &serenity::Context,
-    obtained_xp: i32,
+    obtained_xp: u32,
 ) -> Result<(), Error> {
     let query_cooldown_secs: i64 = *XP_COOLDOWN_NUMBER_SECS;
     let current_timestamp = chrono::offset::Utc::now().timestamp();
@@ -202,8 +202,8 @@ pub async fn add_or_update_db_user(
         }
     };
 
-    let queried_level = query_row.get::<i32, &str>(LEVELS_TABLE[&Level]);
-    let queried_experience_points = query_row.get::<i32, &str>(LEVELS_TABLE[&ExperiencePoints]);
+    let queried_level = query_row.get::<u32, &str>(LEVELS_TABLE[&Level]);
+    let queried_experience_points = query_row.get::<u32, &str>(LEVELS_TABLE[&ExperiencePoints]);
     let added_experience_points = queried_experience_points + obtained_xp;
 
     let update = update_level(added_experience_points, queried_level).await;
