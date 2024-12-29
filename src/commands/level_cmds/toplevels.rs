@@ -10,8 +10,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
     let message_guild_id = match ctx.guild_id() {
         Some(msg) => msg,
         None => {
-            ctx.reply("Please use the fucking guild chats you sick fuck!")
-                .await?;
+            ctx.reply("This command only works in guilds!").await?;
             return Ok(());
         }
     };
