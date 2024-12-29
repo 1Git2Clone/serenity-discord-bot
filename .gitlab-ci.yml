@@ -1,15 +1,19 @@
 stages:
+  - docker_build
   - build_rust
   - build_release_rust
   - test_rust
-  - docker_build
 
 variables:
   # Rust CI
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
-  # Docker CI
-  DOCKER_HOST: tcp://docker:2375
+
+docker-build:
+  stage: docker_build
+  image: docker
+  script:
+    - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
 
 build:
   stage: build_rust
@@ -28,9 +32,3 @@ run-tests:
   image: rust:latest
   script:
     - cargo test --verbose --all-features -- --nocapture
-
-docker-build:
-  stage: docker_build
-  image: docker
-  script:
-    - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
