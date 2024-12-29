@@ -1,21 +1,17 @@
+mod assets;
 mod commands;
 mod data;
 mod database;
 mod enums;
 mod event_handler;
 mod extra_threads;
+mod prelude;
 mod tests;
 mod utils;
 
-use data::command_data::Error;
-use data::{
-    bot_data::{BOT_PREFIXES, BOT_TOKEN, START_TIME},
-    command_data::Data,
-};
+use crate::prelude::*;
 use event_handler::handler::event_handler;
 use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
-use poise::serenity_prelude as serenity;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

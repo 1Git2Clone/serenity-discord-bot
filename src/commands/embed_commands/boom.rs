@@ -1,6 +1,4 @@
-use cmd_utils::HU_BOOM_URL;
-
-use super::*;
+use crate::prelude::*;
 
 /// Just try it.
 #[poise::command(slash_command, prefix_command)]
@@ -11,7 +9,7 @@ pub async fn boom(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(
         poise::CreateReply::default().embed(
             serenity::CreateEmbed::default()
-                .image(HU_BOOM_URL)
+                .image(Assets::HuBoom.to_string())
                 .color((255, 0, 0))
                 .footer(serenity::CreateEmbedFooter::new(bot_user.tag()).icon_url(bot_avatar)),
         ),

@@ -1,10 +1,4 @@
-use std::borrow::Cow;
-
-use crate::data::{
-    bot_data::{BOT_PREFIXES, EMOJIS_AND_EMBEDS_REGEX},
-    command_data::Error,
-};
-use poise::serenity_prelude as serenity;
+use crate::prelude::*;
 
 pub fn upper_lowercase_permutations(data: &str) -> Vec<String> {
     if data.is_empty() {

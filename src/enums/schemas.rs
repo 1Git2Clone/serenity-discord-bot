@@ -1,7 +1,6 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use crate::prelude::*;
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum LevelsSchema {
     UserId,
@@ -11,7 +10,7 @@ pub enum LevelsSchema {
     LastQueryTimestamp,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MentionsSchema {
     Mentions,

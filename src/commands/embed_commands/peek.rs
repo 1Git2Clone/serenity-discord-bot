@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Send a peek GIF in the chat (you lurker)
 #[poise::command(prefix_command, slash_command)]

@@ -1,25 +1,28 @@
-use crate::utils::string_manipulation::upper_lowercase_permutations;
-
-use lazy_static::lazy_static;
-use regex::Regex;
+use crate::prelude::*;
 
 pub const DEFAULT_XP: i64 = 0;
 pub const DEFAULT_LEVEL: i64 = 1;
 
+pub const MIN_XP: u32 = 5;
+pub const MAX_XP: u32 = 15;
+pub const XP_RANGE: std::ops::RangeInclusive<u32> = MIN_XP..=MAX_XP;
+
 lazy_static! {
-    #[derive(Debug)] // So it can be printed in main.rs (you shouldn't do it tho)
-    pub(crate) static ref BOT_TOKEN: String =
+    pub static ref BOT_TOKEN: String =
         std::env::var("BOT_TOKEN").expect("Expected a token in the dotenv file.");
-    pub(crate) static ref START_TIME: std::time::Instant = std::time::Instant::now();
+    pub static ref START_TIME: std::time::Instant = std::time::Instant::now();
 
-    pub(crate) static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
-    pub(crate) static ref BOT_PREFIXES: Vec<String> = {
-            let mut temp = vec![];
-            temp.append(&mut upper_lowercase_permutations("hu"));
-            temp.append(&mut upper_lowercase_permutations("ht"));
+    pub static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
+    pub static ref BOT_PREFIXES: Vec<String> = {
+        let mut temp = vec![];
+        temp.append(&mut upper_lowercase_permutations("hu"));
+        temp.append(&mut upper_lowercase_permutations("ht"));
 
-            temp
+        temp
     };
+
+    pub static ref VALID_MENTION_COUNT_PATTERNS: [&'static str; 2] = ["hutao", "hu tao"];
+
 
     /// # 2 groups
     ///
@@ -39,7 +42,7 @@ lazy_static! {
     /// ---
     ///
     /// <https://regex101.com/r/Yi782B/2>
-    pub(crate) static ref EMOJIS_AND_EMBEDS_REGEX: Regex = Regex::new(
+    pub static ref EMOJIS_AND_EMBEDS_REGEX: Regex = Regex::new(
         concat!(
             "(?<emoji>",
                 r":[^:\s]*:",
@@ -53,7 +56,7 @@ lazy_static! {
     ///
     /// You can see it in the wiki too:
     /// - https://genshin-impact.fandom.com/wiki/Hu_Tao/Voice-Overs/Japanese
-    pub(crate) static ref HU_TAO_VOICELINES_JP: &'static [&'static str] = &[
+    pub static ref HU_TAO_VOICELINES_JP: &'static [&'static str] = &[
         ////////////////////////////////////////////////////////////////////////////////////////////
         // Hello
         ////////////////////////////////////////////////////////////////////////////////////////////

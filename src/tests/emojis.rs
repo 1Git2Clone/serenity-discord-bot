@@ -1,7 +1,4 @@
-use reqwest::StatusCode;
-
-use crate::data::command_data::Error;
-use crate::enums::emojis::Emojis;
+use crate::prelude::*;
 
 #[tokio::test]
 async fn test_valid_emoji_urls() -> Result<(), Error> {

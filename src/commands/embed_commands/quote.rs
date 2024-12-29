@@ -2,7 +2,7 @@ use rand::seq::SliceRandom;
 
 use crate::data::bot_data::HU_TAO_VOICELINES_JP;
 
-use super::*;
+use crate::prelude::*;
 
 /// Send a Hu Tao quote!
 #[poise::command(prefix_command, slash_command)]

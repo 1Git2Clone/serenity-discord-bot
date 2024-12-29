@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 const HELP_COMMAND_TEXT: &str = concat!(
     "This bot has been made using Rust with the ",

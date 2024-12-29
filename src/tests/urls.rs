@@ -1,7 +1,4 @@
-use reqwest::StatusCode;
-
-use crate::commands::cmd_utils::HU_BOOM_URL;
-use crate::data::command_data::Error;
+use crate::prelude::*;
 
 #[tokio::test]
 async fn test_valid_asset_url() -> Result<(), Error> {
@@ -9,9 +6,10 @@ async fn test_valid_asset_url() -> Result<(), Error> {
 
     let client = Client::new();
 
-    let response = client.head(HU_BOOM_URL).send().await?;
-
-    assert_eq!(response.status(), StatusCode::OK);
+    for asset in Assets::iter_variants() {
+        let response = client.head(asset.to_string()).send().await?;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
 
     Ok(())
 }
