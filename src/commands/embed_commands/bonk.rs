@@ -9,7 +9,7 @@ pub async fn bonk(
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let embed_item: &str = get_rand_embed_from_type(&EmbedType::Bonk)?;
     let bot_user = Arc::clone(&ctx.data().bot_user);
-    if target_replied_user == ctx.author() {
+    if same_user(target_replied_user, ctx.author()) {
         ctx.send(
             poise::CreateReply::default().content("バカ！").embed(
                 serenity::CreateEmbed::new()
@@ -25,11 +25,14 @@ pub async fn bonk(
         return Ok(());
     }
 
-    let response: String = format!(
-        "**{}** *bonks* **{}**",
-        ctx.author().name,
-        target_replied_user.name
-    );
+    let response: String = user_interaction(
+        &ctx,
+        ctx.guild_id(),
+        ctx.author(),
+        target_replied_user,
+        |u1, u2| format!("**{}** *bonks* **{}**", u1, u2),
+    )
+    .await;
 
     let embed = serenity::CreateEmbed::new()
         .title(response)

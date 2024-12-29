@@ -1,3 +1,31 @@
+use crate::prelude::*;
+
+pub async fn get_name(ctx: &Context<'_>, guild_id: Option<GuildId>, u: &serenity::User) -> String {
+    let base_case = || u.name.clone();
+    match guild_id {
+        Some(id) => u.nick_in(ctx, id).await.unwrap_or(base_case()),
+        None => base_case(),
+    }
+}
+
+pub async fn user_interaction(
+    ctx: &Context<'_>,
+    guild_id: Option<GuildId>,
+    user_1: &serenity::User,
+    user_2: &serenity::User,
+    f: fn(name_1: &str, name_2: &str) -> String,
+) -> String {
+    let [ref name_1, ref name_2] = join_all([
+        get_name(ctx, guild_id, user_1),
+        get_name(ctx, guild_id, user_2),
+    ])
+    .await[..] else {
+        return String::from("");
+    };
+
+    f(name_1, name_2)
+}
+
 // #region User interaction commands
 
 pub mod tieup;

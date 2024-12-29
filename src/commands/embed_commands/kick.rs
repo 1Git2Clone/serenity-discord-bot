@@ -8,7 +8,7 @@ pub async fn kick(
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Kick)?;
-    if target_replied_user == ctx.author() {
+    if same_user(target_replied_user, ctx.author()) {
         ctx.send(poise::CreateReply::default().content(format!(
             "{}, why would you kick yourself...? Weirdo...",
             target_replied_user.mention()
@@ -17,11 +17,14 @@ pub async fn kick(
         return Ok(());
     }
 
-    let response: String = format!(
-        "**{}** *kicks* **{}**",
-        ctx.author().name,
-        target_replied_user.name
-    );
+    let response: String = user_interaction(
+        &ctx,
+        ctx.guild_id(),
+        ctx.author(),
+        target_replied_user,
+        |u1, u2| format!("**{}** *kicks* **{}**", u1, u2),
+    )
+    .await;
 
     let bot_user = Arc::clone(&ctx.data().bot_user);
 

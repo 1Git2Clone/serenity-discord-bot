@@ -9,7 +9,7 @@ pub async fn hug(
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Hug)?;
     let bot_user = Arc::clone(&ctx.data().bot_user);
-    if target_replied_user == ctx.author() {
+    if same_user(target_replied_user, ctx.author()) {
         ctx.send(
             poise::CreateReply::default()
                 .content("Aww~ I'll hug you!")
@@ -27,11 +27,14 @@ pub async fn hug(
         return Ok(());
     }
 
-    let response: String = format!(
-        "**{}** *hugs* **{}**",
-        ctx.author().name,
-        target_replied_user.name
-    );
+    let response: String = user_interaction(
+        &ctx,
+        ctx.guild_id(),
+        ctx.author(),
+        target_replied_user,
+        |u1, u2| format!("**{}** *hugs* **{}**", u1, u2),
+    )
+    .await;
 
     let embed = serenity::CreateEmbed::new()
         .title(response)
