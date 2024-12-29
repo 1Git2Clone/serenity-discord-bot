@@ -8,6 +8,10 @@ pub async fn get_replied_user(ctx: Context<'_>) -> &serenity::User {
     ref_msg.map_or(ctx.author(), |x| &x.author)
 }
 
+pub fn same_user(u1: &User, u2: &User) -> bool {
+    u1.id == u2.id
+}
+
 pub fn get_rand_embed_from_type(embed_type: &EmbedType) -> Result<&'static str, Error> {
     let embed_option = COMMAND_EMBEDS[embed_type].choose(&mut rand::thread_rng());
     match embed_option {

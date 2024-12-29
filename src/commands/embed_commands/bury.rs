@@ -18,11 +18,14 @@ pub async fn bury(
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Bury)?;
     let target_replied_user = user.as_ref().unwrap();
 
-    let response: String = format!(
-        "**{}** *buries* **{}**",
-        ctx.author().name,
-        target_replied_user.name
-    );
+    let response: String = user_interaction(
+        &ctx,
+        ctx.guild_id(),
+        ctx.author(),
+        target_replied_user,
+        |u1, u2| format!("**{}** *buries* **{}**", u1, u2),
+    )
+    .await;
 
     let bot_user = Arc::clone(&ctx.data().bot_user);
 
