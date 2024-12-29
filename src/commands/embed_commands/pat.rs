@@ -32,7 +32,7 @@ pub async fn pat(
         ctx.guild_id(),
         ctx.author(),
         target_replied_user,
-        |u1, u2| format!("**{}** *noms* **{}**", u1, u2),
+        |u1, u2| format!("**{}** *pats* **{}**", u1, u2),
     )
     .await;
 
