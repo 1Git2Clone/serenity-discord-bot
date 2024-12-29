@@ -1,20 +1,36 @@
-# GitLab CI/CD configuration
-
-# Define stages
 stages:
   - build_rust
-  - test
+  - build_release_rust
+  - test_rust
+  - docker_build
 
-# Rust job
-Rust:
+variables:
+  # Rust CI
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  # Docker CI
+  DOCKER_HOST: tcp://docker:2375
+
+build:
   stage: build_rust
   image: rust:latest
   script:
-    - cargo build --verbose
+    - cargo build --verbose --all-features
 
-# Run tests job
-Run_tests:
-  stage: test
+build-release:
+  stage: build_release_rust
   image: rust:latest
   script:
-    - cargo test --verbose
+    - cargo build --verbose --all-features --release
+
+run-tests:
+  stage: test_rust
+  image: rust:latest
+  script:
+    - cargo test --verbose --all-features -- --nocapture
+
+docker-build:
+  stage: docker_build
+  image: docker
+  script:
+    - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
