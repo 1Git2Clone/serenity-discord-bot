@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
 
 jobs:
   build:
@@ -16,8 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: RUST_BACKTRACE=full cargo build --verbose --all-features
+        run: cargo build --verbose --all-features
       - name: Build Release
-        run: RUST_BACKTRACE=full cargo build --verbose --all-features --release
+        run: cargo build --verbose --all-features --release
       - name: Run tests
-        run: RUST_BACKTRACE=full cargo test --verbose --all-features -- --nocapture
+        run: cargo test --verbose --all-features -- --nocapture
