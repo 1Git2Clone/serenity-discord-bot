@@ -1,3 +1,5 @@
+use ::serenity::futures::future::join_all;
+
 use crate::commands::level_logic::calculate_xp_to_level_up;
 
 use super::*;
@@ -35,10 +37,20 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
             .map(|user_id| ctx.http().get_user((*user_id).into())),
     )
     .await?;
+    let user_nicknames_or_names = join_all(users.iter().map(|u| u.nick_in(ctx, message_guild_id)))
+        .await
+        .iter_mut()
+        .zip(users)
+        .map(|(n, u)| n.take().unwrap_or(u.name))
+        .collect::<Vec<String>>();
 
     let mut fields: Vec<(String, String, bool)> = Vec::new();
 
-    for (counter, (row, user)) in level_and_xp_rows.iter().zip(users.iter()).enumerate() {
+    for (counter, (row, username)) in level_and_xp_rows
+        .iter()
+        .zip(user_nicknames_or_names.iter())
+        .enumerate()
+    {
         let (level, xp) = (
             row.get::<u32, &str>(LEVELS_TABLE[&Level]),
             row.get::<u32, &str>(LEVELS_TABLE[&ExperiencePoints]),
@@ -46,7 +58,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         let xp_to_level_up = calculate_xp_to_level_up(level);
 
         fields.push((
-            format!("#{} >> {}", counter + 1, user.name),
+            format!("#{} >> {}", counter + 1, username),
             format!(
                 "Lvl: {} | XP: {}/{} ({:.2}%)",
                 level,
