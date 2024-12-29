@@ -1,34 +1,30 @@
 stages:
   - docker_build
   - build_rust
+  - run_tests_rust
   - build_release_rust
-  - test_rust
 
 variables:
   # Rust CI
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
 
-docker-build:
-  stage: docker_build
-  image: docker
+docker_build:
+  image: docker:latest
   script:
     - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
 
-build:
-  stage: build_rust
+build_rust:
   image: rust:latest
   script:
     - cargo build --verbose --all-features
 
-build-release:
-  stage: build_release_rust
+build_release_rust:
   image: rust:latest
   script:
     - cargo build --verbose --all-features --release
 
-run-tests:
-  stage: test_rust
+run_tests_rust:
   image: rust:latest
   script:
     - cargo test --verbose --all-features -- --nocapture
