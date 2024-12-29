@@ -12,6 +12,8 @@ variables:
 docker_build:
   stage: docker_build
   image: docker:latest
+  services:
+    - docker:dind
   script:
     - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
 
