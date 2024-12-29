@@ -10,21 +10,25 @@ variables:
   RUST_BACKTRACE: full
 
 docker_build:
+  stage: docker_build
   image: docker:latest
   script:
     - docker build . --file Dockerfile --tag my-image-name:$(date +%s)
 
 build_rust:
+  stage: build_rust
   image: rust:latest
   script:
     - cargo build --verbose --all-features
 
 build_release_rust:
+  stage: build_release_rust
   image: rust:latest
   script:
     - cargo build --verbose --all-features --release
 
 run_tests_rust:
+  stage: run_tests_rust
   image: rust:latest
   script:
     - cargo test --verbose --all-features -- --nocapture
