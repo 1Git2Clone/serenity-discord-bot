@@ -144,7 +144,7 @@ pub fn derive_discord_emoji(input: TokenStream) -> TokenStream {
 // TODO: Simplify the process of making these single attribute derive macros due to the current
 // code duplication
 
-#[proc_macro_derive(Asset, attributes(filename))]
+#[proc_macro_derive(Asset, attributes(src_path))]
 pub fn derive_asset(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
 
@@ -158,11 +158,11 @@ pub fn derive_asset(input: TokenStream) -> TokenStream {
         .iter()
         .map(|v| &v.ident)
         .collect::<Vec<_>>();
-    let variants_values = get_variant_str_values_by_name(enum_item.clone(), "filename");
+    let variants_values = get_variant_str_values_by_name(enum_item.clone(), "src_path");
 
-    impl_display(enum_name, variant_idents, variants_values, |_ident, filename| {
+    impl_display(enum_name, variant_idents, variants_values, |_ident, src_path| {
         format!(
-            "https://raw.githubusercontent.com/1Git2Clone/serenity-discord-bot/main/src/assets/{filename}",
+            "https://raw.githubusercontent.com/1Git2Clone/serenity-discord-bot/main/src/assets/{src_path}",
         )
     })
     .into()
