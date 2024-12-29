@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Displays the bot's current uptime
 #[poise::command(slash_command, prefix_command, rename = "uptime")]

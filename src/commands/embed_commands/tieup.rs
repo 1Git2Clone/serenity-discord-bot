@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Tie someone up (HUH?)
 #[poise::command(prefix_command, slash_command)]

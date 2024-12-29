@@ -1,4 +1,6 @@
-use serenity_discord_bot_derive::{DiscordEmoji, IterateVariants};
+use serenity_discord_bot_derive::DiscordEmoji;
+
+use crate::prelude::*;
 
 /// Discord emojis are sent like this:
 ///

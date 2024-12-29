@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Displays your or another user's account creation date
 #[poise::command(slash_command, prefix_command, rename = "age")]

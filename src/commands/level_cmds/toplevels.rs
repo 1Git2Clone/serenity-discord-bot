@@ -1,8 +1,6 @@
-use ::serenity::futures::future::join_all;
-
 use crate::commands::level_logic::calculate_xp_to_level_up;
 
-use super::*;
+use crate::prelude::*;
 
 /// Displays the levels for the top 9 users.
 #[poise::command(slash_command, prefix_command)]
@@ -28,7 +26,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let user_ids: Vec<u64> = level_and_xp_rows
         .par_iter()
-        .map(|row| row.get::<i64, &str>(LEVELS_TABLE[&UserId]) as u64)
+        .map(|row| row.get::<i64, &str>(LEVELS_TABLE[&LevelsSchema::UserId]) as u64)
         .collect();
     let users = try_join_all(
         user_ids
@@ -51,8 +49,8 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         .enumerate()
     {
         let (level, xp) = (
-            row.get::<u32, &str>(LEVELS_TABLE[&Level]),
-            row.get::<u32, &str>(LEVELS_TABLE[&ExperiencePoints]),
+            row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::Level]),
+            row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::ExperiencePoints]),
         );
         let xp_to_level_up = calculate_xp_to_level_up(level);
 

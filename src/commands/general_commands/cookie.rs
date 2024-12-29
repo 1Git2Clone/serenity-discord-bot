@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Give someone a cookie!
 #[poise::command(slash_command, prefix_command, rename = "cookie")]

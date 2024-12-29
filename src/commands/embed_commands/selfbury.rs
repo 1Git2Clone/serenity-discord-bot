@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Bury yourself (perhaps to help Hu Tao's busines idk...)
 #[poise::command(prefix_command, slash_command)]

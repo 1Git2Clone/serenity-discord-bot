@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 const LEVEL_STEPS: [f32; 14] = [
     7.14, 14.28, 21.41, 28.56, 35.69, 42.83, 49.98, 57.12, 64.25, 71.39, 78.53, 85.67, 92.82, 99.96,
@@ -47,10 +47,10 @@ pub async fn level(
     };
     let level = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(LEVELS_TABLE[&Level]);
+        .get::<i32, &str>(LEVELS_TABLE[&LevelsSchema::Level]);
     let xp = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(LEVELS_TABLE[&ExperiencePoints]);
+        .get::<i32, &str>(LEVELS_TABLE[&LevelsSchema::ExperiencePoints]);
 
     let avatar = target_replied_user.face().replace(".webp", ".png");
     let username = &target_replied_user.name;

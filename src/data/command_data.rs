@@ -1,9 +1,6 @@
-use poise::serenity_prelude as serenity;
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use crate::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Data {
     pub bot_user: Arc<serenity::CurrentUser>,
@@ -12,5 +9,4 @@ pub struct Data {
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
-#[allow(unused)]
 pub type Context<'a> = poise::Context<'a, Data, Error>;

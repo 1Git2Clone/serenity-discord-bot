@@ -7,7 +7,7 @@ use chrono::Utc;
 use std::time::Duration;
 use tokio::spawn;
 
-use crate::data::{bot_data::XP_COOLDOWN_NUMBER_SECS, user_data::USER_COOLDOWNS};
+use crate::prelude::*;
 
 fn remove_expired_cooldowns() {
     let mut cooldowns = USER_COOLDOWNS.lock().unwrap();

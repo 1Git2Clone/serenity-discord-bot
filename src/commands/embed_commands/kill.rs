@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Kill someone (Sadge)
 #[poise::command(prefix_command, slash_command)]

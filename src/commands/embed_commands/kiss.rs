@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Kiss someone
 #[poise::command(prefix_command, slash_command)]

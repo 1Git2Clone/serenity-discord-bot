@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Bonk someone who's horknee
 #[poise::command(prefix_command, slash_command)]
@@ -7,7 +7,7 @@ pub async fn bonk(
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
-    let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Bonk)?;
+    let embed_item: &str = get_rand_embed_from_type(&EmbedType::Bonk)?;
     let bot_user = Arc::clone(&ctx.data().bot_user);
     if target_replied_user == ctx.author() {
         ctx.send(

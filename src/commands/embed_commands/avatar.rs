@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Get the avatar for someone.
 #[poise::command(slash_command, prefix_command)]

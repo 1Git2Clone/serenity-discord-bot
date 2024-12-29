@@ -1,8 +1,4 @@
-use crate::data::command_data::Error;
-use crate::data::database::{MENTIONS_TABLE, MENTIONS_TABLE_NAME};
-use crate::enums::schemas::MentionsSchema;
-use sqlx::sqlite::SqliteQueryResult;
-use sqlx::SqlitePool;
+use crate::prelude::*;
 
 pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, Error> {
     let query = format!(

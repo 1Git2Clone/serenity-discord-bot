@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Get a motivation chair GIF
 #[poise::command(slash_command, prefix_command)]

@@ -1,6 +1,4 @@
-use crate::enums::command_enums::EmbedType;
-use lazy_static::lazy_static;
-use std::collections::HashMap;
+use crate::prelude::*;
 
 #[macro_export]
 macro_rules! cdn_url {
@@ -17,7 +15,7 @@ macro_rules! media_url {
 }
 
 lazy_static! {
-    pub(crate) static ref COMMAND_EMBEDS: HashMap<EmbedType, Vec<&'static str>> = {
+    pub static ref COMMAND_EMBEDS: HashMap<EmbedType, Vec<&'static str>> = {
         let tieup_array = vec![
             cdn_url!("614790390020833280/1183349571468918814/tied-up-aiura.gif"),
             cdn_url!("1180115044218978425/1183694079847059517/ezgif.com-video-to-gif.gif"),
@@ -124,8 +122,8 @@ lazy_static! {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::data::command_data::Error;
+    use crate::prelude::*;
 
     /// It is highly encouraged to run this test to check whether or not all your arrays have a
     /// vector with at least 1 link in it. If you don't run this test or if this test gives out an

@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::enums::schemas::LevelsSchema;
+use crate::prelude::*;
 
 pub fn calculate_xp_to_level_up(level: u32) -> u32 {
     level * 100

@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Get a Ryan Gosling drive GIF.
 #[poise::command(slash_command, prefix_command)]

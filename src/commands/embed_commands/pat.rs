@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 
 /// Pat someone
 #[poise::command(prefix_command, slash_command)]
