@@ -9,7 +9,7 @@ use crate::prelude::*;
 pub async fn quote(ctx: Context<'_>) -> Result<(), Error> {
     let response = HU_TAO_VOICELINES_JP
         .choose(&mut rand::thread_rng())
-        .unwrap()
+        .ok_or("No Hu Tao voicelines!")?
         .to_string();
 
     ctx.send(poise::CreateReply::default().content(response))

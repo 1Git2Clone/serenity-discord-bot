@@ -8,8 +8,13 @@ pub const MAX_XP: u32 = 15;
 pub const XP_RANGE: std::ops::RangeInclusive<u32> = MIN_XP..=MAX_XP;
 
 lazy_static! {
-    pub static ref BOT_TOKEN: String =
-        std::env::var("BOT_TOKEN").expect("Expected a token in the dotenv file.");
+    pub static ref BOT_TOKEN: String = {
+        #[allow(
+            clippy::expect_used,
+            reason = "If anything fails here, it should fail."
+        )]
+        std::env::var("BOT_TOKEN").expect("Expected a token in the dotenv file.")
+    };
     pub static ref START_TIME: std::time::Instant = std::time::Instant::now();
 
     pub static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
@@ -42,21 +47,27 @@ lazy_static! {
     /// ---
     ///
     /// <https://regex101.com/r/Yi782B/2>
-    pub static ref EMOJIS_AND_EMBEDS_REGEX: Regex = Regex::new(
-        concat!(
-            "(?<emoji>",
-                r":[^:\s]*:",
-            ")|(?<embed_emoji>",
-                r"\[[^\[\]\s]*\]\([^()]*\)",
-            ")",
-        )
-    ).unwrap();
+    pub static ref EMOJIS_AND_EMBEDS_REGEX: Regex = {
+        #[allow(
+            clippy::unwrap_used,
+            reason = "If anything fails here, it should fail."
+        )]
+        Regex::new(
+            concat!(
+                "(?<emoji>",
+                    r":[^:\s]*:",
+                ")|(?<embed_emoji>",
+                    r"\[[^\[\]\s]*\]\([^()]*\)",
+                ")",
+            )
+        ).unwrap()
+    };
 
     /// The order of these entries is based on the in-game order.
     ///
     /// You can see it in the wiki too:
     /// - https://genshin-impact.fandom.com/wiki/Hu_Tao/Voice-Overs/Japanese
-    pub static ref HU_TAO_VOICELINES_JP: &'static [&'static str] = &[
+    pub static ref HU_TAO_VOICELINES_JP: &'static [&'static str; 74] = &[
         ////////////////////////////////////////////////////////////////////////////////////////////
         // Hello
         ////////////////////////////////////////////////////////////////////////////////////////////

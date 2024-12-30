@@ -9,18 +9,25 @@ use tokio::spawn;
 
 use crate::prelude::*;
 
-fn remove_expired_cooldowns() {
-    let mut cooldowns = USER_COOLDOWNS.lock().unwrap();
-    let current_timestamp: i64 = Utc::now().timestamp();
+fn remove_expired_cooldowns() -> Result<(), Error> {
+    process_user_cooldowns(|mut cooldowns| {
+        let current_timestamp: i64 = Utc::now().timestamp();
 
-    cooldowns.retain(|_, timestamp| *timestamp + *XP_COOLDOWN_NUMBER_SECS > current_timestamp);
+        cooldowns.retain(|_, timestamp| *timestamp + *XP_COOLDOWN_NUMBER_SECS > current_timestamp);
+
+        Ok(())
+    })?
 }
 
 pub fn periodically_clean_users_on_diff_thread() {
     spawn(async move {
         loop {
             std::thread::sleep(Duration::from_secs(100));
-            remove_expired_cooldowns();
+            let res = remove_expired_cooldowns();
+            if let Err(why) = res {
+                eprintln!("{why}");
+                break;
+            };
         }
     });
 }

@@ -5,12 +5,9 @@ use crate::prelude::*;
 /// Displays the levels for the top 9 users.
 #[poise::command(slash_command, prefix_command)]
 pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
-    let message_guild_id = match ctx.guild_id() {
-        Some(msg) => msg,
-        None => {
-            ctx.reply("This command only works in guilds!").await?;
-            return Ok(());
-        }
+    let Some(message_guild_id) = ctx.guild_id() else {
+        ctx.reply("This command only works in guilds!").await?;
+        return Ok(());
     };
 
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
@@ -67,7 +64,10 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         ));
     }
 
-    let response = format!("Guild: {}\n\nTop 9 Users", ctx.guild().unwrap().name);
+    let response = format!(
+        "Guild: {}\n\nTop 9 Users",
+        ctx.guild().ok_or("No guild found")?.name
+    );
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = Arc::clone(&ctx.data().bot_avatar);
 

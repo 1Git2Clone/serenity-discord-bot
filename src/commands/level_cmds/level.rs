@@ -10,13 +10,9 @@ pub async fn level(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
-    let message_guild_id = match ctx.guild_id() {
-        Some(msg) => msg,
-        None => {
-            ctx.reply("Please use the fucking guild chats you sick fuck!")
-                .await?;
-            return Ok(());
-        }
+    let Some(message_guild_id) = ctx.guild_id() else {
+        ctx.reply("Only works in guilds!").await?;
+        return Ok(());
     };
 
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
@@ -35,9 +31,7 @@ pub async fn level(
             return Ok(());
         }
     };
-    let level_xp_and_rank_row = if let Some(lvl_xp_and_rank_row) = level_xp_and_rank_row_option {
-        lvl_xp_and_rank_row
-    } else {
+    let Some(level_xp_and_rank_row) = level_xp_and_rank_row_option else {
         ctx.reply(format!(
             "Please wait for {} to chat more then try again later...",
             target_replied_user.name

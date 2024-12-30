@@ -137,7 +137,7 @@ pub async fn add_or_update_db_user(
     ctx: &serenity::Context,
     obtained_xp: u32,
 ) -> Result<(), Error> {
-    let query_cooldown_secs: i64 = *XP_COOLDOWN_NUMBER_SECS;
+    let xp_addition_cooldown: i64 = *XP_COOLDOWN_NUMBER_SECS;
     let current_timestamp = chrono::offset::Utc::now().timestamp();
 
     let user = &message.author;
@@ -145,91 +145,49 @@ pub async fn add_or_update_db_user(
         return Ok(());
     };
 
-    {
-        // Mutex guard dropping scope in order to send the data safely accross threads
-        // https://doc.rust-lang.org/std/sync/struct.Mutex.html
-
-        let mut cooldown_timestamps = USER_COOLDOWNS.lock().unwrap();
-        #[cfg(feature = "debug")]
-        println!("{:#?}", cooldown_timestamps);
-
+    process_user_cooldowns(|mut cooldown_timestamps| {
         let key = &(user.id, guild_id);
 
-        if let Some(user_in_guild_timestamp) = cooldown_timestamps.get(key) {
-            match user_in_guild_timestamp + query_cooldown_secs > current_timestamp {
-                true => {
-                    #[cfg(feature = "debug")]
-                    println!(
-                        "> The user {} is on cooldown!\n Time remaining: {:#?}",
-                        user.name,
-                        current_timestamp - (user_in_guild_timestamp + query_cooldown_secs)
-                    );
+        let last_rewarded_user_message_timestamp = &*cooldown_timestamps
+            .entry(*key)
+            .or_insert_with(|| current_timestamp);
 
-                    return Ok(());
-                }
-                false => {
-                    cooldown_timestamps.remove(key);
-                }
-            }
-        } else {
-            cooldown_timestamps.insert(*key, current_timestamp);
-        };
-
-        println!("{:#?}", cooldown_timestamps);
-    }
+        if (last_rewarded_user_message_timestamp + xp_addition_cooldown) <= current_timestamp {
+            cooldown_timestamps.remove(key);
+        }
+    })?;
 
     // First we need to check if there's some user_id+guild_id pair that matches
     let level_query: Option<SqliteRow> = fetch_user_level(db, user, guild_id).await?;
 
-    let query_row = match level_query {
-        Some(row) => row,
-        None => {
-            println!("Adding user to the database...");
-            add_user_if_not_exists(db, user, guild_id).await?;
-            return Ok(());
-        }
+    let Some(query_row) = level_query else {
+        add_user_if_not_exists(db, user, guild_id).await?;
+        return Ok(());
     };
 
     let queried_level = query_row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::Level]);
-    let queried_experience_points =
-        query_row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::ExperiencePoints]);
-    let added_experience_points = queried_experience_points + obtained_xp;
+    let added_experience_points =
+        query_row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::ExperiencePoints]) + obtained_xp;
 
     let update = update_level(added_experience_points, queried_level).await;
-    let updated_experience_points_option = update.get(&LevelsSchema::ExperiencePoints);
-    let updated_level_option = update.get(&LevelsSchema::Level);
 
-    let updated_experience_points = match updated_experience_points_option {
-        Some(update) => update,
-        None => {
-            eprintln!("Failed to update ExperiencePoints!");
-            return Ok(());
-        }
+    let Some(updated_experience_points) = update.get(&LevelsSchema::ExperiencePoints) else {
+        return Err(format!("Failed to update {:?}!", LevelsSchema::ExperiencePoints).into());
     };
-    let updated_level = match updated_level_option {
-        Some(update) => update,
-        None => {
-            eprintln!("Failed to update Level!");
-            return Ok(());
-        }
+
+    let Some(updated_level) = update.get(&LevelsSchema::Level) else {
+        return Err(format!("Failed to update {:?}!", LevelsSchema::Level).into());
     };
 
     if *updated_level > queried_level {
-        let _ = message
+        message
             .reply(
                 ctx,
                 format!("{} leveled up to level: {}", user.name, updated_level),
             )
-            .await;
+            .await?;
     }
 
-    println!(
-        "> Level: {}\n> Experience Points: {}",
-        updated_level, updated_experience_points
-    );
-    println!("Message in Guild Id: {:?}", guild_id);
-
-    // ignoring already saved user_id + guild_id tuples
     let query = format!(
         "UPDATE `{}`
          SET `{}` = ?, `{}` = ?
