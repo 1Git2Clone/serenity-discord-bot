@@ -13,13 +13,11 @@ use tokio::spawn;
 use crate::{data::user_data::UserData, prelude::*};
 
 fn remove_expired_cooldowns<'src>() -> Result<(), PoisonError<MutexGuard<'src, UserData>>> {
-    process_mutex(&USER_COOLDOWNS, |mut cooldowns| {
+    USER_COOLDOWNS.lock().map(|mut cooldowns| {
         let current_timestamp: i64 = Utc::now().timestamp();
 
         cooldowns.retain(|_, timestamp| *timestamp + *XP_COOLDOWN_NUMBER_SECS > current_timestamp);
-    })?;
-
-    Ok(())
+    })
 }
 
 pub fn periodically_clean_users_on_diff_thread() {
