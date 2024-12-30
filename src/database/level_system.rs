@@ -1,4 +1,10 @@
-use crate::prelude::*;
+use crate::{
+    data::database::{
+        ADD_USER_LEVEL_QUERY, FETCH_TOP_NINE_USERS_IN_GUILD_QUERY, FETCH_USER_LEVEL_QUERY,
+        UPDATE_USER_LEVEL_QUERY,
+    },
+    prelude::*,
+};
 
 /// Adds a new database user with the schema from `crate::data:bot_data.rs`.
 /// That's the reason why the function isn't public.
@@ -7,21 +13,7 @@ async fn add_user_if_not_exists(
     user: &User,
     guild_id: GuildId,
 ) -> Result<(), Error> {
-    println!("Adding user to database...");
-    println!("Message Guild Id: {:?}", guild_id);
-
-    // ignoring already saved user_id + guild_id tuples
-    let query = format!(
-        "INSERT INTO `{}` (`{}`, `{}`, `{}`, `{}`)
-         VALUES (?, ?, ?, ?)",
-        DATABASE_USERS,
-        LEVELS_TABLE[&LevelsSchema::UserId],
-        LEVELS_TABLE[&LevelsSchema::GuildId],
-        LEVELS_TABLE[&LevelsSchema::ExperiencePoints],
-        LEVELS_TABLE[&LevelsSchema::Level],
-    );
-
-    sqlx::query(&query)
+    sqlx::query(&ADD_USER_LEVEL_QUERY)
         .bind(user.id.to_string())
         .bind(guild_id.to_string())
         .bind(DEFAULT_XP)
@@ -37,26 +29,13 @@ pub async fn fetch_user_level(
     user: &User,
     guild_id: GuildId,
 ) -> Result<Option<SqliteRow>, Error> {
-    Ok(sqlx::query(
-        format!(
-            "SELECT `{}`, `{}`, `{}`
-             FROM `{}`
-             WHERE `{}` = ? AND `{}` = ?",
-            LEVELS_TABLE[&LevelsSchema::UserId],
-            LEVELS_TABLE[&LevelsSchema::ExperiencePoints],
-            LEVELS_TABLE[&LevelsSchema::Level],
-            //
-            DATABASE_USERS,
-            //
-            LEVELS_TABLE[&LevelsSchema::UserId],
-            LEVELS_TABLE[&LevelsSchema::GuildId]
-        )
-        .as_str(),
-    )
-    .bind(user.id.to_string())
-    .bind(guild_id.to_string())
-    .fetch_optional(db)
-    .await?)
+    let res = sqlx::query(&FETCH_USER_LEVEL_QUERY)
+        .bind(user.id.to_string())
+        .bind(guild_id.to_string())
+        .fetch_optional(db)
+        .await?;
+
+    Ok(res)
 }
 
 pub async fn fetch_user_level_and_rank(
@@ -64,27 +43,17 @@ pub async fn fetch_user_level_and_rank(
     user: &User,
     guild_id: serenity::GuildId,
 ) -> Result<Option<(i64, SqliteRow)>, Error> {
-    let sql = sqlx::query(
-        "
-        SELECT us.*,
-               (SELECT COUNT(*)
-                FROM user_stats AS inner_u
-                WHERE inner_u.guild_id = us.guild_id
-                      AND (inner_u.level > us.level OR 
-                          (inner_u.level = us.level AND inner_u.experience_points >= us.experience_points))
-               ) AS rank
-        FROM user_stats AS us
-        WHERE us.user_id = ? AND us.guild_id = ?
-        ORDER BY level DESC, experience_points DESC
-        ",
-    )
-    .bind(user.id.to_string())
-    .bind(guild_id.to_string())
-    .fetch_optional(db)
-    .await?;
+    let sql = sqlx::query(&FETCH_TOP_NINE_USERS_IN_GUILD_QUERY)
+        .bind(user.id.to_string())
+        .bind(guild_id.to_string())
+        .fetch_optional(db)
+        .await?;
 
     match sql {
-        Some(row) => Ok(Some((row.get::<i64, &str>("rank"), row))),
+        Some(row) => Ok(Some((
+            row.get::<i64, &str>(LEVELS_TABLE[&LevelsSchema::RankSelector]),
+            row,
+        ))),
         None => Ok(None),
     }
 }
@@ -92,35 +61,10 @@ pub async fn fetch_top_nine_levels_in_guild(
     db: &SqlitePool,
     guild_id: serenity::GuildId,
 ) -> Result<Vec<SqliteRow>, Error> {
-    Ok(sqlx::query(
-        format!(
-            "SELECT
-            COALESCE(`{}`, 'Unknown user') AS `{}`,
-            COALESCE(`{}`, 0) AS `{}`,
-            COALESCE(`{}`, 0) AS `{}`
-            FROM `{}`
-            WHERE `{}` = ?
-            ORDER BY {} DESC, {} DESC
-            LIMIT 9",
-            LEVELS_TABLE[&LevelsSchema::UserId],
-            LEVELS_TABLE[&LevelsSchema::UserId],
-            //
-            LEVELS_TABLE[&LevelsSchema::ExperiencePoints],
-            LEVELS_TABLE[&LevelsSchema::ExperiencePoints],
-            //
-            LEVELS_TABLE[&LevelsSchema::Level],
-            LEVELS_TABLE[&LevelsSchema::Level],
-            //
-            DATABASE_USERS,
-            LEVELS_TABLE[&LevelsSchema::GuildId],
-            LEVELS_TABLE[&LevelsSchema::Level],
-            LEVELS_TABLE[&LevelsSchema::ExperiencePoints],
-        )
-        .as_str(),
-    )
-    .bind(guild_id.to_string())
-    .fetch_all(db)
-    .await?)
+    Ok(sqlx::query(&FETCH_TOP_NINE_USERS_IN_GUILD_QUERY)
+        .bind(guild_id.to_string())
+        .fetch_all(db)
+        .await?)
 }
 
 /// Adds a db user id + guild id if there's none or updates the pair with the new values.
@@ -158,7 +102,7 @@ pub async fn add_or_update_db_user(
     })?;
 
     // First we need to check if there's some user_id+guild_id pair that matches
-    let level_query: Option<SqliteRow> = fetch_user_level(db, user, guild_id).await?;
+    let level_query = fetch_user_level(db, user, guild_id).await?;
 
     let Some(query_row) = level_query else {
         add_user_if_not_exists(db, user, guild_id).await?;
@@ -188,20 +132,7 @@ pub async fn add_or_update_db_user(
             .await?;
     }
 
-    let query = format!(
-        "UPDATE `{}`
-         SET `{}` = ?, `{}` = ?
-         WHERE `{}` = ? AND `{}` = ?",
-        DATABASE_USERS,
-        //
-        LEVELS_TABLE[&LevelsSchema::ExperiencePoints],
-        LEVELS_TABLE[&LevelsSchema::Level],
-        //
-        LEVELS_TABLE[&LevelsSchema::UserId],
-        LEVELS_TABLE[&LevelsSchema::GuildId],
-    );
-
-    sqlx::query(&query)
+    sqlx::query(&UPDATE_USER_LEVEL_QUERY)
         .bind(updated_experience_points)
         .bind(updated_level)
         .bind(user.id.to_string())
