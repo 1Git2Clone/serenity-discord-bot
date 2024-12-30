@@ -8,6 +8,7 @@ pub enum LevelsSchema {
     Level,
     ExperiencePoints,
     LastQueryTimestamp,
+    RankSelector,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
