@@ -31,9 +31,7 @@ pub use crate::{
             START_TIME, VALID_MENTION_COUNT_PATTERNS, XP_COOLDOWN_NUMBER_SECS, XP_RANGE,
         },
         command_data::{Context, Data, Error},
-        database::{
-            DATABASE_FILENAME, DATABASE_USERS, LEVELS_TABLE, MENTIONS_TABLE, MENTIONS_TABLE_NAME,
-        },
+        database::{DATABASE_FILENAME, LEVELS_TABLE, MENTIONS_TABLE, MENTIONS_TABLE_NAME},
         embed_media::COMMAND_EMBEDS,
         user_data::USER_COOLDOWNS,
     },
