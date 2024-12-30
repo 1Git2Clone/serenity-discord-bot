@@ -1,12 +1,12 @@
-use std::sync::MutexGuard;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use crate::{data::user_data::UserData, prelude::*};
-
-pub fn process_user_cooldowns<'src, F, Res>(f: F) -> Result<Res, Error>
+pub fn process_mutex<'src, T, F, Ret>(
+    mutex: &'src Mutex<T>,
+    f: F,
+) -> Result<Ret, PoisonError<MutexGuard<'src, T>>>
 where
-    F: FnOnce(MutexGuard<'src, UserData>) -> Res,
-    Res: std::any::Any,
+    F: FnOnce(MutexGuard<'src, T>) -> Ret,
 {
-    let mutex = USER_COOLDOWNS.lock().map_err(|why| format!("{why}"))?;
-    Ok(f(mutex))
+    let mutex_guard = mutex.lock()?;
+    Ok(f(mutex_guard))
 }

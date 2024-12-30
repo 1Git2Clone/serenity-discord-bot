@@ -4,19 +4,22 @@
 //! it out and move it to another thread. This is the nice part about global state management.
 
 use chrono::Utc;
-use std::time::Duration;
+use std::{
+    sync::{MutexGuard, PoisonError},
+    time::Duration,
+};
 use tokio::spawn;
 
-use crate::prelude::*;
+use crate::{data::user_data::UserData, prelude::*};
 
-fn remove_expired_cooldowns() -> Result<(), Error> {
-    process_user_cooldowns(|mut cooldowns| {
+fn remove_expired_cooldowns<'src>() -> Result<(), PoisonError<MutexGuard<'src, UserData>>> {
+    process_mutex(&USER_COOLDOWNS, |mut cooldowns| {
         let current_timestamp: i64 = Utc::now().timestamp();
 
         cooldowns.retain(|_, timestamp| *timestamp + *XP_COOLDOWN_NUMBER_SECS > current_timestamp);
+    })?;
 
-        Ok(())
-    })?
+    Ok(())
 }
 
 pub fn periodically_clean_users_on_diff_thread() {

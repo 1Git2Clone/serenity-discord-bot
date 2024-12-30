@@ -41,9 +41,7 @@ pub use crate::{
         schemas::{LevelsSchema, MentionsSchema},
     },
     media_url,
-    utils::{
-        concurrency::process_user_cooldowns, string_manipulation::upper_lowercase_permutations,
-    },
+    utils::{concurrency::process_mutex, string_manipulation::upper_lowercase_permutations},
 };
 pub use serenity_discord_bot_derive::IterateVariants;
 

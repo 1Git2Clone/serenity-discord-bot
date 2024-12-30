@@ -89,17 +89,22 @@ pub async fn add_or_update_db_user(
         return Ok(());
     };
 
-    process_user_cooldowns(|mut cooldown_timestamps| {
-        let key = &(user.id, guild_id);
+    process_mutex(
+        &USER_COOLDOWNS,
+        |mut cooldown_timestamps| -> Result<(), Error> {
+            let key = &(user.id, guild_id);
 
-        let last_rewarded_user_message_timestamp = &*cooldown_timestamps
-            .entry(*key)
-            .or_insert_with(|| current_timestamp);
+            let last_rewarded_user_message_timestamp =
+                &*cooldown_timestamps.entry(*key).or_insert(current_timestamp);
 
-        if (last_rewarded_user_message_timestamp + xp_addition_cooldown) <= current_timestamp {
-            cooldown_timestamps.remove(key);
-        }
-    })?;
+            if (last_rewarded_user_message_timestamp + xp_addition_cooldown) <= current_timestamp {
+                cooldown_timestamps.remove(key);
+            }
+
+            Ok(())
+        },
+    )
+    .map_err(|why| format!("{why}"))??;
 
     // First we need to check if there's some user_id+guild_id pair that matches
     let level_query = fetch_user_level(db, user, guild_id).await?;
