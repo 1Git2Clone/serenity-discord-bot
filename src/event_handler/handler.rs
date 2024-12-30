@@ -28,13 +28,14 @@ pub async fn event_handler(
             eprintln!(
                 "- (!) - There's a rate limit for the bot right now! [{:?} seconds left!]",
                 data.timeout.as_secs()
-            )
+            );
         }
         serenity::FullEvent::Message { new_message } => {
-            handle_message(ctx, data, new_message).await?
+            handle_message(ctx, data, new_message).await?;
         }
 
         _ => (),
     }
+
     Ok(())
 }
