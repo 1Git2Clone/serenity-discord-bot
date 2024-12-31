@@ -4,6 +4,13 @@ const LEVEL_STEPS: [f32; 14] = [
     7.14, 14.28, 21.41, 28.56, 35.69, 42.83, 49.98, 57.12, 64.25, 71.39, 78.53, 85.67, 92.82, 99.96,
 ];
 
+fn chat_more(username: &str) -> String {
+    format!(
+        "Please wait for {} to chat more then try again later...",
+        username
+    )
+}
+
 /// Displays the user's level
 #[poise::command(slash_command, prefix_command)]
 pub async fn level(
@@ -17,26 +24,15 @@ pub async fn level(
 
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
-    let level_xp_and_rank_row_option = match db {
-        Ok(pool) => {
-            println!("Connected to the database: {pool:?}");
-            fetch_user_level_and_rank(&pool, target_replied_user, message_guild_id).await?
-        }
-        Err(_) => {
-            ctx.reply(format!(
-                "Please wait for {} to chat more then try again later...",
-                target_replied_user.name
-            ))
-            .await?;
-            return Ok(());
-        }
+    let Ok(pool) = db else {
+        ctx.reply(chat_more(&target_replied_user.name)).await?;
+        return Ok(());
     };
+    let level_xp_and_rank_row_option =
+        fetch_user_level_and_rank(&pool, target_replied_user, message_guild_id).await?;
+
     let Some(level_xp_and_rank_row) = level_xp_and_rank_row_option else {
-        ctx.reply(format!(
-            "Please wait for {} to chat more then try again later...",
-            target_replied_user.name
-        ))
-        .await?;
+        ctx.reply(chat_more(&target_replied_user.name)).await?;
         return Ok(());
     };
     let level = level_xp_and_rank_row

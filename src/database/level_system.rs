@@ -1,7 +1,7 @@
 use crate::{
     data::database::{
-        ADD_USER_LEVEL_QUERY, FETCH_TOP_NINE_USERS_IN_GUILD_QUERY, FETCH_USER_LEVEL_QUERY,
-        UPDATE_USER_LEVEL_QUERY,
+        ADD_USER_LEVEL_QUERY, FETCH_TOP_NINE_USERS_IN_GUILD_QUERY, FETCH_USER_LEVEL_AND_RANK_QUERY,
+        FETCH_USER_LEVEL_QUERY, UPDATE_USER_LEVEL_QUERY,
     },
     prelude::*,
 };
@@ -43,7 +43,7 @@ pub async fn fetch_user_level_and_rank(
     user: &User,
     guild_id: serenity::GuildId,
 ) -> Result<Option<(i64, SqliteRow)>, Error> {
-    let sql = sqlx::query(&FETCH_TOP_NINE_USERS_IN_GUILD_QUERY)
+    let sql = sqlx::query(&FETCH_USER_LEVEL_AND_RANK_QUERY)
         .bind(user.id.to_string())
         .bind(guild_id.to_string())
         .fetch_optional(db)
