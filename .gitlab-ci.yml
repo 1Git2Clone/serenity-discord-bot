@@ -2,7 +2,6 @@ stages:
   - docker_build
   - build_rust
   - run_tests_rust
-  - build_release_rust
 
 variables:
   # Rust CI
@@ -22,12 +21,6 @@ build_rust:
   image: rust:latest
   script:
     - cargo build --verbose --all-features
-
-build_release_rust:
-  stage: build_release_rust
-  image: rust:latest
-  script:
-    - cargo build --verbose --all-features --release
 
 run_tests_rust:
   stage: run_tests_rust
