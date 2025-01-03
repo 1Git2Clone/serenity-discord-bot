@@ -37,10 +37,10 @@ pub async fn level(
     };
     let level = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(LEVELS_TABLE[&LevelsSchema::Level]);
+        .get::<i32, &str>(LevelsSchema::Level.as_str());
     let xp = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(LEVELS_TABLE[&LevelsSchema::ExperiencePoints]);
+        .get::<i32, &str>(LevelsSchema::ExperiencePoints.as_str());
 
     let avatar = target_replied_user.face().replace(".webp", ".png");
     let username = &target_replied_user.name;

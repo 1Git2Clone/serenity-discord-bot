@@ -51,7 +51,7 @@ pub async fn fetch_user_level_and_rank(
 
     match sql {
         Some(row) => Ok(Some((
-            row.get::<i64, &str>(LEVELS_TABLE[&LevelsSchema::RankSelector]),
+            row.get::<i64, &str>(LevelsSchema::Rank.as_str()),
             row,
         ))),
         None => Ok(None),
@@ -111,32 +111,27 @@ pub async fn add_or_update_db_user(
         return Ok(());
     };
 
-    let queried_level = query_row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::Level]);
+    let queried_level = query_row.get::<u32, &str>(LevelsSchema::Level.as_str());
     let added_experience_points =
-        query_row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::ExperiencePoints]) + obtained_xp;
+        query_row.get::<u32, &str>(LevelsSchema::ExperiencePoints.as_str()) + obtained_xp;
 
     let update = update_level(added_experience_points, queried_level).await;
 
-    let Some(updated_experience_points) = update.get(&LevelsSchema::ExperiencePoints) else {
-        return Err(format!("Failed to update {:?}!", LevelsSchema::ExperiencePoints).into());
-    };
-
-    let Some(updated_level) = update.get(&LevelsSchema::Level) else {
-        return Err(format!("Failed to update {:?}!", LevelsSchema::Level).into());
-    };
-
-    if *updated_level > queried_level {
+    if update.updated_level > queried_level {
         message
             .reply(
                 ctx,
-                format!("{} leveled up to level: {}", user.name, updated_level),
+                format!(
+                    "{} leveled up to level: {}",
+                    user.name, update.updated_level
+                ),
             )
             .await?;
     }
 
     sqlx::query(&UPDATE_USER_LEVEL_QUERY)
-        .bind(updated_experience_points)
-        .bind(updated_level)
+        .bind(update.updated_experience)
+        .bind(update.updated_level)
         .bind(user.id.to_string())
         .bind(guild_id.to_string())
         .execute(db)
