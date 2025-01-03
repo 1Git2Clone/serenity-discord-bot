@@ -1,6 +1,6 @@
-use crate::prelude::*;
+use crate::{commands::level_logic::calculate_xp_to_level_up, prelude::*};
 
-const LEVEL_STEPS: [f32; 14] = [
+const LEVEL_STEPS: [f64; 14] = [
     7.14, 14.28, 21.41, 28.56, 35.69, 42.83, 49.98, 57.12, 64.25, 71.39, 78.53, 85.67, 92.82, 99.96,
 ];
 
@@ -37,10 +37,10 @@ pub async fn level(
     };
     let level = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(LevelsSchema::Level.as_str());
+        .get::<u32, &str>(LevelsSchema::Level.as_str());
     let xp = level_xp_and_rank_row
         .1
-        .get::<i32, &str>(LevelsSchema::ExperiencePoints.as_str());
+        .get::<u32, &str>(LevelsSchema::ExperiencePoints.as_str());
 
     let avatar = target_replied_user.face().replace(".webp", ".png");
     let username = &target_replied_user.name;
@@ -50,7 +50,8 @@ pub async fn level(
     );
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = Arc::clone(&ctx.data().bot_avatar).to_string();
-    let percent_left_to_level_up: f32 = (xp as f32) / (level as f32);
+    let max_xp = calculate_xp_to_level_up(level);
+    let percent_left_to_level_up = (xp as f64 / max_xp as f64) * 100.;
     let progress_bar: String = {
         LEVEL_STEPS
             .iter()
@@ -70,10 +71,12 @@ pub async fn level(
                 .color((255, 0, 0))
                 .thumbnail(&avatar)
                 .field("Level", format!("⊱ {}", level), false)
-                .field("Experience Points", format!("⊱ {}", xp), false)
                 .field(
-                    "Progress until next level",
-                    format!("┊{}┊\n╰• {:.2}%", progress_bar, percent_left_to_level_up),
+                    "Experience Points",
+                    format!(
+                        "╭• {}/{}\n┊{}┊\n╰• {:.2}%",
+                        xp, max_xp, progress_bar, percent_left_to_level_up
+                    ),
                     false,
                 )
                 .footer(serenity::CreateEmbedFooter::new(bot_user.tag()).icon_url(bot_avatar)),
