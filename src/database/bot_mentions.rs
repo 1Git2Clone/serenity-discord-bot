@@ -1,9 +1,9 @@
 use crate::prelude::*;
 
-pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, Error> {
+pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, sqlx::Error> {
     let query = format!(
         "SELECT `{}` FROM `{}`",
-        MENTIONS_TABLE[&MentionsSchema::Mentions],
+        MentionsSchema::Mentions.as_str(),
         MENTIONS_TABLE_NAME,
     );
     let queried_mentions: Option<i64> = sqlx::query_scalar(&query).fetch_one(db).await?;
@@ -18,7 +18,7 @@ pub async fn update_mentions(
     let query = format!(
         "UPDATE `{}` SET `{}` = ?",
         MENTIONS_TABLE_NAME,
-        MENTIONS_TABLE[&MentionsSchema::Mentions]
+        MentionsSchema::Mentions.as_str()
     );
 
     sqlx::query(&query)
@@ -27,7 +27,7 @@ pub async fn update_mentions(
         .await
 }
 
-pub async fn add_mentions(db: &SqlitePool, n: usize) -> Result<usize, Error> {
+pub async fn add_mentions(db: &SqlitePool, n: usize) -> Result<usize, sqlx::Error> {
     let fetched_mentions = fetch_mentions(db).await?;
 
     update_mentions(db, fetched_mentions + n).await?;

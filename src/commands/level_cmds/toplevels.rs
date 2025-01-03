@@ -23,7 +23,7 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let user_ids: Vec<u64> = level_and_xp_rows
         .par_iter()
-        .map(|row| row.get::<i64, &str>(LEVELS_TABLE[&LevelsSchema::UserId]) as u64)
+        .map(|row| row.get::<i64, &str>(LevelsSchema::UserId.as_str()) as u64)
         .collect();
     let users = try_join_all(
         user_ids
@@ -46,8 +46,8 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         .enumerate()
     {
         let (level, xp) = (
-            row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::Level]),
-            row.get::<u32, &str>(LEVELS_TABLE[&LevelsSchema::ExperiencePoints]),
+            row.get::<u32, &str>(LevelsSchema::Level.as_str()),
+            row.get::<u32, &str>(LevelsSchema::ExperiencePoints.as_str()),
         );
         let xp_to_level_up = calculate_xp_to_level_up(level);
 
