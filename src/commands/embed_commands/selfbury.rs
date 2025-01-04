@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// Bury yourself (perhaps to help Hu Tao's busines idk...)
 #[poise::command(prefix_command, slash_command)]
-pub async fn selfbury(ctx: Context<'_>, #[rest] _msg: String) -> Result<(), Error> {
+pub async fn selfbury(ctx: Context<'_>, #[rest] _msg: Option<String>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::SelfBury)?;
     let response: String = format!("**{}** *buries themselves*", ctx.author().name,);
     let bot_user = Arc::clone(&ctx.data().bot_user);

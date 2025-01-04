@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 /// Send a Hu Tao quote!
 #[poise::command(prefix_command, slash_command)]
-pub async fn quote(ctx: Context<'_>, #[rest] _msg: String) -> Result<(), Error> {
+pub async fn quote(ctx: Context<'_>, #[rest] _msg: Option<String>) -> Result<(), Error> {
     let response = HU_TAO_VOICELINES_JP
         .choose(&mut rand::thread_rng())
         .ok_or("No Hu Tao voicelines!")?

@@ -5,7 +5,7 @@ use crate::prelude::*;
 pub async fn bury(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
-    #[rest] _msg: String,
+    #[rest] _msg: Option<String>,
 ) -> Result<(), Error> {
     let Some(target_replied_user) = user else {
         ctx.send(poise::CreateReply::default().content(format!(

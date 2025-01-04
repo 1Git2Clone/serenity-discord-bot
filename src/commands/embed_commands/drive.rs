@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// Get a Ryan Gosling drive GIF.
 #[poise::command(slash_command, prefix_command)]
-pub async fn drive(ctx: Context<'_>, #[rest] _msg: String) -> Result<(), Error> {
+pub async fn drive(ctx: Context<'_>, #[rest] _msg: Option<String>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::RyanGoslingDrive)?;
     let bot_user = Arc::clone(&ctx.data().bot_user);
 

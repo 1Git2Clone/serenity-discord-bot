@@ -16,7 +16,7 @@ fn chat_more(username: &str) -> String {
 pub async fn level(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
-    #[rest] _msg: String,
+    #[rest] _msg: Option<String>,
 ) -> Result<(), Error> {
     let Some(message_guild_id) = ctx.guild_id() else {
         ctx.reply("Only works in guilds!").await?;
