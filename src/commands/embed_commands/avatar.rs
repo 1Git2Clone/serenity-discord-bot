@@ -5,7 +5,7 @@ use crate::prelude::*;
 pub async fn avatar(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
-    #[rest] _msg: String,
+    #[rest] _msg: Option<String>,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let response: String = format!("**{}**'s avatar:", target_replied_user.name);
