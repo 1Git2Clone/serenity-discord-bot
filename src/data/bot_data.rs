@@ -18,13 +18,7 @@ lazy_static! {
     pub static ref START_TIME: std::time::Instant = std::time::Instant::now();
 
     pub static ref XP_COOLDOWN_NUMBER_SECS: i64 = 60;
-    pub static ref BOT_PREFIXES: Vec<String> = {
-        let mut temp = vec![];
-        temp.append(&mut upper_lowercase_permutations("hu"));
-        temp.append(&mut upper_lowercase_permutations("ht"));
-
-        temp
-    };
+    pub static ref BOT_PREFIXES: [&'static str; 2] = ["hu", "ht"];
 
     pub static ref VALID_MENTION_COUNT_PATTERNS: [&'static str; 2] = ["hutao", "hu tao"];
 

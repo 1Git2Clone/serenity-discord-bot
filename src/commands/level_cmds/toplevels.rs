@@ -10,17 +10,11 @@ pub async fn toplevels(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
+    let level_and_xp_rows =
+        fetch_top_nine_levels_in_guild(&ctx.data().pool, message_guild_id).await?;
 
-    let level_and_xp_rows = match db {
-        Ok(pool) => fetch_top_nine_levels_in_guild(&pool, message_guild_id).await?,
-        Err(_) => {
-            ctx.reply("Please wait for the guild members to chat more.")
-                .await?;
-            return Ok(());
-        }
-    };
     ctx.defer().await?;
+
     let user_ids: Vec<u64> = level_and_xp_rows
         .par_iter()
         .map(|row| row.get::<i64, &str>(LevelsSchema::UserId.as_str()) as u64)

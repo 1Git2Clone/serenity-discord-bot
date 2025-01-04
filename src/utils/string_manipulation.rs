@@ -1,24 +1,5 @@
 use crate::prelude::*;
 
-pub fn upper_lowercase_permutations(data: &str) -> Vec<String> {
-    let Some(first) = data.chars().next() else {
-        return vec![String::new()];
-    };
-
-    let rest = &data[1..];
-
-    let permutations = upper_lowercase_permutations(rest);
-
-    let mut result: Vec<String> = Vec::new();
-
-    for perm in permutations {
-        result.push(format!("{}{}", first.to_lowercase(), perm));
-        result.push(format!("{}{}", first.to_uppercase(), perm));
-    }
-
-    result
-}
-
 /// Removes the emojis from a string.
 ///
 /// ```rust
@@ -59,7 +40,7 @@ pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> Levenshtein
     let mut data = LevenshteinCommandData::new();
     for prefix in BOT_PREFIXES.iter() {
         if lower.starts_with(prefix) {
-            data.prefix = prefix.as_str();
+            data.prefix = prefix;
             break;
         }
     }

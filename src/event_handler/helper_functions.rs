@@ -10,9 +10,8 @@ pub async fn handle_database_message_processing(
     ctx: &serenity::Context,
     new_message: &serenity::Message,
     msg: &str,
+    pool: &SqlitePool,
 ) -> Result<(), Error> {
-    let pool = connect_to_db(DATABASE_FILENAME.to_string()).await?;
-
     let trimmed_emojis = remove_emojis_and_embeds_from_str(msg);
 
     let obtained_xp = rand::thread_rng().gen_range(XP_RANGE);
@@ -21,10 +20,10 @@ pub async fn handle_database_message_processing(
         .iter()
         .any(|text| trimmed_emojis.contains(text))
     {
-        handle_replies(&pool, ctx, new_message, &trimmed_emojis).await?;
+        handle_replies(pool, ctx, new_message, &trimmed_emojis).await?;
     }
 
-    add_or_update_db_user(&pool, new_message, ctx, obtained_xp).await?;
+    add_or_update_db_user(pool, new_message, ctx, obtained_xp).await?;
 
     Ok(())
 }
@@ -40,7 +39,7 @@ pub async fn handle_message(
     let msg = new_message.content.to_lowercase();
 
     levenshtein_cmd(ctx, new_message, &data.available_commands).await?;
-    handle_database_message_processing(ctx, new_message, &msg).await?;
+    handle_database_message_processing(ctx, new_message, &msg, &data.pool).await?;
 
     Ok(())
 }
