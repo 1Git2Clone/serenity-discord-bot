@@ -80,4 +80,4 @@ pub use sqlx::{
 pub use lazy_static::lazy_static;
 pub use rand::prelude::*;
 pub use rayon::prelude::*;
-pub use regex::Regex;
+pub use regex::{Regex, RegexBuilder};

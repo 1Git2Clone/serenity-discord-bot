@@ -47,7 +47,11 @@ async fn main() -> Result<(), Error> {
                 prefix: None,
                 additional_prefixes: BOT_PREFIXES
                     .iter()
-                    .map(|p| poise::Prefix::Literal(p))
+                    .map(|p| {
+                        poise::Prefix::Regex(
+                            RegexBuilder::new(p).case_insensitive(true).build().unwrap(),
+                        )
+                    })
                     .collect::<Vec<poise::Prefix>>(),
                 mention_as_prefix: true,
                 case_insensitive_commands: true,
