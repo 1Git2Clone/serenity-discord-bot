@@ -47,7 +47,7 @@ async fn main() -> Result<(), Error> {
                 prefix: None,
                 additional_prefixes: BOT_PREFIXES
                     .iter()
-                    .map(|x| poise::Prefix::Literal(x.as_str()))
+                    .map(|p| poise::Prefix::Literal(p))
                     .collect::<Vec<poise::Prefix>>(),
                 mention_as_prefix: true,
                 case_insensitive_commands: true,
@@ -97,6 +97,7 @@ async fn main() -> Result<(), Error> {
                         .iter()
                         .map(|cmd| cmd.name.clone())
                         .collect(),
+                    pool: Arc::new(connect_to_db(DATABASE_FILENAME).await.unwrap()),
                 })
             })
         })
@@ -106,12 +107,7 @@ async fn main() -> Result<(), Error> {
         .framework(framework)
         .activity(serenity::ActivityData::custom(format!(
             "Usable prefixes: [ {} ]",
-            BOT_PREFIXES
-                .iter()
-                .filter(|&x| x.chars().all(|c| c.is_lowercase()))
-                .map(|x| x.to_string())
-                .collect::<Vec<String>>()
-                .join(" ")
+            BOT_PREFIXES.join(", ")
         )))
         .status(serenity::OnlineStatus::Idle)
         .await;

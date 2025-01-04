@@ -23,13 +23,8 @@ pub async fn level(
     };
 
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
-    let db = connect_to_db(DATABASE_FILENAME.to_string()).await;
-    let Ok(pool) = db else {
-        ctx.reply(chat_more(&target_replied_user.name)).await?;
-        return Ok(());
-    };
     let level_xp_and_rank_row_option =
-        fetch_user_level_and_rank(&pool, target_replied_user, message_guild_id).await?;
+        fetch_user_level_and_rank(&ctx.data().pool, target_replied_user, message_guild_id).await?;
 
     let Some(level_xp_and_rank_row) = level_xp_and_rank_row_option else {
         ctx.reply(chat_more(&target_replied_user.name)).await?;
