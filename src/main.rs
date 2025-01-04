@@ -17,7 +17,8 @@ use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
 async fn main() -> Result<(), Error> {
     let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
 
-    dotenv::dotenv().ok();
+    let _ = dotenv::dotenv()?;
+
     let token = BOT_TOKEN.to_string();
     periodically_clean_users_on_diff_thread();
     // Either all or non_privileged intents only.
@@ -116,7 +117,7 @@ async fn main() -> Result<(), Error> {
         .status(serenity::OnlineStatus::Idle)
         .await;
 
-    client.unwrap().start().await.unwrap();
+    client?.start().await?;
 
     Ok(())
 }

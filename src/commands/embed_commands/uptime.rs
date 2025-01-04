@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// Displays the bot's current uptime
 #[poise::command(slash_command, prefix_command, rename = "uptime")]
-pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn uptime(ctx: Context<'_>, #[rest] _msg: String) -> Result<(), Error> {
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");
 

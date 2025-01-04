@@ -5,6 +5,7 @@ use crate::prelude::*;
 pub async fn slap(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
+    #[rest] _msg: String,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Slap)?;
