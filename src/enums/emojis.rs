@@ -51,8 +51,21 @@ use crate::prelude::*;
 /// still try to have them all be PascalCase though.
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IterateVariants, DiscordEmoji)]
 pub enum Emojis {
     #[emoji_id = "1317920658021290097"]
     HuTaoHeh,
+    #[emoji_id = "1327955257744953415"]
+    HuTaoSmug,
+    #[emoji_id = "1327955243962470451"]
+    HuTaoHug,
+    #[emoji_id = "1327957502092120074"]
+    HuTaoJuice,
+    #[emoji_id = "1327957849493737522"]
+    HuTaoEvilLaugh,
+    #[emoji_id = "1327958620872376381"]
+    A_HuTaoNote,
+    #[emoji_id = "1327959223237218344"]
+    HuTaoHeheNote,
 }
