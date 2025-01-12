@@ -1,4 +1,4 @@
-use crate::data::bot_data::HU_TAO_VOICELINES_JP;
+use crate::data::voicelines::HU_TAO_VOICELINES_JP;
 
 use crate::prelude::*;
 
