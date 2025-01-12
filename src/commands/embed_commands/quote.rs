@@ -1,5 +1,3 @@
-use rand::seq::SliceRandom;
-
 use crate::data::bot_data::HU_TAO_VOICELINES_JP;
 
 use crate::prelude::*;
@@ -11,8 +9,12 @@ pub async fn quote(ctx: Context<'_>, #[rest] _msg: Option<String>) -> Result<(),
         .choose(&mut rand::thread_rng())
         .ok_or("No Hu Tao voicelines!")?
         .to_string();
+    let emoji = Emojis::variants()
+        .choose(&mut rand::thread_rng())
+        .ok_or("No Emoji Variants!")?
+        .to_string();
 
-    ctx.send(poise::CreateReply::default().content(response))
+    ctx.send(poise::CreateReply::default().content([response, emoji].join(" ")))
         .await?;
 
     Ok(())
