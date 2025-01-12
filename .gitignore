@@ -8,5 +8,3 @@
 !/bin
 /bin/*
 !/bin/README.md
-
-/Cargo.lock
