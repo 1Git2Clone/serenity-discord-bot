@@ -6,7 +6,7 @@ async fn test_valid_asset_url() -> Result<(), Error> {
 
     let client = Client::new();
 
-    for asset in Assets::iter_variants() {
+    for asset in Assets::variants().iter() {
         let response = client.head(asset.to_string()).send().await?;
         assert_eq!(response.status(), StatusCode::OK);
     }
