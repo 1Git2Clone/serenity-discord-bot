@@ -149,3 +149,12 @@ DATABASE_URL=sqlite:database/botdatabase.sqlite
 
 NOTE: The database URL configuration is hard-coded in the
 `extra_utils/generate_dotenv.rs` file.
+
+### Tokio Console
+
+You can also enable the [Tokio Console](https://github.com/tokio-rs/console)
+feature by compiling the bot with `--features="tokio_console"`.
+
+> [!NOTE]
+> Make sure to also compile with `RUSTFLAGS="--cfg tokio_unstable"` if you
+> choose to do so.

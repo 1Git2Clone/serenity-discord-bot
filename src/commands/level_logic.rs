@@ -8,6 +8,14 @@ pub fn calculate_xp_to_level_up(level: u32) -> u32 {
 }
 
 /// Set the leveling condition and return the updated level with reset xp if true.
+#[tracing::instrument(
+    fields(
+        category = "discord_command_utility",
+        eperience = %experience,
+        level = %level,
+        level_up = %(experience >= calculate_xp_to_level_up(level))
+    )
+)]
 pub async fn update_level(experience: u32, level: u32) -> LevelStats {
     let update_level = if experience >= calculate_xp_to_level_up(level) {
         level + 1

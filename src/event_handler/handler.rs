@@ -8,6 +8,13 @@
 use super::helper_functions::handle_message;
 use crate::prelude::*;
 
+#[tracing::instrument(
+    skip(ctx, event, _framework),
+    fields(
+        category = "event_handler",
+        event.name = %event.snake_case_name(),
+    )
+)]
 pub async fn event_handler(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,
@@ -17,7 +24,7 @@ pub async fn event_handler(
     match event {
         #[cfg(feature = "debug")]
         serenity::FullEvent::Ready { data_about_bot, .. } => {
-            println!(
+            tracing::info!(
                 "\nStart time: {}ms\n=> Logged in as: {}",
                 START_TIME.elapsed().as_millis(),
                 data_about_bot.user.tag()
@@ -25,7 +32,7 @@ pub async fn event_handler(
         }
 
         serenity::FullEvent::Ratelimit { data } => {
-            eprintln!(
+            tracing::error!(
                 "- (!) - There's a rate limit for the bot right now! [{:?} seconds left!]",
                 data.timeout.as_secs()
             );

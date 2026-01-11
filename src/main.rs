@@ -19,6 +19,24 @@ async fn main() -> Result<(), Error> {
 
     let _ = dotenv::dotenv()?;
 
+    let env_layer = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
+
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_target(false)
+        .with_filter(env_layer);
+
+    #[cfg(feature = "tokio_console")]
+    let console_layer = console_subscriber::spawn();
+
+    let registry = tracing_subscriber::registry().with(fmt_layer);
+
+    #[cfg(feature = "tokio_console")]
+    let registry = registry.with(console_layer);
+
+    registry.init();
+
     let token = BOT_TOKEN.to_string();
     periodically_clean_users_on_diff_thread();
     // Either all or non_privileged intents only.
@@ -34,7 +52,7 @@ async fn main() -> Result<(), Error> {
                 Box::pin(async move {
                     match err {
                         poise::FrameworkError::Command { ctx, .. } => {
-                            println!(
+                            tracing::info!(
                                 "In on_error: {:?}",
                                 ctx.invocation_data::<&str>().await.as_deref()
                             );

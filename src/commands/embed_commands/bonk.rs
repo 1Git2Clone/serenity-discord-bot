@@ -2,10 +2,21 @@ use crate::prelude::*;
 
 /// Bonk someone who's horknee
 #[poise::command(prefix_command, slash_command)]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        target_user = %user.as_ref().map(|u| u.id.get()).unwrap_or(0),
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+        extra_msg = %msg.as_deref().unwrap_or("")
+    )
+)]
 pub async fn bonk(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
-    #[rest] _msg: Option<String>,
+    #[rest] msg: Option<String>,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let embed_item: &str = get_rand_embed_from_type(&EmbedType::Bonk)?;

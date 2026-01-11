@@ -35,6 +35,14 @@ impl LevenshteinCommandData<'_> {
     }
 }
 
+#[tracing::instrument(
+    skip(msg, commands),
+    fields(
+        category = "levenshtein",
+        msg = %msg,
+        commands = ?commands,
+    )
+)]
 pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> LevenshteinCommandData<'a> {
     let lower = msg.to_lowercase();
     let mut data = LevenshteinCommandData::new();
@@ -65,6 +73,14 @@ pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> Levenshtein
 }
 
 /// Check for typos in msg commands.
+#[tracing::instrument(
+    skip(msg, commands),
+    fields(
+        category = "levenshtein",
+        message = ?msg,
+        commands = ?commands,
+    )
+)]
 pub async fn levenshtein_cmd(
     ctx: &serenity::Context,
     msg: &serenity::Message,

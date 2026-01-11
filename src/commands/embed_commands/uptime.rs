@@ -2,7 +2,17 @@ use crate::prelude::*;
 
 /// Displays the bot's current uptime
 #[poise::command(slash_command, prefix_command, rename = "uptime")]
-pub async fn uptime(ctx: Context<'_>, #[rest] _msg: Option<String>) -> Result<(), Error> {
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+        extra_msg = %msg.as_deref().unwrap_or("")
+    )
+)]
+pub async fn uptime(ctx: Context<'_>, #[rest] msg: Option<String>) -> Result<(), Error> {
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");
 

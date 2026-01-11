@@ -13,10 +13,21 @@ fn chat_more(username: &str) -> String {
 
 /// Displays the user's level
 #[poise::command(slash_command, prefix_command)]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        target_user = %user.as_ref().map(|u| u.id.get()).unwrap_or(0),
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+        extra_msg = %msg.as_deref().unwrap_or("")
+    )
+)]
 pub async fn level(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
-    #[rest] _msg: Option<String>,
+    #[rest] msg: Option<String>,
 ) -> Result<(), Error> {
     let Some(message_guild_id) = ctx.guild_id() else {
         ctx.reply("Only works in guilds!").await?;
