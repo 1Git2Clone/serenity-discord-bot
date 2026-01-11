@@ -6,11 +6,11 @@ use crate::prelude::*;
 #[poise::command(prefix_command, slash_command)]
 pub async fn quote(ctx: Context<'_>, #[rest] _msg: Option<String>) -> Result<(), Error> {
     let response = HU_TAO_VOICELINES_JP
-        .choose(&mut rand::thread_rng())
+        .choose(&mut rand::rng())
         .ok_or("No Hu Tao voicelines!")?
         .to_string();
     let emoji = Emojis::variants()
-        .choose(&mut rand::thread_rng())
+        .choose(&mut rand::rng())
         .ok_or("No Emoji Variants!")?
         .to_string();
 
