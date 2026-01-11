@@ -1,5 +1,15 @@
 use crate::prelude::*;
 
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "reply_handler",
+        author = %new_message.author.id,
+        guild_id = ?new_message.guild_id,
+        message = ?new_message,
+        message_text = %msg,
+    )
+)]
 pub async fn handle_replies(
     db: &SqlitePool,
     ctx: &serenity::Context,

@@ -1,5 +1,11 @@
 use crate::prelude::*;
 
+#[tracing::instrument(
+    fields(
+        category = "sql",
+        db_pool = ?db
+    )
+)]
 pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, sqlx::Error> {
     let query = format!(
         "SELECT `{}` FROM `{}`",
@@ -11,6 +17,13 @@ pub async fn fetch_mentions(db: &SqlitePool) -> Result<usize, sqlx::Error> {
     Ok(queried_mentions.unwrap_or(0) as usize)
 }
 
+#[tracing::instrument(
+    fields(
+        category = "sql",
+        db_pool = ?db,
+        updated_mentions = %updated_mentions
+    )
+)]
 pub async fn update_mentions(
     db: &SqlitePool,
     updated_mentions: usize,
@@ -27,6 +40,13 @@ pub async fn update_mentions(
         .await
 }
 
+#[tracing::instrument(
+    fields(
+        category = "sql",
+        db_pool = ?db,
+        mentions_to_add = %n
+    )
+)]
 pub async fn add_mentions(db: &SqlitePool, n: usize) -> Result<usize, sqlx::Error> {
     let fetched_mentions = fetch_mentions(db).await?;
 

@@ -4,7 +4,17 @@ use crate::prelude::*;
 
 /// Displays the levels for the top 9 users.
 #[poise::command(slash_command, prefix_command)]
-pub async fn toplevels(ctx: Context<'_>, #[rest] _msg: Option<String>) -> Result<(), Error> {
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+        extra_msg = %msg.as_deref().unwrap_or("")
+    )
+)]
+pub async fn toplevels(ctx: Context<'_>, #[rest] msg: Option<String>) -> Result<(), Error> {
     let Some(message_guild_id) = ctx.guild_id() else {
         ctx.reply("This command only works in guilds!").await?;
         return Ok(());

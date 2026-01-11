@@ -157,12 +157,12 @@ mod tests {
                                 resp.status(),
                                 url
                             )
-                            .into())
+                            .into());
                         }
                         code @ StatusCode::NOT_FOUND => {
                             // NOTE: Not guaranteed to be a hard error! This is due to discord's
                             // url query parameters, giving a 404 if the content is expried.
-                            eprintln!("{} | URL: {}", code, url);
+                            tracing::error!("{} | URL: {}", code, url);
 
                             let response_body = reqwest::get(*url).await?.text().await?;
                             assert_eq!(response_body, "This content is no longer available.");

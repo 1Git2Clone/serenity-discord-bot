@@ -6,6 +6,16 @@ use crate::{
     },
 };
 
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "sql",
+        db_pool = ?pool,
+        author = %new_message.author.id,
+        guild_id = ?new_message.guild_id,
+        message = ?new_message,
+    )
+)]
 pub async fn handle_database_message_processing(
     ctx: &serenity::Context,
     new_message: &serenity::Message,
@@ -28,6 +38,15 @@ pub async fn handle_database_message_processing(
     Ok(())
 }
 
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "message_helper",
+        author = %new_message.author.id,
+        guild_id = ?new_message.guild_id,
+        message = ?new_message,
+    )
+)]
 pub async fn handle_message(
     ctx: &serenity::Context,
     data: &Data,

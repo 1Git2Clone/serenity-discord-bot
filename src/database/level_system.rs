@@ -8,6 +8,15 @@ use crate::{
 
 /// Adds a new database user with the schema from `crate::data:bot_data.rs`.
 /// That's the reason why the function isn't public.
+
+#[tracing::instrument(
+    fields(
+        category = "sql",
+        db_pool = ?db,
+        user_id = %user.id.get(),
+        guild_id = %guild_id.get()
+    )
+)]
 async fn add_user_if_not_exists(
     db: &SqlitePool,
     user: &User,
@@ -24,6 +33,14 @@ async fn add_user_if_not_exists(
     Ok(())
 }
 
+#[tracing::instrument(
+    fields(
+        category = "sql",
+        db_pool = ?db,
+        user_id = %user.id.get(),
+        guild_id = %guild_id.get()
+    )
+)]
 pub async fn fetch_user_level(
     db: &SqlitePool,
     user: &User,
@@ -38,6 +55,14 @@ pub async fn fetch_user_level(
     Ok(res)
 }
 
+#[tracing::instrument(
+    fields(
+        category = "sql",
+        db_pool = ?db,
+        user_id = %user.id.get(),
+        guild_id = %guild_id.get()
+    )
+)]
 pub async fn fetch_user_level_and_rank(
     db: &SqlitePool,
     user: &User,
@@ -57,6 +82,14 @@ pub async fn fetch_user_level_and_rank(
         None => Ok(None),
     }
 }
+
+#[tracing::instrument(
+    fields(
+        category = "sql",
+        db_pool = ?db,
+        guild_id = %guild_id.get()
+    )
+)]
 pub async fn fetch_top_nine_levels_in_guild(
     db: &SqlitePool,
     guild_id: serenity::GuildId,
@@ -75,6 +108,17 @@ pub async fn fetch_top_nine_levels_in_guild(
 ///
 /// Additionally, we directly use the guild_id instead of the event as the
 /// parameter for add_user_if_not_exists() in order to save computing resources.
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "sql",
+        db_pool = ?db,
+        author = %message.author.id,
+        guild_id = ?message.guild_id,
+        message = ?message,
+        obtained_xp = %obtained_xp
+    )
+)]
 pub async fn add_or_update_db_user(
     db: &SqlitePool,
     message: &serenity::Message,

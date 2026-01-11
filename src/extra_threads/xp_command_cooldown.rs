@@ -26,7 +26,7 @@ pub fn periodically_clean_users_on_diff_thread() {
             std::thread::sleep(Duration::from_secs(100));
             let res = remove_expired_cooldowns();
             if let Err(why) = res {
-                eprintln!("{why}");
+                tracing::error!("{why}");
                 break;
             };
         }

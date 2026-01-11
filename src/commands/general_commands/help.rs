@@ -10,6 +10,16 @@ const HELP_COMMAND_TEXT: &str = concat!(
 
 /// Show this help menu
 #[poise::command(prefix_command, track_edits, slash_command)]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+        command = ?command
+    )
+)]
 pub async fn help(
     ctx: Context<'_>,
     #[description = "Specific command to show help about"]
