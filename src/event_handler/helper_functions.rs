@@ -14,7 +14,7 @@ pub async fn handle_database_message_processing(
 ) -> Result<(), Error> {
     let trimmed_emojis = remove_emojis_and_embeds_from_str(msg);
 
-    let obtained_xp = rand::thread_rng().gen_range(XP_RANGE);
+    let obtained_xp = rand::rng().random_range(XP_RANGE);
 
     if VALID_MENTION_COUNT_PATTERNS
         .iter()

@@ -13,7 +13,7 @@ pub fn same_user(u1: &User, u2: &User) -> bool {
 }
 
 pub fn get_rand_embed_from_type(embed_type: &EmbedType) -> Result<&'static str, Error> {
-    let embed_option = COMMAND_EMBEDS[embed_type].choose(&mut rand::thread_rng());
+    let embed_option = COMMAND_EMBEDS[embed_type].choose(&mut rand::rng());
     match embed_option {
         Some(embed) => Ok(embed),
         None => {
