@@ -73,7 +73,6 @@
 )]
 #![warn(clippy::explicit_into_iter_loop, reason = "Readability.")]
 #![deny(clippy::redundant_else, reason = "Readability.")]
-#![deny(clippy::string_to_string, reason = "Redundant.")]
 #![deny(clippy::get_unwrap, reason = "Prefer direct indexing for conciseness.")]
 
 pub mod assets;
