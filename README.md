@@ -158,3 +158,8 @@ feature by compiling the bot with `--features="tokio_console"`.
 > [!NOTE]
 > Make sure to also compile with `RUSTFLAGS="--cfg tokio_unstable"` if you
 > choose to do so.
+
+### Telemetry
+
+The project uses back-end agnostic OpenTelemetry meaning you can choose your
+preferred back-end if you choose to turn the `opentelemetry` feature flag on.
