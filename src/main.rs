@@ -35,6 +35,33 @@ async fn main() -> Result<(), Error> {
     #[cfg(feature = "tokio_console")]
     let registry = registry.with(console_layer);
 
+    #[cfg(feature = "opentelemetry")]
+    let registry = {
+        let name = "Serenity Discord Bot";
+        let resource = Resource::builder()
+            .with_attributes(vec![
+                KeyValue::new("service.name", name),
+                KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+            ])
+            .build();
+
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .build()
+            .expect("Failed to create OTEL exporter");
+
+        let tracer_provider = SdkTracerProvider::builder()
+            .with_batch_exporter(exporter)
+            .with_resource(resource)
+            .build();
+
+        let tracer = tracer_provider.tracer(name);
+
+        opentelemetry::global::set_tracer_provider(tracer_provider.clone());
+
+        registry.with(tracing_opentelemetry::layer().with_tracer(tracer))
+    };
+
     registry.init();
 
     let token = BOT_TOKEN.to_string();

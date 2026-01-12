@@ -23,9 +23,23 @@ strsim = "0.11.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 console-subscriber = { version = "0.5", optional = true }
+tracing-opentelemetry = { version = "0.32", optional = true }
+opentelemetry = { version = "0.31", optional = true }
+opentelemetry_sdk = { version = "0.31", features = [
+  "rt-tokio",
+], optional = true }
+opentelemetry-otlp = { version = "0.31", features = [
+  "grpc-tonic",
+], optional = true }
 
 [features]
 serde = ["dep:serde"]
 debug = []
 network_test = []
 tokio_console = ["console-subscriber", "tokio/tracing"]
+opentelemetry = [
+  "dep:tracing-opentelemetry",
+  "dep:opentelemetry",
+  "dep:opentelemetry_sdk",
+  "dep:opentelemetry-otlp",
+]
