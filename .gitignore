@@ -8,3 +8,4 @@
 !/bin
 /bin/*
 !/bin/README.md
+/.sqlx
