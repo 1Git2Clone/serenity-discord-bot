@@ -2,7 +2,7 @@ FROM rust:1.92-slim-bullseye AS builder
 WORKDIR /app
 
 COPY . .
-ENV SQLX_OFFLINE=true
+# ENV SQLX_OFFLINE=true
 
 RUN cargo build --release
 
