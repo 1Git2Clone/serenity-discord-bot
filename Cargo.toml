@@ -31,6 +31,7 @@ opentelemetry_sdk = { version = "0.31", features = [
 opentelemetry-otlp = { version = "0.31", features = [
   "grpc-tonic",
 ], optional = true }
+moka = { version = "0.12.13", features = ["future"] }
 
 [features]
 serde = ["dep:serde"]
