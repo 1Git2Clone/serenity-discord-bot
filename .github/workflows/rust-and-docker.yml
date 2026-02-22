@@ -56,5 +56,10 @@ jobs:
       - name: Run tests
         run: cargo test --verbose --all-features -- --nocapture
 
+      - name: Create filler .env for Docker build
+        run: |
+          echo "DATABASE_URL=${DATABASE_URL}" > .env
+          echo "BOT_TOKEN=dummy_token" >> .env
+
       - name: Build Docker image
         run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
