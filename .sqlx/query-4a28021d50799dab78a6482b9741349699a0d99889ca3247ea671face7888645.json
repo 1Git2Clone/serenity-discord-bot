@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE user_stats\n             SET experience_points = $1, level = $2\n             WHERE user_id = $3 AND guild_id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4a28021d50799dab78a6482b9741349699a0d99889ca3247ea671face7888645"
+}

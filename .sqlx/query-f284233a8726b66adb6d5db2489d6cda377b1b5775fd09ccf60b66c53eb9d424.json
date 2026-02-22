@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT us.level, us.experience_points,\n                (SELECT COUNT(*)\n                 FROM user_stats AS inner_u\n                 WHERE inner_u.guild_id = us.guild_id\n                   AND (inner_u.level > us.level\n                        OR (inner_u.level = us.level\n                            AND inner_u.experience_points >= us.experience_points))\n                ) AS rank\n             FROM user_stats AS us\n             WHERE us.user_id = $1 AND us.guild_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "level",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "experience_points",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "rank",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "f284233a8726b66adb6d5db2489d6cda377b1b5775fd09ccf60b66c53eb9d424"
+}
