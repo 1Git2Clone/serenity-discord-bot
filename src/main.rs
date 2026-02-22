@@ -147,7 +147,7 @@ async fn main() -> Result<(), Error> {
                         .iter()
                         .map(|cmd| cmd.name.clone())
                         .collect(),
-                    pool: Arc::new(connect_to_db(DATABASE_FILENAME).await.unwrap()),
+                    pool: Arc::new(connect_to_db().await.unwrap()),
                 })
             })
         })

@@ -1,9 +1,9 @@
 pub struct LevelStats {
-    pub updated_level: u32,
-    pub updated_experience: u32,
+    pub updated_level: i32,
+    pub updated_experience: i32,
 }
 
-pub fn calculate_xp_to_level_up(level: u32) -> u32 {
+pub fn calculate_xp_to_level_up(level: i32) -> i32 {
     level * 100
 }
 
@@ -16,7 +16,7 @@ pub fn calculate_xp_to_level_up(level: u32) -> u32 {
         level_up = %(experience >= calculate_xp_to_level_up(level))
     )
 )]
-pub async fn update_level(experience: u32, level: u32) -> LevelStats {
+pub async fn update_level(experience: i32, level: i32) -> LevelStats {
     let update_level = if experience >= calculate_xp_to_level_up(level) {
         level + 1
     } else {

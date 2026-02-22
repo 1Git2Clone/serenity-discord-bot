@@ -20,19 +20,16 @@ pub async fn toplevels(ctx: Context<'_>, #[rest] msg: Option<String>) -> Result<
         return Ok(());
     };
 
-    let level_and_xp_rows =
-        fetch_top_nine_levels_in_guild(&ctx.data().pool, message_guild_id).await?;
+    let user_xp_lvl =
+        LevelsTable::fetch_top_nine_users(&ctx.data().pool, message_guild_id.into()).await?;
 
     ctx.defer().await?;
 
-    let user_ids: Vec<u64> = level_and_xp_rows
-        .par_iter()
-        .map(|row| row.get::<i64, &str>(LevelsSchema::UserId.as_str()) as u64)
-        .collect();
+    let user_ids: Vec<i64> = user_xp_lvl.iter().map(|row| row.user_id).collect();
     let users = try_join_all(
         user_ids
             .iter()
-            .map(|user_id| ctx.http().get_user((*user_id).into())),
+            .map(|user_id| ctx.http().get_user((*user_id as u64).into())),
     )
     .await?;
     let user_nicknames_or_names = join_all(users.iter().map(|u| u.nick_in(ctx, message_guild_id)))
@@ -44,15 +41,12 @@ pub async fn toplevels(ctx: Context<'_>, #[rest] msg: Option<String>) -> Result<
 
     let mut fields: Vec<(String, String, bool)> = Vec::new();
 
-    for (counter, (row, username)) in level_and_xp_rows
+    for (counter, (row, username)) in user_xp_lvl
         .iter()
         .zip(user_nicknames_or_names.iter())
         .enumerate()
     {
-        let (level, xp) = (
-            row.get::<u32, &str>(LevelsSchema::Level.as_str()),
-            row.get::<u32, &str>(LevelsSchema::ExperiencePoints.as_str()),
-        );
+        let (level, xp) = (row.level, row.xp);
         let xp_to_level_up = calculate_xp_to_level_up(level);
 
         fields.push((

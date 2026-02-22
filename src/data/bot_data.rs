@@ -1,11 +1,11 @@
 use crate::prelude::*;
 
-pub const DEFAULT_XP: i64 = 0;
-pub const DEFAULT_LEVEL: i64 = 1;
+pub const DEFAULT_XP: i32 = 0;
+pub const DEFAULT_LEVEL: i32 = 1;
 
-pub const MIN_XP: u32 = 5;
-pub const MAX_XP: u32 = 15;
-pub const XP_RANGE: std::ops::RangeInclusive<u32> = MIN_XP..=MAX_XP;
+pub const MIN_XP: i32 = 5;
+pub const MAX_XP: i32 = 15;
+pub const XP_RANGE: std::ops::RangeInclusive<i32> = MIN_XP..=MAX_XP;
 
 lazy_static! {
     pub static ref BOT_TOKEN: String = {

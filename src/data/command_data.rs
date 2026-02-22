@@ -7,7 +7,7 @@ pub struct Data {
     pub bot_avatar: Arc<str>,
     pub available_commands: Vec<String>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub pool: Arc<SqlitePool>,
+    pub pool: Arc<PgPool>,
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;

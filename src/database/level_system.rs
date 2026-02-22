@@ -1,10 +1,4 @@
-use crate::{
-    data::database::{
-        ADD_USER_LEVEL_QUERY, FETCH_TOP_NINE_USERS_IN_GUILD_QUERY, FETCH_USER_LEVEL_AND_RANK_QUERY,
-        FETCH_USER_LEVEL_QUERY, UPDATE_USER_LEVEL_QUERY,
-    },
-    prelude::*,
-};
+use crate::prelude::*;
 
 /// Adds a new database user with the schema from `crate::data:bot_data.rs`.
 /// That's the reason why the function isn't public.
@@ -17,87 +11,17 @@ use crate::{
         guild_id = %guild_id.get()
     )
 )]
-async fn add_user_if_not_exists(
-    db: &SqlitePool,
-    user: &User,
-    guild_id: GuildId,
-) -> Result<(), Error> {
-    sqlx::query(&ADD_USER_LEVEL_QUERY)
-        .bind(user.id.to_string())
-        .bind(guild_id.to_string())
-        .bind(DEFAULT_XP)
-        .bind(DEFAULT_LEVEL)
-        .execute(db)
-        .await?;
+async fn add_user_if_not_exists(db: &PgPool, user: &User, guild_id: GuildId) -> Result<(), Error> {
+    LevelsTable::add_user_level(
+        db,
+        user.id.into(),
+        guild_id.into(),
+        DEFAULT_XP,
+        DEFAULT_LEVEL,
+    )
+    .await?;
 
     Ok(())
-}
-
-#[tracing::instrument(
-    fields(
-        category = "sql",
-        db_pool = ?db,
-        user_id = %user.id.get(),
-        guild_id = %guild_id.get()
-    )
-)]
-pub async fn fetch_user_level(
-    db: &SqlitePool,
-    user: &User,
-    guild_id: GuildId,
-) -> Result<Option<SqliteRow>, Error> {
-    let res = sqlx::query(&FETCH_USER_LEVEL_QUERY)
-        .bind(user.id.to_string())
-        .bind(guild_id.to_string())
-        .fetch_optional(db)
-        .await?;
-
-    Ok(res)
-}
-
-#[tracing::instrument(
-    fields(
-        category = "sql",
-        db_pool = ?db,
-        user_id = %user.id.get(),
-        guild_id = %guild_id.get()
-    )
-)]
-pub async fn fetch_user_level_and_rank(
-    db: &SqlitePool,
-    user: &User,
-    guild_id: serenity::GuildId,
-) -> Result<Option<(i64, SqliteRow)>, Error> {
-    let sql = sqlx::query(&FETCH_USER_LEVEL_AND_RANK_QUERY)
-        .bind(user.id.to_string())
-        .bind(guild_id.to_string())
-        .fetch_optional(db)
-        .await?;
-
-    match sql {
-        Some(row) => Ok(Some((
-            row.get::<i64, &str>(LevelsSchema::Rank.as_str()),
-            row,
-        ))),
-        None => Ok(None),
-    }
-}
-
-#[tracing::instrument(
-    fields(
-        category = "sql",
-        db_pool = ?db,
-        guild_id = %guild_id.get()
-    )
-)]
-pub async fn fetch_top_nine_levels_in_guild(
-    db: &SqlitePool,
-    guild_id: serenity::GuildId,
-) -> Result<Vec<SqliteRow>, Error> {
-    Ok(sqlx::query(&FETCH_TOP_NINE_USERS_IN_GUILD_QUERY)
-        .bind(guild_id.to_string())
-        .fetch_all(db)
-        .await?)
 }
 
 /// Adds a db user id + guild id if there's none or updates the pair with the new values.
@@ -120,10 +44,10 @@ pub async fn fetch_top_nine_levels_in_guild(
     )
 )]
 pub async fn add_or_update_db_user(
-    db: &SqlitePool,
+    db: &PgPool,
     message: &serenity::Message,
     ctx: &serenity::Context,
-    obtained_xp: u32,
+    obtained_xp: i32,
 ) -> Result<(), Error> {
     let xp_addition_cooldown: i64 = *XP_COOLDOWN_NUMBER_SECS;
     let current_timestamp = chrono::offset::Utc::now().timestamp();
@@ -132,6 +56,15 @@ pub async fn add_or_update_db_user(
     let Some(guild_id) = message.guild_id else {
         return Ok(());
     };
+
+    if USER_COOLDOWNS
+        .lock()
+        .map_err(|why| format!("{why}"))?
+        .get(&(user.id, guild_id))
+        .is_some()
+    {
+        return Ok(());
+    }
 
     USER_COOLDOWNS
         .lock()
@@ -147,17 +80,15 @@ pub async fn add_or_update_db_user(
         })
         .map_err(|why| format!("{why}"))?;
 
-    // First we need to check if there's some user_id+guild_id pair that matches
-    let level_query = fetch_user_level(db, user, guild_id).await?;
+    let xp_lvl_res = LevelsTable::fetch_user_level(db, user.id.into(), guild_id.into()).await;
 
-    let Some(query_row) = level_query else {
+    let Ok(xp_lvl) = xp_lvl_res else {
         add_user_if_not_exists(db, user, guild_id).await?;
         return Ok(());
     };
 
-    let queried_level = query_row.get::<u32, &str>(LevelsSchema::Level.as_str());
-    let added_experience_points =
-        query_row.get::<u32, &str>(LevelsSchema::ExperiencePoints.as_str()) + obtained_xp;
+    let queried_level = xp_lvl.1;
+    let added_experience_points = xp_lvl.0 + obtained_xp;
 
     let update = update_level(added_experience_points, queried_level).await;
 
@@ -173,13 +104,14 @@ pub async fn add_or_update_db_user(
             .await?;
     }
 
-    sqlx::query(&UPDATE_USER_LEVEL_QUERY)
-        .bind(update.updated_experience)
-        .bind(update.updated_level)
-        .bind(user.id.to_string())
-        .bind(guild_id.to_string())
-        .execute(db)
-        .await?;
+    LevelsTable::update_user_level(
+        db,
+        update.updated_experience,
+        update.updated_level,
+        user.id.into(),
+        guild_id.into(),
+    )
+    .await?;
 
     Ok(())
 }

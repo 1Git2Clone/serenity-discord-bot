@@ -35,29 +35,29 @@ pub async fn level(
     };
 
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
-    let level_xp_and_rank_row_option =
-        fetch_user_level_and_rank(&ctx.data().pool, target_replied_user, message_guild_id).await?;
+    let level_xp_rank_res = LevelsTable::fetch_user_level_and_rank(
+        &ctx.data().pool,
+        target_replied_user.id.into(),
+        message_guild_id.into(),
+    )
+    .await;
 
-    let Some(level_xp_and_rank_row) = level_xp_and_rank_row_option else {
+    let Ok(level_xp_rank) = level_xp_rank_res else {
         ctx.reply(chat_more(&target_replied_user.name)).await?;
         return Ok(());
     };
-    let level = level_xp_and_rank_row
-        .1
-        .get::<u32, &str>(LevelsSchema::Level.as_str());
-    let xp = level_xp_and_rank_row
-        .1
-        .get::<u32, &str>(LevelsSchema::ExperiencePoints.as_str());
+    let level = level_xp_rank.0;
+    let xp = level_xp_rank.1;
 
     let avatar = target_replied_user.face().replace(".webp", ".png");
     let username = &target_replied_user.name;
     let response = format!(
         "User stats for: **{}**\n\nRank: {}",
-        &username, level_xp_and_rank_row.0
+        &username, level_xp_rank.2
     );
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = Arc::clone(&ctx.data().bot_avatar).to_string();
-    let max_xp = calculate_xp_to_level_up(level);
+    let max_xp = calculate_xp_to_level_up(level).max(100);
     let percent_left_to_level_up = (xp as f64 / max_xp as f64) * 100.;
     let progress_bar: String = {
         LEVEL_STEPS

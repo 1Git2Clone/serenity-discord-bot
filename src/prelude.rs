@@ -31,14 +31,14 @@ pub use crate::{
             START_TIME, VALID_MENTION_COUNT_PATTERNS, XP_COOLDOWN_NUMBER_SECS, XP_RANGE,
         },
         command_data::{Context, Data, Error},
-        database::{DATABASE_FILENAME, MENTIONS_TABLE_NAME},
+        database::DATABASE_FILENAME,
         embed_media::COMMAND_EMBEDS,
         user_data::USER_COOLDOWNS,
     },
     database::{bot_mentions::*, connect_to_db, level_system::*},
     enums::{
         command_enums::EmbedType,
-        schemas::{LevelsSchema, MentionsSchema},
+        schemas::{LevelsTable, MentionsTable},
     },
     media_url,
 };
@@ -70,8 +70,8 @@ pub use serenity::{
 // Databases
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 pub use sqlx::{
+    postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgQueryResult, PgRow},
     prelude::*,
-    sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteQueryResult, SqliteRow},
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

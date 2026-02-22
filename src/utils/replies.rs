@@ -11,7 +11,7 @@ use crate::prelude::*;
     )
 )]
 pub async fn handle_replies(
-    db: &SqlitePool,
+    db: &PgPool,
     ctx: &serenity::Context,
     new_message: &serenity::Message,
     msg: &str,
@@ -22,7 +22,7 @@ pub async fn handle_replies(
         .collect::<Vec<&str>>()
         .join("");
     let time_or_times = |count| if count > 1 { "times" } else { "time" };
-    let hutao_count = no_whitespace.matches("hutao").count();
+    let hutao_count = no_whitespace.matches("hutao").count() as i64;
     if no_whitespace.matches("damnhutaomains").count() > 0 {
         add_mentions(db, hutao_count).await?;
         new_message.reply(ctx, "Any last words?").await?;
