@@ -1,0 +1,46 @@
+name: Rust + Docker CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18.2
+        # only for CI
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: bot_database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set DATABASE_URL for SQLx
+        run: echo "DATABASE_URL=postgres://postgres:password@localhost:5432/bot_database" >> $GITHUB_ENV
+
+      - name: Rust build
+        run: cargo build --verbose --all-features
+
+      - name: Rust tests
+        run: cargo test --verbose --all-features -- --nocapture
+
+      - name: Build Docker image
+        run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
