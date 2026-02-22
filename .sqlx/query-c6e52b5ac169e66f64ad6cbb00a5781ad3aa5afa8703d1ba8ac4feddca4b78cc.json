@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE bot_mentions SET mentions = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c6e52b5ac169e66f64ad6cbb00a5781ad3aa5afa8703d1ba8ac4feddca4b78cc"
+}

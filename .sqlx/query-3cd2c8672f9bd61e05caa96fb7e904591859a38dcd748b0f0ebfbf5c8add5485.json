@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT user_id, experience_points, level\n            FROM user_stats\n            WHERE guild_id = $1\n            ORDER BY level DESC, experience_points DESC\n            LIMIT 9",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "experience_points",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "level",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3cd2c8672f9bd61e05caa96fb7e904591859a38dcd748b0f0ebfbf5c8add5485"
+}
