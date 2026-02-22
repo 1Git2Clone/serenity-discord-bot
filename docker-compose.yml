@@ -9,6 +9,8 @@ services:
       - ./extra_utils:/app/extra_utils
     networks:
       - bot-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   bot-network:
