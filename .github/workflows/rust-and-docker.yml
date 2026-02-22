@@ -6,18 +6,12 @@ on:
   pull_request:
     branches: ["main"]
 
-env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: full
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:18.2
-        # only for CI
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
@@ -25,21 +19,41 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+          --health-cmd "pg_isready -U postgres -d bot_database"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:password@localhost:5432/bot_database
+      RUST_BACKTRACE: full
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set DATABASE_URL for SQLx
-        run: echo "DATABASE_URL=postgres://postgres:password@localhost:5432/bot_database" >> $GITHUB_ENV
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
 
-      - name: Rust build
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+
+      - name: Run database migrations
+        run: sqlx migrate run
+
+      - name: Build
         run: cargo build --verbose --all-features
 
-      - name: Rust tests
+      - name: Run tests
         run: cargo test --verbose --all-features -- --nocapture
 
       - name: Build Docker image
