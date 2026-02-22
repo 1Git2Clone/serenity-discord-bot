@@ -49,36 +49,18 @@ pub async fn add_or_update_db_user(
     ctx: &serenity::Context,
     obtained_xp: i32,
 ) -> Result<(), Error> {
-    let xp_addition_cooldown: i64 = *XP_COOLDOWN_NUMBER_SECS;
-    let current_timestamp = chrono::offset::Utc::now().timestamp();
-
     let user = &message.author;
     let Some(guild_id) = message.guild_id else {
         return Ok(());
     };
 
-    if USER_COOLDOWNS
-        .lock()
-        .map_err(|why| format!("{why}"))?
-        .get(&(user.id, guild_id))
-        .is_some()
-    {
+    let key = (user.id, guild_id);
+
+    if USER_COOLDOWNS.get(&key).await.is_some() {
         return Ok(());
     }
 
-    USER_COOLDOWNS
-        .lock()
-        .map(|mut cooldown_timestamps| {
-            let key = &(user.id, guild_id);
-
-            let last_rewarded_user_message_timestamp =
-                &*cooldown_timestamps.entry(*key).or_insert(current_timestamp);
-
-            if (last_rewarded_user_message_timestamp + xp_addition_cooldown) <= current_timestamp {
-                cooldown_timestamps.remove(key);
-            }
-        })
-        .map_err(|why| format!("{why}"))?;
+    USER_COOLDOWNS.insert(key, ()).await;
 
     let xp_lvl_res = LevelsTable::fetch_user_level(db, user.id.into(), guild_id.into()).await;
 

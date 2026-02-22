@@ -4,14 +4,12 @@ mod data;
 mod database;
 mod enums;
 mod event_handler;
-mod extra_threads;
 mod prelude;
 mod tests;
 mod utils;
 
 use crate::prelude::*;
 use event_handler::handler::event_handler;
-use extra_threads::xp_command_cooldown::periodically_clean_users_on_diff_thread;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -65,7 +63,6 @@ async fn main() -> Result<(), Error> {
     registry.init();
 
     let token = BOT_TOKEN.to_string();
-    periodically_clean_users_on_diff_thread();
     // Either all or non_privileged intents only.
     // https://docs.rs/poise/latest/poise/#gateway-intents
     let intents = serenity::GatewayIntents::all() | serenity::GatewayIntents::non_privileged();
