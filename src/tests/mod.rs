@@ -11,9 +11,9 @@ fn sized_send_sunc_unpin<T: Sized + Send + Sync + Unpin>() {}
 fn normal_types() {
     use crate::data::command_data::Data;
     use crate::enums::command_enums::EmbedType;
-    use crate::enums::schemas::LevelsSchema;
+    use crate::enums::schemas::LevelsTable;
 
     sized_send_sunc_unpin::<Data>();
     sized_send_sunc_unpin::<EmbedType>();
-    sized_send_sunc_unpin::<LevelsSchema>();
+    sized_send_sunc_unpin::<LevelsTable>();
 }

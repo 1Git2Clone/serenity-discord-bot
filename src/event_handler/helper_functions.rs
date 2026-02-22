@@ -20,7 +20,7 @@ pub async fn handle_database_message_processing(
     ctx: &serenity::Context,
     new_message: &serenity::Message,
     msg: &str,
-    pool: &SqlitePool,
+    pool: &PgPool,
 ) -> Result<(), Error> {
     let trimmed_emojis = remove_emojis_and_embeds_from_str(msg);
 
