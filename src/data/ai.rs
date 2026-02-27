@@ -67,6 +67,7 @@ impl Default for OllamaOptions {
 impl<'a> OllamaRequest<'a> {
     pub const DEFAULT_MODEL: &'static str = "qwen2.5:1.5b";
     pub const DEFAULT_STREAM: bool = false;
+    pub const CHAT_ENDPOINT: &'static str = "http://localhost:11434/api/chat";
 
     pub fn new(
         model: &'a str,
@@ -93,7 +94,7 @@ impl<'a> OllamaRequest<'a> {
 
     pub async fn call(&self, client: &Client) -> Result<String, Error> {
         match client
-            .post("http://localhost:11434/api/chat")
+            .post(Self::CHAT_ENDPOINT)
             .json(&self)
             .send()
             .await?

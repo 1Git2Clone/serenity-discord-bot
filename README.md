@@ -50,7 +50,7 @@ command.
 #### AI
 
 There's an optional `ai` feature (which can be enabled with `--features="ai"`)
-using [ollama](https://docs.ollama.com/quickstart).
+using [Ollama](https://docs.ollama.com/quickstart).
 
 To use it you simply need to run:
 
@@ -59,10 +59,20 @@ ollama pull gwen2.5:1.5b # <- You can use any model.
 ollama serve
 ```
 
+<!-- markdownlint-disable MD028 - False positive -->
+
 > [!NOTE]
 > You can use any model you like, just make sure to set it in the
 > [`src/data/ai.rs`](./src/data/ai.rs) at
 > `crate::data::ai::OllamaRequest::DEFAULT_MODEL`.
+
+> [!NOTE]
+> If you also wish to deploy Ollama on a Docker container for example and want
+> to change the POST request URL, feel free to edit
+> `crate::data::ai::OllamaRequest::CHAT_ENDPOINT` at
+> [`src/data/ai.rs`](./src/data/ai.rs).
+
+<!-- markdownlint-enable MD028 -->
 
 #### Tokio Console
 
