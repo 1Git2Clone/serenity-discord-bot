@@ -39,10 +39,9 @@ command.
 - A bunch of embed interaction commands (like pats, hugs and etc.)
 - A levelling system (managed locally). Some people like it, others hate it and
   say its a MEE6 clone (They kinda have a point there). Nevertheless, you can
-  always use the Postgres database for something else if you need to. There's also
-  a cooldown implementation and periodic cleaning up of the users which aren't
-  under cooldown (This was a bit tricky to do because of the Mutex locking and my
-  overall skill issue).
+  always use the Postgres database for something else if you need to. The
+  cooldown system between levels is implemented as a [TTL Cache](https://en.wikipedia.org/wiki/Time_to_live)
+  using the [`moka`](https://github.com/moka-rs/moka) library.
 - The leveling system has a nice topranks command which gives a cool-looking embed!
 - A bot uptime command.
 
