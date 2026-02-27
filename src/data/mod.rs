@@ -1,3 +1,5 @@
+#[cfg(feature = "ai")]
+pub mod ai;
 pub mod bot_data;
 pub mod command_data;
 pub mod database;

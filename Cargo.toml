@@ -17,7 +17,7 @@ sqlx = { version = "0.8.2", features = ["runtime-tokio-rustls", "postgres"] }
 chrono = "0.4.35"
 rayon = "1.10.0"
 regex = "1.11.1"
-reqwest = "0.13.1"
+reqwest = { version = "0.13.2", default-features = false }
 serenity_discord_bot_derive = { path = "./serenity_discord_bot_derive" }
 strsim = "0.11.1"
 tracing = "0.1"
@@ -32,6 +32,7 @@ opentelemetry-otlp = { version = "0.31", features = [
   "grpc-tonic",
 ], optional = true }
 moka = { version = "0.12.13", features = ["future"] }
+dashmap = { version = "6.1.0", optional = true }
 
 [features]
 serde = ["dep:serde"]
@@ -44,3 +45,5 @@ opentelemetry = [
   "dep:opentelemetry_sdk",
   "dep:opentelemetry-otlp",
 ]
+# The AI feature requires Serde to Serialize and Deserialize the Ollama API responses.
+ai = ["dep:serde", "reqwest/json", "dep:dashmap"]

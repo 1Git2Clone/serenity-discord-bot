@@ -48,6 +48,23 @@ command.
 
 ### Optional features
 
+#### AI
+
+There's an optional `ai` feature (which can be enabled with `--features="ai"`)
+using [ollama](https://docs.ollama.com/quickstart).
+
+To use it you simply need to run:
+
+```sh
+ollama pull gwen2.5:1.5b # <- You can use any model.
+ollama serve
+```
+
+> [!NOTE]
+> You can use any model you like, just make sure to set it in the
+> [`src/data/ai.rs`](./src/data/ai.rs) at
+> `crate::data::ai::OllamaRequest::DEFAULT_MODEL`.
+
 #### Tokio Console
 
 You can also enable the [Tokio Console](https://github.com/tokio-rs/console)

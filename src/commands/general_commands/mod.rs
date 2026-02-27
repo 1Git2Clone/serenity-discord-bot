@@ -6,3 +6,8 @@ pub use age::age;
 
 pub mod cookie;
 pub use cookie::cookie;
+
+#[cfg(feature = "ai")]
+pub mod ai;
+#[cfg(feature = "ai")]
+pub use ai::ai;
