@@ -1,12 +1,11 @@
+use std::sync::LazyLock;
+
 use crate::prelude::*;
 use dashmap::DashSet;
-use lazy_static::lazy_static;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-    pub static ref AI_CACHE: DashSet<u64> = DashSet::new();
-}
+pub static AI_CACHE: LazyLock<DashSet<u64>> = LazyLock::new(DashSet::new);
 
 #[derive(Serialize, Deserialize)]
 pub struct AiMessage {
