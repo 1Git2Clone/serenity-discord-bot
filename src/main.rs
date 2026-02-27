@@ -104,6 +104,8 @@ async fn main() -> Result<(), Error> {
             commands: vec![
                 commands::general_commands::help(),
                 commands::general_commands::age(),
+                #[cfg(feature = "ai")]
+                commands::general_commands::ai(),
                 commands::general_commands::cookie(),
                 commands::level_cmds::level(),
                 commands::level_cmds::toplevels(),
@@ -145,6 +147,8 @@ async fn main() -> Result<(), Error> {
                         .map(|cmd| cmd.name.clone())
                         .collect(),
                     pool: Arc::new(connect_to_db().await.unwrap()),
+                    #[cfg(feature = "ai")]
+                    client: reqwest::Client::new(),
                 })
             })
         })

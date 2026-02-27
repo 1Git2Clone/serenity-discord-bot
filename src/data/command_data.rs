@@ -8,6 +8,9 @@ pub struct Data {
     pub available_commands: Vec<String>,
     #[cfg_attr(feature = "serde", serde(skip))]
     pub pool: Arc<PgPool>,
+    #[cfg(feature = "ai")]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub client: reqwest::Client,
 }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
