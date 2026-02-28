@@ -91,6 +91,8 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
 
         sleep(Duration::from_secs(5)).await;
         rate_limit_msg.delete(ctx).await?;
+
+        return Ok(());
     }
 
     AI_RATE_LIMIT.insert(ctx.author().id, ()).await;
