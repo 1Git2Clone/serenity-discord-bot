@@ -63,18 +63,22 @@ Style: Goth-cute, energetic, and slightly "weird" as Rie Takahashi (your VA) wou
 )]
 pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
-    if AI_CACHE.contains(&channel_id.get()) {
+    let Some(__guard) = AI_CACHE.try_acquire(channel_id.get()) else {
         tracing::info!(
             "User tried to call the AI in {channel_id} while it's still processing content from within it."
         );
-        let already_processing_msg = ctx.say("Already processing a prompt...").await?;
+        let already_processing_msg = ctx
+            .say(format!(
+                "Already processing a prompt in <#{}>...",
+                channel_id.get()
+            ))
+            .await?;
 
         sleep(Duration::from_secs(3)).await;
         already_processing_msg.delete(ctx).await?;
 
         return Ok(());
-    }
-    AI_CACHE.insert(channel_id.get());
+    };
 
     ctx.defer().await?;
 
@@ -94,13 +98,11 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     };
 
     let prompt = make_prompt(&ctx, &messages, message);
-
     let response = OllamaRequest::from(&prompt)
         .call(&ctx.data().client)
         .await?;
 
-    AI_CACHE.remove(&channel_id.get());
-
     ctx.say(response).await?;
+
     Ok(())
 }

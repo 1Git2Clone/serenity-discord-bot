@@ -5,7 +5,39 @@ use dashmap::DashSet;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-pub static AI_CACHE: LazyLock<DashSet<u64>> = LazyLock::new(DashSet::new);
+pub struct AiCache {
+    inner: DashSet<u64>,
+}
+
+impl AiCache {
+    pub fn new() -> Self {
+        Self {
+            inner: DashSet::new(),
+        }
+    }
+
+    pub fn try_acquire(&self, key: u64) -> Option<AiCacheGuard<'_>> {
+        if self.inner.contains(&key) {
+            return None;
+        }
+
+        self.inner.insert(key);
+        Some(AiCacheGuard { key, cache: self })
+    }
+}
+
+pub struct AiCacheGuard<'a> {
+    key: u64,
+    cache: &'a AiCache,
+}
+
+impl Drop for AiCacheGuard<'_> {
+    fn drop(&mut self) {
+        self.cache.inner.remove(&self.key);
+    }
+}
+
+pub static AI_CACHE: LazyLock<AiCache> = LazyLock::new(AiCache::new);
 
 #[derive(Serialize, Deserialize)]
 pub struct AiMessage {
