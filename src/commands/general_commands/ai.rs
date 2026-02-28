@@ -95,8 +95,6 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
         return Ok(());
     }
 
-    AI_RATE_LIMIT.insert(ctx.author().id, ()).await;
-
     ctx.defer().await?;
 
     let messages = match channel_id
