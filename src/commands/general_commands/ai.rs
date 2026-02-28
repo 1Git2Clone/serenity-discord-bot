@@ -4,7 +4,7 @@ use ::serenity::all::{GetMessages, Message};
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{AI_CACHE, AiMessage, OllamaRequest},
+    data::ai::{AI_CHANNEL_CACHE, AiMessage, OllamaRequest},
     prelude::*,
 };
 
@@ -63,7 +63,7 @@ Style: Goth-cute, energetic, and slightly "weird" as Rie Takahashi (your VA) wou
 )]
 pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
-    let Some(__guard) = AI_CACHE.try_acquire(channel_id.get()) else {
+    let Some(__guard) = AI_CHANNEL_CACHE.try_acquire(channel_id.get()) else {
         tracing::info!(
             "User tried to call the AI in {channel_id} while it's still processing content from within it."
         );

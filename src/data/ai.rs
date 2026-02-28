@@ -5,11 +5,11 @@ use dashmap::DashSet;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-pub struct AiCache {
+pub struct AiChannelCache {
     inner: DashSet<u64>,
 }
 
-impl AiCache {
+impl AiChannelCache {
     pub fn new() -> Self {
         Self::default()
     }
@@ -24,7 +24,7 @@ impl AiCache {
     }
 }
 
-impl Default for AiCache {
+impl Default for AiChannelCache {
     fn default() -> Self {
         Self {
             inner: DashSet::new(),
@@ -34,7 +34,7 @@ impl Default for AiCache {
 
 pub struct AiCacheGuard<'a> {
     key: u64,
-    cache: &'a AiCache,
+    cache: &'a AiChannelCache,
 }
 
 impl Drop for AiCacheGuard<'_> {
@@ -43,7 +43,7 @@ impl Drop for AiCacheGuard<'_> {
     }
 }
 
-pub static AI_CACHE: LazyLock<AiCache> = LazyLock::new(AiCache::new);
+pub static AI_CHANNEL_CACHE: LazyLock<AiChannelCache> = LazyLock::new(AiChannelCache::new);
 
 #[derive(Serialize, Deserialize)]
 pub struct AiMessage {
