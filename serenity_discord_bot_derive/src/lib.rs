@@ -42,15 +42,19 @@ pub fn derive_discord_emoji(input: TokenStream) -> TokenStream {
     });
 
     let name = derive_enum.ident;
-    let variants_names = derive_enum
+    // need to use &Vec<T> because `into_iter` takes ownership of the vector (when we can get away with just
+    // references) and [`quote::quote_token_with_context`] binds the variable names with into_iter,
+    // which is expanded from the fourth arm of the [`quote`] macro:
+    //
+    // https://docs.rs/quote/latest/src/quote/lib.rs.html#894
+    let variants_names = &derive_enum
         .data
         .variants
         .iter()
         .map(|v| &v.ident)
         .collect::<Vec<_>>();
 
-    let get_id = {
-        let variants_names = variants_names.clone();
+    let get_id_and_variant = {
         quote! {
             impl #name {
                 pub fn get_id(&self) -> &'static str {
@@ -58,13 +62,6 @@ pub fn derive_discord_emoji(input: TokenStream) -> TokenStream {
                         #(#name::#variants_names => #variants_ids,)*
                     }
                 }
-            }
-        }
-    };
-    let get_variant_str = {
-        let variants_names = variants_names.clone();
-        quote! {
-            impl #name {
                 pub fn get_variant_str(&self) -> &'static str {
                     match self {
                         #(#name::#variants_names => {
@@ -78,8 +75,7 @@ pub fn derive_discord_emoji(input: TokenStream) -> TokenStream {
 
     quote! {
         #display_impl
-        #get_id
-        #get_variant_str
+        #get_id_and_variant
     }
     .into()
 }
