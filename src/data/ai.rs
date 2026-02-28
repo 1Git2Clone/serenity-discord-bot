@@ -1,7 +1,8 @@
-use std::sync::LazyLock;
+use std::{sync::LazyLock, time::Duration};
 
 use crate::prelude::*;
 use dashmap::DashSet;
+use moka::future::Cache;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -44,6 +45,12 @@ impl Drop for AiCacheGuard<'_> {
 }
 
 pub static AI_CHANNEL_CACHE: LazyLock<AiChannelCache> = LazyLock::new(AiChannelCache::new);
+pub const AI_RATE_LIMIT_SECS: u64 = 10;
+pub static AI_RATE_LIMIT: LazyLock<Cache<UserId, ()>> = LazyLock::new(|| {
+    Cache::builder()
+        .time_to_live(Duration::from_secs(AI_RATE_LIMIT_SECS))
+        .build()
+});
 
 #[derive(Serialize, Deserialize)]
 pub struct AiMessage {

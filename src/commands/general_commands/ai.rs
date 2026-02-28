@@ -4,7 +4,7 @@ use ::serenity::all::{GetMessages, Message};
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{AI_CHANNEL_CACHE, AiMessage, OllamaRequest},
+    data::ai::{AI_CHANNEL_CACHE, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS, AiMessage, OllamaRequest},
     prelude::*,
 };
 
@@ -79,6 +79,21 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
 
         return Ok(());
     };
+
+    if AI_RATE_LIMIT.get(&ctx.author().id).await.is_some() {
+        let rate_limit_msg = ctx
+            .say(format!(
+                "Rate limited <@{}>. Please wait {} seconds between each prompt.",
+                ctx.author().id.get(),
+                AI_RATE_LIMIT_SECS
+            ))
+            .await?;
+
+        sleep(Duration::from_secs(5)).await;
+        rate_limit_msg.delete(ctx).await?;
+    }
+
+    AI_RATE_LIMIT.insert(ctx.author().id, ()).await;
 
     ctx.defer().await?;
 
