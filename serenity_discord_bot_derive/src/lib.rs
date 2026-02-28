@@ -3,6 +3,7 @@ mod utils;
 
 use proc_macro::TokenStream;
 use quote::quote;
+use syn::Error;
 use utils::{
     data::StrValuesByName, impl_display, impl_display_with_vals,
     string_manipulation::pascal_to_snake_case,
@@ -83,19 +84,68 @@ pub fn derive_discord_emoji(input: TokenStream) -> TokenStream {
     .into()
 }
 
-#[proc_macro_derive(Asset, attributes(src_path))]
+#[proc_macro_derive(Asset, attributes(base_url, src_path))]
 pub fn derive_asset(input: TokenStream) -> TokenStream {
     let derive_enum = syn::parse_macro_input!(input as utils::data::DeriveEnum);
 
+    let Some(base_url_attr) = derive_enum
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("base_url"))
+    else {
+        return Error::new_spanned(
+            &derive_enum.ident,
+            "Set a `base_url(\"<link>\")` attribute on the top of the Enum.",
+        )
+        .to_compile_error()
+        .into();
+    };
+
+    let base_url: String = match &base_url_attr.meta {
+        // base_url = "<link>"
+        syn::Meta::NameValue(nv) => {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(litstr),
+                ..
+            }) = &nv.value
+            {
+                litstr.value()
+            } else {
+                return syn::Error::new_spanned(&nv.value, "Expected string literal for base_url.")
+                    .to_compile_error()
+                    .into();
+            }
+        }
+
+        // base_url("<link>")
+        syn::Meta::List(list) => {
+            let parsed: syn::LitStr = syn::parse2(list.tokens.clone()).unwrap_or_else(|_| {
+                panic!("Expected exactly one string literal inside base_url(...).")
+            });
+            parsed.value()
+        }
+
+        _ => {
+            return syn::Error::new_spanned(
+                &derive_enum.ident,
+                "Invalid `base_url` attribute syntax.",
+            )
+            .to_compile_error()
+            .into();
+        }
+    };
+
     let target_variant_name = "src_path";
+
     let variants_values = derive_enum
         .data
-        .get_variant_str_values_by_name(target_variant_name);
+        .get_variant_str_values_by_name(target_variant_name)
+        .iter()
+        .map(|src_path| format!("{}/{}", base_url, src_path))
+        .collect();
 
     impl_display_with_vals(&derive_enum, variants_values, |_ident, src_path| {
-        format!(
-            "https://raw.githubusercontent.com/1Git2Clone/serenity-discord-bot/main/src/assets/{src_path}",
-        )
+        String::from(src_path)
     })
     .into()
 }
