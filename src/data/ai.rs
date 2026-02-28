@@ -16,11 +16,10 @@ impl AiChannelCache {
     }
 
     pub fn try_acquire(&self, key: u64) -> Option<AiCacheGuard<'_>> {
-        if self.inner.contains(&key) {
+        if !self.inner.insert(key) {
             return None;
         }
 
-        self.inner.insert(key);
         Some(AiCacheGuard { key, cache: self })
     }
 }
