@@ -11,9 +11,7 @@ pub struct AiCache {
 
 impl AiCache {
     pub fn new() -> Self {
-        Self {
-            inner: DashSet::new(),
-        }
+        Self::default()
     }
 
     pub fn try_acquire(&self, key: u64) -> Option<AiCacheGuard<'_>> {
@@ -23,6 +21,14 @@ impl AiCache {
 
         self.inner.insert(key);
         Some(AiCacheGuard { key, cache: self })
+    }
+}
+
+impl Default for AiCache {
+    fn default() -> Self {
+        Self {
+            inner: DashSet::new(),
+        }
     }
 }
 
