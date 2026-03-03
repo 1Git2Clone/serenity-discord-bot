@@ -6,6 +6,21 @@ use moka::future::Cache;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+pub static CHAT_ENDPOINT: LazyLock<String> = LazyLock::new(|| {
+    #[allow(
+        clippy::expect_used,
+        reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+    )]
+    std::env::var("AI_CHAT_ENDPOINT").expect("Set the `AI_CHAT_ENDPOINT` environment variable.")
+});
+pub static DEFAULT_MODEL: LazyLock<String> = LazyLock::new(|| {
+    #[allow(
+        clippy::expect_used,
+        reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+    )]
+    std::env::var("AI_MODEL").expect("Set the `AI_MODEL` variable.")
+});
+
 pub struct AiChannelCache {
     inner: DashSet<u64>,
 }
@@ -109,9 +124,7 @@ impl Default for OllamaOptions {
 }
 
 impl<'a> OllamaRequest<'a> {
-    pub const DEFAULT_MODEL: &'static str = "qwen2.5:1.5b";
     pub const DEFAULT_STREAM: bool = false;
-    pub const CHAT_ENDPOINT: &'static str = "http://localhost:11434/api/chat";
 
     pub fn new(
         model: &'a str,
@@ -129,7 +142,7 @@ impl<'a> OllamaRequest<'a> {
 
     pub fn from(messages: &'a [AiMessage]) -> Self {
         Self::new(
-            Self::DEFAULT_MODEL,
+            DEFAULT_MODEL.as_str(),
             messages,
             Self::DEFAULT_STREAM,
             OllamaOptions::default(),
@@ -138,7 +151,7 @@ impl<'a> OllamaRequest<'a> {
 
     pub async fn call(&self, client: &Client) -> Result<String, Error> {
         match client
-            .post(Self::CHAT_ENDPOINT)
+            .post(CHAT_ENDPOINT.as_str())
             .json(&self)
             .send()
             .await?

@@ -17,6 +17,14 @@ async fn main() -> Result<(), Error> {
 
     let _ = dotenv::dotenv()?;
 
+    #[cfg(feature = "ai")]
+    {
+        use crate::data::ai::{CHAT_ENDPOINT, DEFAULT_MODEL};
+
+        LazyLock::force(&CHAT_ENDPOINT);
+        LazyLock::force(&DEFAULT_MODEL);
+    }
+
     let env_layer = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
 
     let fmt_layer = tracing_subscriber::fmt::layer()
