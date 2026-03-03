@@ -35,7 +35,10 @@ async fn main() -> Result<(), Error> {
         .with_filter(env_layer);
 
     #[cfg(feature = "tokio_console")]
-    let console_layer = console_subscriber::spawn();
+    let console_layer = console_subscriber::ConsoleLayer::builder()
+        .with_default_env()
+        .build()
+        .0;
 
     let registry = tracing_subscriber::registry().with(fmt_layer);
 
