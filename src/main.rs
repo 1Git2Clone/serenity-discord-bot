@@ -31,6 +31,7 @@ async fn main() -> Result<(), Error> {
         .with_thread_ids(true)
         .with_thread_names(true)
         .with_target(false)
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
         .with_filter(env_layer);
 
     #[cfg(feature = "tokio_console")]
