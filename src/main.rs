@@ -87,11 +87,8 @@ async fn main() -> Result<(), Error> {
             on_error: |err| {
                 Box::pin(async move {
                     match err {
-                        poise::FrameworkError::Command { ctx, .. } => {
-                            tracing::info!(
-                                "In on_error: {:?}",
-                                ctx.invocation_data::<&str>().await.as_deref()
-                            );
+                        poise::FrameworkError::Command { error, .. } => {
+                            tracing::error!("Command failed: {error:?}");
                         }
                         err => poise::builtins::on_error(err).await.unwrap(),
                     }
