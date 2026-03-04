@@ -80,6 +80,8 @@ pub fn derive_discord_emoji(input: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Set a base URL for any assets using the `base_url` attribute on top of the Enum and `src_path`
+/// for each of its items to simulate a filesystem as an Enum.
 #[proc_macro_derive(Asset, attributes(base_url, src_path))]
 pub fn derive_asset(input: TokenStream) -> TokenStream {
     let derive_enum = syn::parse_macro_input!(input as utils::data::DeriveEnum);
