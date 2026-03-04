@@ -7,6 +7,7 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.197", features = ["derive"], optional = true }
+serde_json = { version = "1.0.149", optional = true }
 dotenv = "0.15.0"
 poise = "0.6.1"
 serenity = "0.12.0"
@@ -46,4 +47,4 @@ opentelemetry = [
   "dep:opentelemetry-otlp",
 ]
 # The AI feature requires Serde to Serialize and Deserialize the Ollama API responses.
-ai = ["dep:serde", "reqwest/json", "dep:dashmap"]
+ai = ["dep:serde", "dep:serde_json", "reqwest/json", "dep:dashmap"]

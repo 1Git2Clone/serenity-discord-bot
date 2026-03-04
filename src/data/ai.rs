@@ -151,18 +151,20 @@ impl<'a> OllamaRequest<'a> {
     }
 
     pub async fn call(&self, client: &Client) -> Result<String, Error> {
-        match client
+        let response = client
             .post(CHAT_ENDPOINT.as_str())
             .json(&self)
             .send()
-            .await?
-            .json::<OllamaResponse>()
-            .await
-        {
-            Ok(response) => Ok(response.message.content),
+            .await?;
+
+        let text = response.text().await?;
+        tracing::info!("Raw Ollama response: {}", text);
+
+        match serde_json::from_str::<OllamaResponse>(&text) {
+            Ok(parsed) => Ok(parsed.message.content),
             Err(why) => {
-                let error_msg = format!("AI Call request failed! {why}");
-                tracing::info!(error_msg);
+                let error_msg = format!("AI Call request failed! {why}\nRaw response: {}", text);
+                tracing::error!(error_msg);
                 Err(error_msg.into())
             }
         }
