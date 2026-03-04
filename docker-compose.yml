@@ -39,6 +39,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    entrypoint: |
+      sh -c "
+        echo 'Pulling model: ${AI_MODEL}'
+        ollama pull ${AI_MODEL} &
+        exec ollama serve
+      "
 
   jaeger:
     image: jaegertracing/jaeger:2.15.1
