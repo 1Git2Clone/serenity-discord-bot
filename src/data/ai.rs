@@ -90,19 +90,20 @@ pub struct OllamaRequest<'a> {
     pub options: OllamaOptions,
 }
 
+#[allow(unused, reason = "Follow the exact response API.")]
 #[derive(Deserialize)]
 pub struct OllamaResponse {
-    // pub model: String,
-    // pub created_at: DateTime<chrono::Utc>,
+    pub model: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub message: AiMessage,
-    // pub done: bool,
-    // pub done_reason: String,
-    // pub total_duration: u64,
-    // pub load_duration: u64,
-    // pub prompt_eval_count: u32,
-    // pub prompt_eval_duration: u64,
-    // pub eval_count: u32,
-    // pub eval_duration: u64,
+    pub done: bool,
+    pub done_reason: String,
+    pub total_duration: u64,
+    pub load_duration: u64,
+    pub prompt_eval_count: u32,
+    pub prompt_eval_duration: u64,
+    pub eval_count: u32,
+    pub eval_duration: u64,
 }
 
 impl AiMessage {
