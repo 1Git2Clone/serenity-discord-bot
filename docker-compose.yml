@@ -1,17 +1,92 @@
 services:
-  serenity-discord-bot:
-    build: .
+  db:
+    image: postgres:18.3
+    container_name: db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres-data:/var/lib/postgresql/
+    ports:
+      - "5432:5432"
+    networks:
+      - bot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
     env_file:
       - .env
     volumes:
-      - ./src:/app/src
-      - ./migrations:/app/migrations
-      - ./extra_utils:/app/extra_utils
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
     networks:
       - bot-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  jaeger:
+    image: jaegertracing/jaeger:2.15.1
+    container_name: jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    networks:
+      - bot-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:16686/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  bot:
+    build:
+      context: .
+      args:
+        RUSTFLAGS: "--cfg tokio_unstable"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+
+      AI_CHAT_ENDPOINT: http://ollama:11434/api/chat
+
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: serenity-discord-bot
+
+      RUST_LOG: warn,serenity_discord_bot=warn,serenity=warn,poise=warn,tokio::task=off
+    networks:
+      - bot-network
 
 networks:
   bot-network:
     driver: bridge
+
+volumes:
+  postgres-data:
+  ollama-data:
