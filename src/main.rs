@@ -116,6 +116,8 @@ async fn main() -> Result<(), Error> {
                 commands::general_commands::age(),
                 #[cfg(feature = "ai")]
                 commands::general_commands::ai(),
+                #[cfg(feature = "ai")]
+                commands::general_commands::aichannel(),
                 commands::general_commands::cookie(),
                 commands::level_cmds::level(),
                 commands::level_cmds::toplevels(),
@@ -145,6 +147,12 @@ async fn main() -> Result<(), Error> {
         .setup(|ctx, ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+
+                let pool = Arc::new(connect_to_db().await.unwrap());
+
+                #[cfg(feature = "ai")]
+                crate::data::ai::init_registered_channels(&pool).await?;
+
                 Ok(Data {
                     // It's better to clone the bot user once when it starts rather than do http
                     // requests for the serenity::CurrentUser on every comman invocation.
@@ -156,7 +164,7 @@ async fn main() -> Result<(), Error> {
                         .iter()
                         .map(|cmd| cmd.name.clone())
                         .collect(),
-                    pool: Arc::new(connect_to_db().await.unwrap()),
+                    pool,
                 })
             })
         })
