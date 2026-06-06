@@ -57,11 +57,12 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
 
     ctx.defer().await?;
 
+    let who = ai::author_name(ctx.author());
     let prompt = ai::channel_context(
         ctx.serenity_context(),
         channel_id,
         ctx.data().bot_user.id.get(),
-        Some(&message),
+        Some(&format!("{who}: {message}")),
     )
     .await;
     let response = ai::chat(&prompt).await?;

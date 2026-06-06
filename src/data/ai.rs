@@ -9,8 +9,7 @@ use llm::{
     chat::ChatMessage,
 };
 use moka::future::Cache;
-use redis::{AsyncCommands, aio::ConnectionManager};
-use tokio::sync::OnceCell;
+use redis::AsyncCommands;
 
 // Backend is chosen at compile time via the `ai-<backend>` Cargo feature. Fail
 // loudly if `ai` is on but no backend was picked (e.g. `--features ai` alone),
@@ -278,69 +277,52 @@ pub async fn toggle_ai_channel(pool: &PgPool, channel_id: u64, guild_id: u64) ->
 
 /// How long an idle context window lives in Redis before eviction.
 const AI_CTX_TTL_SECS: i64 = 1800;
-/// Separates the author id from the content in a stored entry. Unit Separator,
+/// Field separator in a stored entry (`author_id␟name␟content`). Unit Separator,
 /// which won't appear in Discord message text.
 const AI_CTX_SEP: char = '\u{1f}';
-
-/// Shared Redis connection, or `None` when `REDIS_URL` is unset/unreachable (in
-/// which case context falls back to fetching from Discord).
-static AI_REDIS: OnceCell<Option<ConnectionManager>> = OnceCell::const_new();
-
-async fn redis_conn() -> Option<ConnectionManager> {
-    AI_REDIS
-        .get_or_init(|| async {
-            let url = std::env::var("REDIS_URL").ok()?;
-            match redis::Client::open(url) {
-                Ok(client) => match client.get_connection_manager().await {
-                    Ok(conn) => {
-                        tracing::info!("Connected to Redis for AI context caching.");
-                        Some(conn)
-                    }
-                    Err(why) => {
-                        tracing::warn!("Redis unavailable ({why}); using Discord fetches.");
-                        None
-                    }
-                },
-                Err(why) => {
-                    tracing::warn!("Invalid REDIS_URL ({why}); using Discord fetches.");
-                    None
-                }
-            }
-        })
-        .await
-        .clone()
-}
-
-/// Connect to Redis at startup so the status is logged before the first message.
-pub async fn init_redis() {
-    let _ = redis_conn().await;
-}
 
 fn ctx_key(channel_id: u64) -> String {
     format!("ai:ctx:{channel_id}")
 }
 
-fn encode_entry(author_id: u64, content: &str) -> String {
-    format!("{author_id}{AI_CTX_SEP}{content}")
+/// A display name for prompt attribution (global/display name, else username).
+pub fn author_name(author: &serenity::User) -> String {
+    author
+        .global_name
+        .clone()
+        .unwrap_or_else(|| author.name.clone())
 }
 
-fn entry_to_message(entry: &str, bot_user_id: u64) -> Option<AiMessage> {
-    let (author_id, content) = entry.split_once(AI_CTX_SEP)?;
+/// Map a message to a prompt turn. The bot's own turns are the assistant role
+/// (unprefixed); everyone else is a user turn prefixed with their name so the
+/// model can tell speakers apart in busy channels.
+fn to_message(author_id: u64, name: &str, content: &str, bot_user_id: u64) -> Option<AiMessage> {
     if content.trim().is_empty() {
         return None;
     }
-    let role = if author_id.parse::<u64>().ok()? == bot_user_id {
-        "assistant"
+    if author_id == bot_user_id {
+        Some(AiMessage::new("assistant", content))
     } else {
-        "user"
-    };
-    Some(AiMessage::new(role, content))
+        Some(AiMessage::new("user", &format!("{name}: {content}")))
+    }
+}
+
+fn encode_entry(author_id: u64, name: &str, content: &str) -> String {
+    format!("{author_id}{AI_CTX_SEP}{name}{AI_CTX_SEP}{content}")
+}
+
+fn entry_to_message(entry: &str, bot_user_id: u64) -> Option<AiMessage> {
+    let mut parts = entry.splitn(3, AI_CTX_SEP);
+    let author_id = parts.next()?.parse::<u64>().ok()?;
+    let name = parts.next()?;
+    let content = parts.next()?;
+    to_message(author_id, name, content, bot_user_id)
 }
 
 /// Append a message to a channel's window, but only if the window already exists
 /// (i.e. the channel is "warm" from a prior AI interaction). No-op without Redis.
-pub async fn record_message(channel_id: u64, author_id: u64, content: &str) {
-    let Some(mut conn) = redis_conn().await else {
+pub async fn record_message(channel_id: u64, author: &serenity::User, content: &str) {
+    let Some(mut conn) = crate::data::cache::conn().await else {
         return;
     };
 
@@ -355,7 +337,7 @@ pub async fn record_message(channel_id: u64, author_id: u64, content: &str) {
 
     let result: redis::RedisResult<i64> = script
         .key(ctx_key(channel_id))
-        .arg(encode_entry(author_id, content))
+        .arg(encode_entry(author.id.get(), &author_name(author), content))
         .arg(*AI_MAX_MSG_CONTEXT as i64)
         .arg(AI_CTX_TTL_SECS)
         .invoke_async(&mut conn)
@@ -380,7 +362,7 @@ pub async fn channel_context(
 ) -> Vec<AiMessage> {
     let key = ctx_key(channel_id.get());
 
-    let mut prompt: Vec<AiMessage> = match redis_conn().await {
+    let mut prompt: Vec<AiMessage> = match crate::data::cache::conn().await {
         Some(mut conn) => {
             let entries: Vec<String> = conn.lrange(&key, 0, -1).await.unwrap_or_default();
             if entries.is_empty() {
@@ -418,14 +400,8 @@ async fn fetch_from_discord(
 
     messages
         .iter()
-        .filter(|m| !m.content.trim().is_empty())
-        .map(|m| {
-            let role = if m.author.id.get() == bot_user_id {
-                "assistant"
-            } else {
-                "user"
-            };
-            AiMessage::new(role, &m.content)
+        .filter_map(|m| {
+            to_message(m.author.id.get(), &author_name(&m.author), &m.content, bot_user_id)
         })
         .collect()
 }
@@ -447,12 +423,12 @@ async fn seed_from_discord(
     });
     messages.reverse();
 
-    if let Some(mut conn) = redis_conn().await
+    if let Some(mut conn) = crate::data::cache::conn().await
         && !messages.is_empty()
     {
         let encoded: Vec<String> = messages
             .iter()
-            .map(|m| encode_entry(m.author.id.get(), &m.content))
+            .map(|m| encode_entry(m.author.id.get(), &author_name(&m.author), &m.content))
             .collect();
         let result: redis::RedisResult<()> = redis::pipe()
             .atomic()
@@ -471,13 +447,8 @@ async fn seed_from_discord(
 
     messages
         .iter()
-        .map(|m| {
-            let role = if m.author.id.get() == bot_user_id {
-                "assistant"
-            } else {
-                "user"
-            };
-            AiMessage::new(role, &m.content)
+        .filter_map(|m| {
+            to_message(m.author.id.get(), &author_name(&m.author), &m.content, bot_user_id)
         })
         .collect()
 }

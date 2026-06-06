@@ -52,7 +52,9 @@ opentelemetry = [
   "dep:opentelemetry_sdk",
   "dep:opentelemetry-otlp",
 ]
-ai = ["dep:llm", "dep:dashmap", "dep:redis"]
+# Generic Redis store — usable on its own, not tied to AI.
+redis = ["dep:redis"]
+ai = ["dep:llm", "dep:dashmap", "redis"]
 
 # Pick a provider as needed
 ai-deepseek  = ["ai", "llm/deepseek"]
