@@ -47,30 +47,13 @@ command.
 
 #### AI
 
-There's an optional `ai` feature (which can be enabled with `--features="ai"`)
-using [Ollama](https://docs.ollama.com/quickstart).
+There's an optional AI feature using the [llm crate](https://crates.io/crates/llm)
+that lets you talk to any mainstream provider. The backend is chosen at compile
+time by enabling exactly one `ai-<backend>` feature: `ai-deepseek`, `ai-ollama`,
+`ai-anthropic`, `ai-openai`, `ai-google`, or `ai-groq`.
 
-To use it you simply need to run:
-
-```sh
-ollama pull gwen2.5:1.5b # <- You can use any model.
-ollama serve
-```
-
-<!-- markdownlint-disable MD028 - False positive -->
-
-> [!NOTE]
-> You can use any model you like, just make sure to set it in the
-> [`src/data/ai.rs`](./src/data/ai.rs) at
-> `crate::data::ai::OllamaRequest::DEFAULT_MODEL`.
-
-> [!NOTE]
-> If you also wish to deploy Ollama on a Docker container for example and want
-> to change the POST request URL, feel free to edit
-> `crate::data::ai::OllamaRequest::CHAT_ENDPOINT` at
-> [`src/data/ai.rs`](./src/data/ai.rs).
-
-<!-- markdownlint-enable MD028 -->
+For example: `--features="ai-deepseek"`. Set `AI_MODEL` (and `AI_API_KEY` for
+hosted providers) in the `.env` — see [`.env.example`](./.env.example).
 
 #### Tokio Console
 
@@ -102,7 +85,7 @@ preferred back-end if you choose to turn the `opentelemetry` feature flag on.
 ### Advanced setting up (Containerization)
 
 > [!IMPORTANT]
-> Make sure you aren't running PostgreSQL, Jaeger or Ollama locally due to port
+> Make sure you aren't running PostgreSQL or Jaeger locally due to port
 > conflicts!
 
 The project uses Docker with compose. To run it just run:
@@ -115,5 +98,6 @@ You need to install Docker Compose from
 [docker.com/compose/install](https://docs.docker.com/compose/install/) though.
 
 > [!NOTE]
-> [`docker-compose.yml`](./docker-compose.yml) and the
-> [`Dockerfile`](./Dockerfile) are set up for all the features.
+> The [`Dockerfile`](./Dockerfile) builds the features in its `FEATURES` arg
+> (defaults to `ai-deepseek opentelemetry tokio_console`); override it through the
+> compose build args to change provider or feature set.

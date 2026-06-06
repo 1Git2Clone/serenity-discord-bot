@@ -21,31 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - ollama-data:/root/.ollama
-    ports:
-      - "11434:11434"
-    networks:
-      - bot-network
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    entrypoint: |
-      sh -c "
-        echo 'Pulling model: ${AI_MODEL}'
-        ollama pull ${AI_MODEL} &
-        exec ollama serve
-      "
-
   jaeger:
     image: jaegertracing/jaeger:2.15.1
     container_name: jaeger
@@ -71,16 +46,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
       jaeger:
         condition: service_healthy
     env_file:
       - .env
     environment:
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-
-      AI_CHAT_ENDPOINT: http://ollama:11434/api/chat
 
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       OTEL_SERVICE_NAME: serenity-discord-bot
@@ -95,4 +66,3 @@ networks:
 
 volumes:
   postgres-data:
-  ollama-data:

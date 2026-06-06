@@ -19,10 +19,11 @@ async fn main() -> Result<(), Error> {
 
     #[cfg(feature = "ai")]
     {
-        use crate::data::ai::{CHAT_ENDPOINT, DEFAULT_MODEL};
+        use crate::data::ai::{AI_MAX_MSG_CONTEXT, AI_PROVIDER};
 
-        LazyLock::force(&CHAT_ENDPOINT);
-        LazyLock::force(&DEFAULT_MODEL);
+        // Build the provider now so a bad config fails on boot, not on the first `/ai`.
+        LazyLock::force(&AI_PROVIDER);
+        LazyLock::force(&AI_MAX_MSG_CONTEXT);
     }
 
     let env_layer = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
@@ -156,8 +157,6 @@ async fn main() -> Result<(), Error> {
                         .map(|cmd| cmd.name.clone())
                         .collect(),
                     pool: Arc::new(connect_to_db().await.unwrap()),
-                    #[cfg(feature = "ai")]
-                    client: reqwest::Client::new(),
                 })
             })
         })

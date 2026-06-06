@@ -7,7 +7,9 @@ ENV SQLX_OFFLINE=true
 ARG RUSTFLAGS=""
 ENV RUSTFLAGS=${RUSTFLAGS}
 
-RUN cargo build --release --all-features
+# Pick exactly one ai-<backend>. Override from compose to change provider/features.
+ARG FEATURES="ai-deepseek opentelemetry tokio_console"
+RUN cargo build --release --features "${FEATURES}"
 
 FROM debian:bullseye-slim
 WORKDIR /app
