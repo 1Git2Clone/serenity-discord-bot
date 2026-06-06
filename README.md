@@ -55,6 +55,9 @@ time by enabling exactly one `ai-<backend>` feature: `ai-deepseek`, `ai-ollama`,
 For example: `--features="ai-deepseek"`. Set `AI_MODEL` (and `AI_API_KEY` for
 hosted providers) in the `.env` — see [`.env.example`](./.env.example).
 
+Use `/ai` for one-off prompts, or `/aichannel` (requires the Manage Channels
+permission) to toggle a channel where the bot replies to every message.
+
 #### Tokio Console
 
 You can also enable the [Tokio Console](https://github.com/tokio-rs/console)

@@ -1,6 +1,7 @@
 use std::{sync::LazyLock, time::Duration};
 
-use crate::prelude::*;
+use crate::{enums::schemas::AiChannelsTable, prelude::*};
+use ::serenity::all::GetMessages;
 use dashmap::DashSet;
 use llm::{
     LLMProvider,
@@ -128,6 +129,11 @@ pub static AI_RATE_LIMIT: LazyLock<Cache<UserId, ()>> = LazyLock::new(|| {
         .build()
 });
 
+/// Channels where the bot auto-replies to every message. Backed by the
+/// `ai_channels` table but kept in memory so the message handler avoids a DB hit
+/// per message. Populated by [`init_registered_channels`] at startup.
+pub static AI_REGISTERED_CHANNELS: LazyLock<DashSet<u64>> = LazyLock::new(DashSet::new);
+
 pub struct AiMessage {
     role: String,
     content: String,
@@ -240,4 +246,109 @@ pub async fn chat(messages: &[AiMessage]) -> Result<String, Error> {
     tracing::info!("Raw AI response: {response}");
 
     Ok(response.text().unwrap_or_else(|| response.to_string()))
+}
+
+/// Load the registered AI channels from the DB into the in-memory set.
+pub async fn init_registered_channels(pool: &PgPool) -> Result<(), Error> {
+    for channel_id in AiChannelsTable::fetch_all(pool).await? {
+        AI_REGISTERED_CHANNELS.insert(channel_id as u64);
+    }
+    Ok(())
+}
+
+pub fn is_ai_channel(channel_id: u64) -> bool {
+    AI_REGISTERED_CHANNELS.contains(&channel_id)
+}
+
+/// Toggle a channel's AI registration in both the DB and the in-memory set.
+/// Returns `true` if it's now registered, `false` if it was removed.
+pub async fn toggle_ai_channel(pool: &PgPool, channel_id: u64, guild_id: u64) -> Result<bool, Error> {
+    if AI_REGISTERED_CHANNELS.contains(&channel_id) {
+        AiChannelsTable::unregister(pool, channel_id as i64).await?;
+        AI_REGISTERED_CHANNELS.remove(&channel_id);
+        Ok(false)
+    } else {
+        AiChannelsTable::register(pool, channel_id as i64, guild_id as i64).await?;
+        AI_REGISTERED_CHANNELS.insert(channel_id);
+        Ok(true)
+    }
+}
+
+/// Build a prompt from prior channel messages plus the current one. Empty
+/// messages are skipped; the bot's own messages map to the assistant role.
+pub fn messages_to_prompt(
+    previous_messages: &[serenity::Message],
+    bot_user_id: u64,
+    current_message: &str,
+) -> Vec<AiMessage> {
+    let mut res = Vec::with_capacity(previous_messages.len() + 1);
+
+    for m in previous_messages {
+        if m.content.trim().is_empty() {
+            continue;
+        }
+        res.push(AiMessage::new(
+            if m.author.id.get() == bot_user_id {
+                "assistant"
+            } else {
+                "user"
+            },
+            &m.content,
+        ));
+    }
+
+    res.push(AiMessage::new("user", current_message));
+
+    res
+}
+
+/// Reply to a message in a registered AI channel, honoring the per-user rate
+/// limit and the per-channel processing lock.
+#[tracing::instrument(
+    skip(ctx, data, new_message),
+    fields(
+        category = "ai_auto_reply",
+        author = %new_message.author.id,
+        channel_id = %new_message.channel_id,
+    )
+)]
+pub async fn handle_ai_channel_message(
+    ctx: &serenity::Context,
+    data: &Data,
+    new_message: &serenity::Message,
+) -> Result<(), Error> {
+    if !is_ai_channel(new_message.channel_id.get()) {
+        return Ok(());
+    }
+
+    if AI_RATE_LIMIT.get(&new_message.author.id).await.is_some() {
+        return Ok(());
+    }
+
+    let Some(_guard) = AI_CHANNEL_CACHE.try_acquire(new_message.channel_id.get()) else {
+        return Ok(());
+    };
+    AI_RATE_LIMIT.insert(new_message.author.id, ()).await;
+
+    let _ = new_message.channel_id.broadcast_typing(ctx).await;
+
+    let mut previous = new_message
+        .channel_id
+        .messages(
+            ctx,
+            GetMessages::new()
+                .before(new_message.id)
+                .limit((*AI_MAX_MSG_CONTEXT).min(100) as u8),
+        )
+        .await
+        .unwrap_or_default();
+    previous.retain(|m| !m.author.bot || m.author.id.get() == data.bot_user.id.get());
+    previous.reverse();
+
+    let prompt = messages_to_prompt(&previous, data.bot_user.id.get(), &new_message.content);
+    let response = chat(&prompt).await?;
+
+    new_message.reply(ctx, response).await?;
+
+    Ok(())
 }

@@ -199,3 +199,58 @@ impl MentionsTable {
         Ok(())
     }
 }
+
+#[cfg(feature = "ai")]
+pub enum AiChannelsTable {}
+
+#[cfg(feature = "ai")]
+impl AiChannelsTable {
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            channel_id = %channel_id,
+            guild_id = %guild_id
+        )
+    )]
+    pub async fn register(pool: &PgPool, channel_id: i64, guild_id: i64) -> sqlx::Result<()> {
+        sqlx::query!(
+            "INSERT INTO ai_channels (channel_id, guild_id)
+             VALUES ($1, $2)
+             ON CONFLICT (channel_id) DO NOTHING",
+            channel_id,
+            guild_id
+        )
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            channel_id = %channel_id
+        )
+    )]
+    pub async fn unregister(pool: &PgPool, channel_id: i64) -> sqlx::Result<()> {
+        sqlx::query!("DELETE FROM ai_channels WHERE channel_id = $1", channel_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+        )
+    )]
+    pub async fn fetch_all(pool: &PgPool) -> sqlx::Result<Vec<i64>> {
+        let rows = sqlx::query!("SELECT channel_id FROM ai_channels")
+            .fetch_all(pool)
+            .await?;
+
+        Ok(rows.into_iter().map(|row| row.channel_id).collect())
+    }
+}

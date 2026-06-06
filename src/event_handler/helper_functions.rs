@@ -60,5 +60,10 @@ pub async fn handle_message(
     levenshtein_cmd(ctx, new_message, &data.available_commands).await?;
     handle_database_message_processing(ctx, new_message, &msg, &data.pool).await?;
 
+    // In registered AI channels, reply to the message (rate-limited per user, one
+    // at a time per channel). The channel lock dedupes against the `/ai` command.
+    #[cfg(feature = "ai")]
+    crate::data::ai::handle_ai_channel_message(ctx, data, new_message).await?;
+
     Ok(())
 }
