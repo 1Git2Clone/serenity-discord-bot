@@ -3,7 +3,7 @@
 [![GH_Build Icon]][GH_Build Status]&emsp;[![Build Icon]][Build Status]&emsp;[![License Icon]][LICENSE]
 
 [GH_Build Icon]: https://img.shields.io/github/actions/workflow/status/1git2clone/serenity-discord-bot/rust.yml?branch=main
-[GH_Build Status]: https://github.com/1git2clone/serenity-discord-bot/actions?query=branch%3Amaster
+[GH_Build Status]: https://github.com/1git2clone/serenity-discord-bot/actions?query=branch%3Amain
 [Build Icon]: https://gitlab.com/1k2s/serenity-discord-bot/badges/main/pipeline.svg
 [Build Status]: https://gitlab.com/1k2s/serenity-discord-bot/-/pipelines
 [License Icon]: https://img.shields.io/badge/license-Apache2.0-blue.svg
