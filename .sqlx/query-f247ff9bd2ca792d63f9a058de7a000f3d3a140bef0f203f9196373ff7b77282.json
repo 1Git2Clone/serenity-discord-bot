@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ai_channels (channel_id, guild_id)\n             VALUES ($1, $2)\n             ON CONFLICT (channel_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f247ff9bd2ca792d63f9a058de7a000f3d3a140bef0f203f9196373ff7b77282"
+}

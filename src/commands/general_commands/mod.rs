@@ -10,4 +10,4 @@ pub use cookie::cookie;
 #[cfg(feature = "ai")]
 pub mod ai;
 #[cfg(feature = "ai")]
-pub use ai::ai;
+pub use ai::{ai, aichannel};
