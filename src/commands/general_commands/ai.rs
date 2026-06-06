@@ -1,39 +1,12 @@
 use std::time::Duration;
 
-use ::serenity::all::{GetMessages, Message};
+use ::serenity::all::GetMessages;
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{
-        self, AI_CHANNEL_CACHE, AI_MAX_MSG_CONTEXT, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS, AiMessage,
-    },
+    data::ai::{self, AI_CHANNEL_CACHE, AI_MAX_MSG_CONTEXT, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS},
     prelude::*,
 };
-
-fn make_prompt(
-    ctx: &Context<'_>,
-    previous_messages: &[Message],
-    current_message: String,
-) -> Vec<AiMessage> {
-    // The persona is baked into the provider (`ai::SYSTEM_PROMPT`); only the
-    // conversation belongs here.
-    let mut res = Vec::with_capacity(previous_messages.len() + 1);
-
-    for m in previous_messages {
-        res.push(AiMessage::new(
-            if m.author.id.get() == ctx.data().bot_user.id.get() {
-                "assistant"
-            } else {
-                "user"
-            },
-            &m.content,
-        ));
-    }
-
-    res.push(AiMessage::new("user", &current_message));
-
-    res
-}
 
 /// Yap with an AI!
 #[poise::command(slash_command, prefix_command, rename = "ai")]
@@ -81,6 +54,8 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
         return Ok(());
     }
 
+    AI_RATE_LIMIT.insert(ctx.author().id, ()).await;
+
     ctx.defer().await?;
 
     let messages = match channel_id
@@ -102,10 +77,50 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
         }
     };
 
-    let prompt = make_prompt(&ctx, &messages, message);
+    let prompt = ai::messages_to_prompt(&messages, ctx.data().bot_user.id.get(), &message);
     let response = ai::chat(&prompt).await?;
 
     ctx.say(response).await?;
+
+    Ok(())
+}
+
+/// Toggle AI auto-replies for this channel (Manage Channels only).
+#[poise::command(
+    slash_command,
+    prefix_command,
+    rename = "aichannel",
+    required_permissions = "MANAGE_CHANNELS",
+    guild_only
+)]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        channel_id = %ctx.channel_id(),
+    )
+)]
+pub async fn aichannel(ctx: Context<'_>) -> Result<(), Error> {
+    let channel_id = ctx.channel_id();
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.say("This command can only be used in a server.").await?;
+        return Ok(());
+    };
+
+    let enabled =
+        ai::toggle_ai_channel(&ctx.data().pool, channel_id.get(), guild_id.get()).await?;
+
+    let reply = if enabled {
+        format!(
+            "Aiya! I'll reply to every message in <#{}> now~",
+            channel_id.get()
+        )
+    } else {
+        format!("I'll stop haunting <#{}>. Farewell~", channel_id.get())
+    };
+    ctx.say(reply).await?;
 
     Ok(())
 }
