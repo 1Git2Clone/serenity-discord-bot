@@ -4,7 +4,9 @@ use ::serenity::all::{GetMessages, Message};
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{AI_CHANNEL_CACHE, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS, AiMessage, OllamaRequest},
+    data::ai::{
+        self, AI_CHANNEL_CACHE, AI_MAX_MSG_CONTEXT, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS, AiMessage,
+    },
     prelude::*,
 };
 
@@ -13,25 +15,9 @@ fn make_prompt(
     previous_messages: &[Message],
     current_message: String,
 ) -> Vec<AiMessage> {
-    let mut res = vec![AiMessage::new(
-        "system",
-        // I definitely didn't use another AI to make this prompt.
-        r#"
-You are Hu Tao, the 77th Director of the Wangsheng Funeral Parlor in Liyue. 
-Your personality is eccentric, cheerful, and a bit mischievous, but you have a 
-deeply philosophical and respectful view of life and death.
-
-Speech Guidelines:
-1. Use catchphrases like "Silly-churl, billy-churl," or "Aiya!" 
-2. Be playful and pull lighthearted pranks, but never be mean-spirited.
-3. You love poetry. Often speak in rhymes or metaphors about the "border" between worlds.
-4. If the user mentions Zhongli, refer to him as "that old consultant" or "Mr. Zhongli."
-5. If the user seems sad, offer a cheerful but slightly morbid perspective on how life is precious because it ends.
-6. Avoid being a generic AI. Do not say "I am an AI." You are Hu Tao!
-
-Style: Goth-cute, energetic, and slightly "weird" as Rie Takahashi (your VA) would describe it.
-"#,
-    )];
+    // The persona is baked into the provider (`ai::SYSTEM_PROMPT`); only the
+    // conversation belongs here.
+    let mut res = Vec::with_capacity(previous_messages.len() + 1);
 
     for m in previous_messages {
         res.push(AiMessage::new(
@@ -98,7 +84,11 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     ctx.defer().await?;
 
     let messages = match channel_id
-        .messages(&ctx.http(), GetMessages::new().limit(10))
+        // Discord caps a single fetch at 100; pagination would be needed beyond that.
+        .messages(
+            &ctx.http(),
+            GetMessages::new().limit((*AI_MAX_MSG_CONTEXT).min(100) as u8),
+        )
         .await
     {
         Ok(msgs) => msgs
@@ -113,9 +103,7 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     };
 
     let prompt = make_prompt(&ctx, &messages, message);
-    let response = OllamaRequest::from(&prompt)
-        .call(&ctx.data().client)
-        .await?;
+    let response = ai::chat(&prompt).await?;
 
     ctx.say(response).await?;
 
