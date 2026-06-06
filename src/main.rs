@@ -153,7 +153,7 @@ async fn main() -> Result<(), Error> {
                 #[cfg(feature = "ai")]
                 {
                     crate::data::ai::init_registered_channels(&pool).await?;
-                    crate::data::ai::init_redis().await;
+                    crate::data::cache::init().await;
                 }
 
                 Ok(Data {
