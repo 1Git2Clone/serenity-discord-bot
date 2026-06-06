@@ -58,6 +58,9 @@ hosted providers) in the `.env` — see [`.env.example`](./.env.example).
 Use `/ai` for one-off prompts, or `/aichannel` (requires the Manage Channels
 permission) to toggle a channel where the bot replies to every message.
 
+Set `REDIS_URL` to cache recent messages and avoid re-fetching context from
+Discord on every reply; without it, the bot falls back to Discord fetches.
+
 #### Tokio Console
 
 You can also enable the [Tokio Console](https://github.com/tokio-rs/console)

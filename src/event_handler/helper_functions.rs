@@ -52,6 +52,18 @@ pub async fn handle_message(
     data: &Data,
     new_message: &serenity::Message,
 ) -> Result<(), Error> {
+    // Keep warm channels' context windows fresh — including our own replies, which
+    // are filtered out below — but never other bots.
+    #[cfg(feature = "ai")]
+    if !new_message.author.bot || new_message.author.id == data.bot_user.id {
+        crate::data::ai::record_message(
+            new_message.channel_id.get(),
+            &new_message.author,
+            &new_message.content,
+        )
+        .await;
+    }
+
     if new_message.author.bot {
         return Ok(());
     }

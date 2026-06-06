@@ -1,10 +1,9 @@
 use std::time::Duration;
 
-use ::serenity::all::GetMessages;
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{self, AI_CHANNEL_CACHE, AI_MAX_MSG_CONTEXT, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS},
+    data::ai::{self, AI_CHANNEL_CACHE, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS},
     prelude::*,
 };
 
@@ -58,26 +57,14 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
 
     ctx.defer().await?;
 
-    let messages = match channel_id
-        // Discord caps a single fetch at 100; pagination would be needed beyond that.
-        .messages(
-            &ctx.http(),
-            GetMessages::new().limit((*AI_MAX_MSG_CONTEXT).min(100) as u8),
-        )
-        .await
-    {
-        Ok(msgs) => msgs
-            .into_iter()
-            .filter(|m| !m.author.bot || m.author.id.get() == ctx.data().bot_user.id.get())
-            .rev()
-            .collect(),
-        Err(e) => {
-            tracing::info!("Failed to get messages! (Error: {})", e);
-            vec![]
-        }
-    };
-
-    let prompt = ai::messages_to_prompt(&messages, ctx.data().bot_user.id.get(), &message);
+    let who = ai::author_name(ctx.author());
+    let prompt = ai::channel_context(
+        ctx.serenity_context(),
+        channel_id,
+        ctx.data().bot_user.id.get(),
+        Some(&format!("{who}: {message}")),
+    )
+    .await;
     let response = ai::chat(&prompt).await?;
 
     ctx.say(response).await?;

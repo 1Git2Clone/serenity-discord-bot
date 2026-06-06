@@ -151,7 +151,10 @@ async fn main() -> Result<(), Error> {
                 let pool = Arc::new(connect_to_db().await.unwrap());
 
                 #[cfg(feature = "ai")]
-                crate::data::ai::init_registered_channels(&pool).await?;
+                {
+                    crate::data::ai::init_registered_channels(&pool).await?;
+                    crate::data::cache::init().await;
+                }
 
                 Ok(Data {
                     // It's better to clone the bot user once when it starts rather than do http
