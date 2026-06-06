@@ -1,6 +1,8 @@
 #[cfg(feature = "ai")]
 pub mod ai;
 pub mod bot_data;
+#[cfg(feature = "redis")]
+pub mod cache;
 pub mod command_data;
 pub mod database;
 pub mod embed_media;
