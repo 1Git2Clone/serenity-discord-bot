@@ -9,6 +9,8 @@ use llm::{
     chat::ChatMessage,
 };
 use moka::future::Cache;
+use redis::{AsyncCommands, aio::ConnectionManager};
+use tokio::sync::OnceCell;
 
 // Backend is chosen at compile time via the `ai-<backend>` Cargo feature. Fail
 // loudly if `ai` is on but no backend was picked (e.g. `--features ai` alone),
@@ -274,32 +276,210 @@ pub async fn toggle_ai_channel(pool: &PgPool, channel_id: u64, guild_id: u64) ->
     }
 }
 
-/// Build a prompt from prior channel messages plus the current one. Empty
-/// messages are skipped; the bot's own messages map to the assistant role.
-pub fn messages_to_prompt(
-    previous_messages: &[serenity::Message],
-    bot_user_id: u64,
-    current_message: &str,
-) -> Vec<AiMessage> {
-    let mut res = Vec::with_capacity(previous_messages.len() + 1);
+/// How long an idle context window lives in Redis before eviction.
+const AI_CTX_TTL_SECS: i64 = 1800;
+/// Separates the author id from the content in a stored entry. Unit Separator,
+/// which won't appear in Discord message text.
+const AI_CTX_SEP: char = '\u{1f}';
 
-    for m in previous_messages {
-        if m.content.trim().is_empty() {
-            continue;
+/// Shared Redis connection, or `None` when `REDIS_URL` is unset/unreachable (in
+/// which case context falls back to fetching from Discord).
+static AI_REDIS: OnceCell<Option<ConnectionManager>> = OnceCell::const_new();
+
+async fn redis_conn() -> Option<ConnectionManager> {
+    AI_REDIS
+        .get_or_init(|| async {
+            let url = std::env::var("REDIS_URL").ok()?;
+            match redis::Client::open(url) {
+                Ok(client) => match client.get_connection_manager().await {
+                    Ok(conn) => {
+                        tracing::info!("Connected to Redis for AI context caching.");
+                        Some(conn)
+                    }
+                    Err(why) => {
+                        tracing::warn!("Redis unavailable ({why}); using Discord fetches.");
+                        None
+                    }
+                },
+                Err(why) => {
+                    tracing::warn!("Invalid REDIS_URL ({why}); using Discord fetches.");
+                    None
+                }
+            }
+        })
+        .await
+        .clone()
+}
+
+/// Connect to Redis at startup so the status is logged before the first message.
+pub async fn init_redis() {
+    let _ = redis_conn().await;
+}
+
+fn ctx_key(channel_id: u64) -> String {
+    format!("ai:ctx:{channel_id}")
+}
+
+fn encode_entry(author_id: u64, content: &str) -> String {
+    format!("{author_id}{AI_CTX_SEP}{content}")
+}
+
+fn entry_to_message(entry: &str, bot_user_id: u64) -> Option<AiMessage> {
+    let (author_id, content) = entry.split_once(AI_CTX_SEP)?;
+    if content.trim().is_empty() {
+        return None;
+    }
+    let role = if author_id.parse::<u64>().ok()? == bot_user_id {
+        "assistant"
+    } else {
+        "user"
+    };
+    Some(AiMessage::new(role, content))
+}
+
+/// Append a message to a channel's window, but only if the window already exists
+/// (i.e. the channel is "warm" from a prior AI interaction). No-op without Redis.
+pub async fn record_message(channel_id: u64, author_id: u64, content: &str) {
+    let Some(mut conn) = redis_conn().await else {
+        return;
+    };
+
+    let script = redis::Script::new(
+        r"if redis.call('EXISTS', KEYS[1]) == 1 then
+            redis.call('RPUSH', KEYS[1], ARGV[1])
+            redis.call('LTRIM', KEYS[1], -tonumber(ARGV[2]), -1)
+            redis.call('EXPIRE', KEYS[1], ARGV[3])
+        end
+        return 1",
+    );
+
+    let result: redis::RedisResult<i64> = script
+        .key(ctx_key(channel_id))
+        .arg(encode_entry(author_id, content))
+        .arg(*AI_MAX_MSG_CONTEXT as i64)
+        .arg(AI_CTX_TTL_SECS)
+        .invoke_async(&mut conn)
+        .await;
+
+    if let Err(why) = result {
+        tracing::warn!("Failed to record message in Redis: {why}");
+    }
+}
+
+/// The recent conversation for a channel as a prompt.
+///
+/// Reads the Redis window; on a cold channel (or without Redis) it seeds the
+/// window from a one-off Discord fetch. `current` is appended as a trailing user
+/// turn — used by `/ai`, whose prompt isn't a channel message; the auto-reply
+/// passes `None` since the triggering message is already in the window.
+pub async fn channel_context(
+    cache_http: impl serenity::CacheHttp,
+    channel_id: serenity::ChannelId,
+    bot_user_id: u64,
+    current: Option<&str>,
+) -> Vec<AiMessage> {
+    let key = ctx_key(channel_id.get());
+
+    let mut prompt: Vec<AiMessage> = match redis_conn().await {
+        Some(mut conn) => {
+            let entries: Vec<String> = conn.lrange(&key, 0, -1).await.unwrap_or_default();
+            if entries.is_empty() {
+                seed_from_discord(&cache_http, channel_id, bot_user_id, &key).await
+            } else {
+                entries
+                    .iter()
+                    .filter_map(|e| entry_to_message(e, bot_user_id))
+                    .collect()
+            }
         }
-        res.push(AiMessage::new(
-            if m.author.id.get() == bot_user_id {
+        None => fetch_from_discord(&cache_http, channel_id, bot_user_id).await,
+    };
+
+    if let Some(current) = current {
+        prompt.push(AiMessage::new("user", current));
+    }
+
+    prompt
+}
+
+/// Fetch the recent window from Discord and map it to prompt messages.
+async fn fetch_from_discord(
+    cache_http: &impl serenity::CacheHttp,
+    channel_id: serenity::ChannelId,
+    bot_user_id: u64,
+) -> Vec<AiMessage> {
+    let limit = (*AI_MAX_MSG_CONTEXT).min(100) as u8;
+    let mut messages = channel_id
+        .messages(cache_http, GetMessages::new().limit(limit))
+        .await
+        .unwrap_or_default();
+    messages.retain(|m| !m.author.bot || m.author.id.get() == bot_user_id);
+    messages.reverse();
+
+    messages
+        .iter()
+        .filter(|m| !m.content.trim().is_empty())
+        .map(|m| {
+            let role = if m.author.id.get() == bot_user_id {
                 "assistant"
             } else {
                 "user"
-            },
-            &m.content,
-        ));
+            };
+            AiMessage::new(role, &m.content)
+        })
+        .collect()
+}
+
+/// Seed a cold channel's Redis window from Discord and return the prompt.
+async fn seed_from_discord(
+    cache_http: &impl serenity::CacheHttp,
+    channel_id: serenity::ChannelId,
+    bot_user_id: u64,
+    key: &str,
+) -> Vec<AiMessage> {
+    let limit = (*AI_MAX_MSG_CONTEXT).min(100) as u8;
+    let mut messages = channel_id
+        .messages(cache_http, GetMessages::new().limit(limit))
+        .await
+        .unwrap_or_default();
+    messages.retain(|m| {
+        (!m.author.bot || m.author.id.get() == bot_user_id) && !m.content.trim().is_empty()
+    });
+    messages.reverse();
+
+    if let Some(mut conn) = redis_conn().await
+        && !messages.is_empty()
+    {
+        let encoded: Vec<String> = messages
+            .iter()
+            .map(|m| encode_entry(m.author.id.get(), &m.content))
+            .collect();
+        let result: redis::RedisResult<()> = redis::pipe()
+            .atomic()
+            .del(key)
+            .ignore()
+            .rpush(key, encoded)
+            .ignore()
+            .expire(key, AI_CTX_TTL_SECS)
+            .ignore()
+            .query_async(&mut conn)
+            .await;
+        if let Err(why) = result {
+            tracing::warn!("Failed to seed Redis window: {why}");
+        }
     }
 
-    res.push(AiMessage::new("user", current_message));
-
-    res
+    messages
+        .iter()
+        .map(|m| {
+            let role = if m.author.id.get() == bot_user_id {
+                "assistant"
+            } else {
+                "user"
+            };
+            AiMessage::new(role, &m.content)
+        })
+        .collect()
 }
 
 /// Reply to a message in a registered AI channel, honoring the per-user rate
@@ -332,20 +512,9 @@ pub async fn handle_ai_channel_message(
 
     let _ = new_message.channel_id.broadcast_typing(ctx).await;
 
-    let mut previous = new_message
-        .channel_id
-        .messages(
-            ctx,
-            GetMessages::new()
-                .before(new_message.id)
-                .limit((*AI_MAX_MSG_CONTEXT).min(100) as u8),
-        )
-        .await
-        .unwrap_or_default();
-    previous.retain(|m| !m.author.bot || m.author.id.get() == data.bot_user.id.get());
-    previous.reverse();
-
-    let prompt = messages_to_prompt(&previous, data.bot_user.id.get(), &new_message.content);
+    // The triggering message is already in the window (recorded in `handle_message`
+    // before this runs), so no trailing turn is appended.
+    let prompt = channel_context(ctx, new_message.channel_id, data.bot_user.id.get(), None).await;
     let response = chat(&prompt).await?;
 
     new_message.reply(ctx, response).await?;
