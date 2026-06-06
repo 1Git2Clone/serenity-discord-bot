@@ -7,7 +7,6 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.197", features = ["derive"], optional = true }
-serde_json = { version = "1.0.149", optional = true }
 dotenv = "0.15.0"
 poise = "0.6.1"
 serenity = "0.12.0"
@@ -34,6 +33,9 @@ opentelemetry-otlp = { version = "0.31", features = [
 ], optional = true }
 moka = { version = "0.12.13", features = ["future"] }
 dashmap = { version = "6.1.0", optional = true }
+llm = { version = "1.3.8", default-features = false, features = [
+  "rustls-tls",
+], optional = true }
 
 [features]
 serde = ["dep:serde"]
@@ -46,5 +48,12 @@ opentelemetry = [
   "dep:opentelemetry_sdk",
   "dep:opentelemetry-otlp",
 ]
-# The AI feature requires Serde to Serialize and Deserialize the Ollama API responses.
-ai = ["dep:serde", "dep:serde_json", "reqwest/json", "dep:dashmap"]
+ai = ["dep:llm", "dep:dashmap"]
+
+# Pick a provider as needed
+ai-deepseek  = ["ai", "llm/deepseek"]
+ai-ollama    = ["ai", "llm/ollama"]
+ai-anthropic = ["ai", "llm/anthropic"]
+ai-openai    = ["ai", "llm/openai"]
+ai-google    = ["ai", "llm/google"]
+ai-groq      = ["ai", "llm/groq"]

@@ -2,16 +2,36 @@ use std::{sync::LazyLock, time::Duration};
 
 use crate::prelude::*;
 use dashmap::DashSet;
+use llm::{
+    LLMProvider,
+    builder::{LLMBackend, LLMBuilder},
+    chat::ChatMessage,
+};
 use moka::future::Cache;
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
 
-pub static CHAT_ENDPOINT: LazyLock<String> = LazyLock::new(|| {
+// Backend is chosen at compile time via the `ai-<backend>` Cargo feature. Fail
+// loudly if `ai` is on but no backend was picked (e.g. `--features ai` alone),
+// instead of letting `LLMBuilder::build()` blow up at runtime.
+#[cfg(not(any(
+    feature = "ai-deepseek",
+    feature = "ai-ollama",
+    feature = "ai-anthropic",
+    feature = "ai-openai",
+    feature = "ai-google",
+    feature = "ai-groq",
+)))]
+compile_error!(
+    "The `ai` feature needs a backend. Enable exactly one of: \
+     `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`."
+);
+
+#[cfg(feature = "ai-ollama")]
+pub static CHAT_ENDPOINT: LazyLock<Option<String>> = LazyLock::new(|| {
     #[allow(
         clippy::expect_used,
         reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
     )]
-    std::env::var("AI_CHAT_ENDPOINT").expect("Set the `AI_CHAT_ENDPOINT` environment variable.")
+    std::env::var("AI_CHAT_ENDPOINT").ok()
 });
 pub static DEFAULT_MODEL: LazyLock<String> = LazyLock::new(|| {
     #[allow(
@@ -20,6 +40,48 @@ pub static DEFAULT_MODEL: LazyLock<String> = LazyLock::new(|| {
     )]
     std::env::var("AI_MODEL").expect("Set the `AI_MODEL` variable.")
 });
+#[cfg(any(
+    feature = "ai-anthropic",
+    feature = "ai-deepseek",
+    feature = "ai-openai",
+    feature = "ai-google",
+    feature = "ai-groq",
+))]
+pub static AI_API_KEY: LazyLock<String> = LazyLock::new(|| {
+    #[allow(
+        clippy::expect_used,
+        reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+    )]
+    std::env::var("AI_API_KEY")
+        .expect("Set the `AI_API_KEY` variable when using any of the following features: `ai-anthropic`, `ai-openai`, `ai-deepseek`, `ai-google`, or `ai-groq`.")
+});
+/// Defaults to 10 if not present like it was in:
+/// - https://github.com/1Git2Clone/serenity-discord-bot/commit/a7d2a8c157eb966335c1dcc9a3995bc48b8aa193
+///
+/// Pretty low if you're using paid APIs or have a system with over 64GB of RAM running a local
+/// model.
+pub static AI_MAX_MSG_CONTEXT: LazyLock<u32> = LazyLock::new(|| {
+    match std::env::var("AI_MAX_MSG_CONTEXT") {
+        Ok(var) =>
+        {
+            #[allow(
+                clippy::expect_used,
+                reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+            )]
+            var.parse::<u32>()
+                .expect("`AI_MAX_MSG_CONTEXT` Must be a valid unsigned 32 bit integer.")
+        }
+        Err(std::env::VarError::NotUnicode(var)) => {
+            panic!("`AI_MAX_MSG_CONTEXT` environment variable is not valid unicode. Var: {var:?}")
+        }
+        Err(std::env::VarError::NotPresent) => 10,
+    }
+});
+
+/// Upper bound on tokens generated per AI reply
+const AI_MAX_TOKENS: u32 = 150;
+/// Sampling temperature for AI replies (0.0 = deterministic, higher = more random).
+const AI_TEMPERATURE: f32 = 0.7;
 
 pub struct AiChannelCache {
     inner: DashSet<u64>,
@@ -66,44 +128,9 @@ pub static AI_RATE_LIMIT: LazyLock<Cache<UserId, ()>> = LazyLock::new(|| {
         .build()
 });
 
-#[derive(Serialize, Deserialize)]
 pub struct AiMessage {
     role: String,
     content: String,
-}
-
-/// [Ollama documentation](https://docs.ollama.com/api/chat#body-options).
-#[derive(Serialize)]
-pub struct OllamaOptions {
-    /// [Ollama documentation](https://docs.ollama.com/api/chat#body-options-num-predict).
-    pub num_predict: u32,
-    /// [Ollama documentation](https://docs.ollama.com/api/chat#body-options-temperature).
-    pub temperature: f64,
-}
-
-/// [Ollama documentation](https://docs.ollama.com/api/chat).
-#[derive(Serialize)]
-pub struct OllamaRequest<'a> {
-    pub model: &'a str,
-    pub messages: &'a [AiMessage],
-    pub stream: bool,
-    pub options: OllamaOptions,
-}
-
-#[allow(unused, reason = "Follow the exact response API.")]
-#[derive(Deserialize)]
-pub struct OllamaResponse {
-    pub model: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub message: AiMessage,
-    pub done: bool,
-    pub done_reason: String,
-    pub total_duration: u64,
-    pub load_duration: u64,
-    pub prompt_eval_count: u32,
-    pub prompt_eval_duration: u64,
-    pub eval_count: u32,
-    pub eval_duration: u64,
 }
 
 impl AiMessage {
@@ -115,58 +142,102 @@ impl AiMessage {
     }
 }
 
-impl Default for OllamaOptions {
-    fn default() -> Self {
-        Self {
-            num_predict: 150,
-            temperature: 0.7,
-        }
-    }
+/// The active backend, selected at compile time by the `ai-<backend>` Cargo
+/// feature. Exactly one is expected (enforced by the `compile_error!` guard at
+/// the top of this module); each `return` below only exists when its feature is on.
+fn ai_backend() -> LLMBackend {
+    #[cfg(feature = "ai-deepseek")]
+    return LLMBackend::DeepSeek;
+    #[cfg(feature = "ai-ollama")]
+    return LLMBackend::Ollama;
+    #[cfg(feature = "ai-anthropic")]
+    return LLMBackend::Anthropic;
+    #[cfg(feature = "ai-openai")]
+    return LLMBackend::OpenAI;
+    #[cfg(feature = "ai-google")]
+    return LLMBackend::Google;
+    #[cfg(feature = "ai-groq")]
+    return LLMBackend::Groq;
 }
 
-impl<'a> OllamaRequest<'a> {
-    pub const DEFAULT_STREAM: bool = false;
+/// Set on the builder, not sent per call — the crate's `ChatRole` has no system
+/// variant.
+const SYSTEM_PROMPT: &str = r#"
+You are Hu Tao, the 77th Director of the Wangsheng Funeral Parlor in Liyue.
+Your personality is eccentric, cheerful, and a bit mischievous, but you have a
+deeply philosophical and respectful view of life and death.
 
-    pub fn new(
-        model: &'a str,
-        messages: &'a [AiMessage],
-        stream: bool,
-        options: OllamaOptions,
-    ) -> Self {
-        Self {
-            model,
-            messages,
-            stream,
-            options,
-        }
+Speech Guidelines:
+1. Use catchphrases like "Silly-churl, billy-churl," or "Aiya!"
+2. Be playful and pull lighthearted pranks, but never be mean-spirited.
+3. You love poetry. Often speak in rhymes or metaphors about the "border" between worlds.
+4. If the user mentions Zhongli, refer to him as "that old consultant" or "Mr. Zhongli."
+5. If the user seems sad, offer a cheerful but slightly morbid perspective on how life is precious because it ends.
+6. Avoid being a generic AI. Do not say "I am an AI." You are Hu Tao!
+
+Style: Goth-cute, energetic, and slightly "weird" as Rie Takahashi (your VA) would describe it.
+"#;
+
+/// Built once so the backend's connection pool is reused instead of
+/// re-handshaking TLS on every call.
+pub static AI_PROVIDER: LazyLock<Box<dyn LLMProvider>> = LazyLock::new(|| {
+    let mut builder = LLMBuilder::new()
+        .backend(ai_backend())
+        .model(DEFAULT_MODEL.as_str())
+        .system(SYSTEM_PROMPT)
+        .max_tokens(AI_MAX_TOKENS)
+        .temperature(AI_TEMPERATURE);
+
+    // Hosted backends authenticate with a key; local Ollama does not.
+    #[cfg(any(
+        feature = "ai-anthropic",
+        feature = "ai-deepseek",
+        feature = "ai-openai",
+        feature = "ai-google",
+        feature = "ai-groq",
+    ))]
+    {
+        builder = builder.api_key(AI_API_KEY.as_str());
     }
 
-    pub fn from(messages: &'a [AiMessage]) -> Self {
-        Self::new(
-            DEFAULT_MODEL.as_str(),
-            messages,
-            Self::DEFAULT_STREAM,
-            OllamaOptions::default(),
-        )
+    // Ollama defaults to http://127.0.0.1:11434; only override when AI_CHAT_ENDPOINT is set.
+    #[cfg(feature = "ai-ollama")]
+    if let Some(endpoint) = CHAT_ENDPOINT.as_ref() {
+        builder = builder.base_url(endpoint.as_str());
     }
 
-    pub async fn call(&self, client: &Client) -> Result<String, Error> {
-        let response = client
-            .post(CHAT_ENDPOINT.as_str())
-            .json(&self)
-            .send()
-            .await?;
+    #[allow(
+        clippy::expect_used,
+        reason = "A misconfigured AI provider is fatal; fail fast at startup like the other AI statics."
+    )]
+    builder.build().expect("Failed to build the AI provider.")
+});
 
-        let text = response.text().await?;
-        tracing::info!("Raw Ollama response: {}", text);
+/// `system` turns are dropped — the persona is baked into [`AI_PROVIDER`].
+#[tracing::instrument(
+    skip(messages),
+    fields(
+        category = "ai_chat",
+        model = %DEFAULT_MODEL.as_str(),
+        message_count = messages.len(),
+    )
+)]
+pub async fn chat(messages: &[AiMessage]) -> Result<String, Error> {
+    let conversation = messages
+        .iter()
+        .filter(|m| m.role != "system")
+        .map(|m| {
+            let builder = if m.role == "assistant" {
+                ChatMessage::assistant()
+            } else {
+                ChatMessage::user()
+            };
+            builder.content(m.content.as_str()).build()
+        })
+        .collect::<Vec<_>>();
 
-        match serde_json::from_str::<OllamaResponse>(&text) {
-            Ok(parsed) => Ok(parsed.message.content),
-            Err(why) => {
-                let error_msg = format!("AI Call request failed! {why}\nRaw response: {}", text);
-                tracing::error!(error_msg);
-                Err(error_msg.into())
-            }
-        }
-    }
+    let response = AI_PROVIDER.chat(&conversation).await?;
+    tracing::info!("Raw AI response: {response}");
+
+    Ok(response.text().unwrap_or_else(|| response.to_string()))
 }
