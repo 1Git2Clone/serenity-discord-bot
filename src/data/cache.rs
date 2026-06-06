@@ -1,17 +1,14 @@
-//! Generic Redis connection layer. Not tied to any one feature — callers decide
-//! what keys/structures to store. Enabled by the `redis` feature.
+//! Shared Redis connection, usable by any feature that enables `redis`.
 
 use std::env;
 
 use redis::aio::ConnectionManager;
 use tokio::sync::OnceCell;
 
-/// Shared Redis connection, or `None` when `REDIS_URL` is unset or unreachable.
-/// Callers fall back to whatever source of truth they have.
 static REDIS: OnceCell<Option<ConnectionManager>> = OnceCell::const_new();
 
-/// A cloned handle to the shared connection (cheap; clones multiplex over one
-/// connection), or `None` if Redis isn't configured/available.
+/// A handle to the shared connection (cloning multiplexes over one connection),
+/// or `None` when `REDIS_URL` is unset or the connection failed.
 pub async fn conn() -> Option<ConnectionManager> {
     REDIS
         .get_or_init(|| async {
@@ -23,12 +20,12 @@ pub async fn conn() -> Option<ConnectionManager> {
                         Some(conn)
                     }
                     Err(why) => {
-                        tracing::warn!("Redis unavailable ({why}); callers fall back.");
+                        tracing::warn!("Redis connection failed: {why}");
                         None
                     }
                 },
                 Err(why) => {
-                    tracing::warn!("Invalid REDIS_URL ({why}); callers fall back.");
+                    tracing::warn!("Invalid REDIS_URL: {why}");
                     None
                 }
             }
