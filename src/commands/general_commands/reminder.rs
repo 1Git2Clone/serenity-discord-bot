@@ -184,11 +184,35 @@ fn build_remind_at(tz: &UserTz, y: i32, mo: u32, d: u32, h: u32, mi: u32) -> Res
     slash_command,
     prefix_command,
     rename = "reminder",
-    subcommands("create", "list"),
+    subcommands("create", "list", "timezone"),
     subcommand_required
 )]
 pub async fn reminder(_: Context<'_>) -> Result<(), Error> {
     Ok(())
+}
+
+/// The user's stored default timezone name for this context. A server-specific
+/// setting wins over the global one (`guild_id = 0`); `None` if neither is set.
+async fn fetch_default_tz(
+    pool: &PgPool,
+    user_id: i64,
+    guild_id: Option<u64>,
+) -> Result<Option<String>, Error> {
+    // Real guild ids are large, so DESC orders a server setting ahead of global.
+    let scopes: Vec<i64> = match guild_id {
+        Some(g) => vec![g as i64, 0],
+        None => vec![0],
+    };
+    let tz = sqlx::query_scalar!(
+        "SELECT timezone FROM user_timezones \
+         WHERE user_id = $1 AND guild_id = ANY($2) \
+         ORDER BY guild_id DESC LIMIT 1",
+        user_id,
+        &scopes,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(tz)
 }
 
 /// Set a reminder — the bot DMs you at the given time (fires within a minute).
@@ -224,11 +248,23 @@ pub async fn create(
     #[max = 12]
     month: Option<u8>,
     #[description = "Year (default current)"] year: Option<i32>,
-    #[description = "City (Europe/Sofia, Sofia) or GMT offset (GMT+2, +02:00). Default UTC"]
+    #[description = "City/offset for this reminder. Defaults to your saved zone, else UTC"]
     #[autocomplete = "autocomplete_timezone"]
     timezone: Option<String>,
 ) -> Result<(), Error> {
-    let (tz, tz_name) = match resolve_tz(timezone.as_deref()) {
+    // Explicit arg wins; otherwise fall back to the user's saved default.
+    let tz_string = match timezone {
+        Some(t) => Some(t),
+        None => {
+            fetch_default_tz(
+                &ctx.data().pool,
+                ctx.author().id.get() as i64,
+                ctx.guild_id().map(GuildId::get),
+            )
+            .await?
+        }
+    };
+    let (tz, tz_name) = match resolve_tz(tz_string.as_deref()) {
         Ok(v) => v,
         Err(msg) => {
             ctx.say(msg).await?;
@@ -346,5 +382,57 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     ctx.say(out).await?;
+    Ok(())
+}
+
+/// Set your default timezone — for this server, or everywhere with `global`.
+#[poise::command(slash_command, prefix_command, rename = "timezone")]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().qualified_name,
+        author = %ctx.author().id,
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+    )
+)]
+pub async fn timezone(
+    ctx: Context<'_>,
+    #[description = "City (Europe/Sofia, Sofia) or GMT offset (GMT+2, +02:00)"]
+    #[autocomplete = "autocomplete_timezone"]
+    timezone: String,
+    #[description = "Apply everywhere instead of just this server"] global: Option<bool>,
+) -> Result<(), Error> {
+    // Validate and canonicalize so what we store round-trips through resolve_tz.
+    let tz_name = match resolve_tz(Some(&timezone)) {
+        Ok((_, name)) => name,
+        Err(msg) => {
+            ctx.say(msg).await?;
+            return Ok(());
+        }
+    };
+
+    // No per-server scope exists in DMs, so default those to global.
+    let is_dm = ctx.guild_id().is_none();
+    let global = global.unwrap_or(false) || is_dm;
+    let scope_guild = if global {
+        0
+    } else {
+        ctx.guild_id().map(|g| g.get() as i64).unwrap_or(0)
+    };
+
+    sqlx::query!(
+        "INSERT INTO user_timezones (user_id, guild_id, timezone) VALUES ($1, $2, $3) \
+         ON CONFLICT (user_id, guild_id) DO UPDATE SET timezone = EXCLUDED.timezone",
+        ctx.author().id.get() as i64,
+        scope_guild,
+        tz_name,
+    )
+    .execute(&*ctx.data().pool)
+    .await?;
+
+    let scope = if global { "everywhere" } else { "this server" };
+    ctx.say(format!("Default timezone set to `{tz_name}` for {scope}."))
+        .await?;
     Ok(())
 }
