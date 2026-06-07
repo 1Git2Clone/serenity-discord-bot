@@ -29,23 +29,15 @@ jobs:
       RUST_BACKTRACE: full
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Install sqlx-cli
-        run: cargo install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres
 
       - name: Wait for Postgres
-        run: |
-          until pg_isready -h localhost -p 5432; do
-            echo "Waiting for Postgres..."
-            sleep 2
-          done
+        run: until pg_isready -h localhost -p 5432; do sleep 2; done
 
       - name: Run database migrations
         run: sqlx migrate run
