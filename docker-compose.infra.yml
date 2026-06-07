@@ -12,7 +12,8 @@ services:
       - "4317:4317"
       - "4318:4318"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3200/ready"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3200/ready"]
+      start_period: 30s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,7 +34,8 @@ services:
       tempo:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      start_period: 30s
       interval: 10s
       timeout: 5s
       retries: 5
