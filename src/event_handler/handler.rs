@@ -8,13 +8,9 @@
 use super::helper_functions::handle_message;
 use crate::prelude::*;
 
-#[tracing::instrument(
-    skip(ctx, event, _framework, data),
-    fields(
-        category = "event_handler",
-        event.name = %event.snake_case_name(),
-    )
-)]
+// Not instrumented: this fires for every gateway event (presence updates, etc.),
+// which is just noise. The events we actually handle carry their own spans
+// (`handle_message`, the sql fns, `ai_chat`).
 pub async fn event_handler(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,
