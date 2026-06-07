@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT timezone FROM user_timezones WHERE user_id = $1 AND guild_id = ANY($2) ORDER BY guild_id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timezone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_timezones",
+            "name": "timezone"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7cde929ca681bb00413dec8c9187c7b31b71ad6aebaa4f5e5696b99980fd7c56"
+}
