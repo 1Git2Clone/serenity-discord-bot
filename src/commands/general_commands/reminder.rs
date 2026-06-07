@@ -182,7 +182,6 @@ fn build_remind_at(tz: &UserTz, y: i32, mo: u32, d: u32, h: u32, mi: u32) -> Res
 /// Reminders that DM you at a set time.
 #[poise::command(
     slash_command,
-    prefix_command,
     rename = "reminder",
     subcommands("create", "list", "timezone"),
     subcommand_required
@@ -217,7 +216,7 @@ async fn fetch_default_tz(
 
 /// Set a reminder — the bot DMs you at the given time (fires within a minute).
 // Polling runs at minute resolution, so finer input precision wouldn't help.
-#[poise::command(slash_command, prefix_command, rename = "create")]
+#[poise::command(slash_command, rename = "create")]
 #[tracing::instrument(
     skip(ctx),
     fields(
@@ -341,7 +340,7 @@ pub async fn create(
 }
 
 /// List your pending reminders.
-#[poise::command(slash_command, prefix_command, rename = "list")]
+#[poise::command(slash_command, rename = "list")]
 #[tracing::instrument(
     skip(ctx),
     fields(
@@ -386,7 +385,7 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Set your default timezone — for this server, or everywhere with `global`.
-#[poise::command(slash_command, prefix_command, rename = "timezone")]
+#[poise::command(slash_command, rename = "timezone")]
 #[tracing::instrument(
     skip(ctx),
     fields(
