@@ -43,37 +43,28 @@
 
 [Try the bot out!](https://discord.com/oauth2/authorize?client_id=1211325231659089920 "Bot ID: 1211325231659089920")
 
-## Features overview
+A Hu Tao-themed Discord bot built with [Serenity](https://github.com/serenity-rs/serenity) and [Poise](https://github.com/serenity-rs/poise). Responds to both slash and prefix commands (`hu`, `ht`), with persistent XP levelling backed by PostgreSQL and an optional AI persona that stays in character across a full channel conversation window.
 
-This is a list of some of the Bots available features. For a more comprehensive
-list you can always check out the code with all the commands or use the `help`
-command.
+## Features
 
-- A help command containing all the bot commands.
-- A bunch of embed interaction commands (like pats, hugs and etc.).
-- A levelling system using a PostgreSQL connection which works with an XP
-  cooldown (default is 60 seconds).
-- The leveling system has a nice topranks command which gives a cool-looking embed!
-- A bot uptime command.
-- Additional [optional features](#optional-features).
+- `/help` — lists every registered command
+- Embed interaction commands: pat, hug, kiss, slap, punch, bonk, nom, kill, kick, bury, peek, avatar, drive, chair, boom, quote
+- XP levelling with a 60-second cooldown, stored in PostgreSQL
+- `/toplevels` — server leaderboard embed
+- `/uptime` — bot uptime
+- Levenshtein-distance typo correction on unrecognised prefix commands
 
 ### Optional features
 
 #### AI
 
-There's an optional AI feature using the [llm crate](https://crates.io/crates/llm)
-that lets you talk to any mainstream provider. The backend is chosen at compile
-time by enabling exactly one `ai-<backend>` feature: `ai-deepseek`, `ai-ollama`,
-`ai-anthropic`, `ai-openai`, `ai-google`, or `ai-groq`.
+An in-character Hu Tao persona powered by the [llm crate](https://crates.io/crates/llm), which supports every mainstream provider. The backend is chosen at compile time — enable exactly one of: `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`.
 
-For example: `--features="ai-deepseek"`. Set `AI_MODEL` (and `AI_API_KEY` for
-hosted providers) in the `.env` — see [`.env.example`](./.env.example).
+Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.example`](./.env.example) for all variables.
 
-Use `/ai` for one-off prompts, or `/aichannel` (requires the Manage Channels
-permission) to toggle a channel where the bot replies to every message.
-
-Set `REDIS_URL` to cache recent messages and avoid re-fetching context from
-Discord on every reply; without it, the bot falls back to Discord fetches.
+- `/ai` — one-off prompt in any channel or DM
+- `/aichannel` — toggle a channel where the bot auto-replies to every message (requires Manage Channels)
+- Set `REDIS_URL` to keep conversation context in Redis; without it the bot re-fetches recent messages from Discord on every reply
 
 ![AI channel demo](./assets/ai-channel-demo.png)
 
@@ -81,21 +72,17 @@ Discord on every reply; without it, the bot falls back to Discord fetches.
 
 #### Tokio Console
 
-You can also enable the [Tokio Console](https://github.com/tokio-rs/console)
-feature by compiling the bot with `--features="tokio_console"`.
+Task-level async runtime inspection via [Tokio Console](https://github.com/tokio-rs/console):
+
+```sh
+RUSTFLAGS="--cfg tokio_unstable" cargo run --features tokio_console
+```
 
 ![tokio-console task view](./assets/tokio-console-demo.png)
 
-> [!NOTE]
-> Make sure to also compile with `RUSTFLAGS="--cfg tokio_unstable"` if you
-> choose to do so.
-
 #### Telemetry
 
-The project uses back-end agnostic OpenTelemetry meaning you can choose your
-preferred back-end if you choose to turn the `opentelemetry` feature flag on.
-The compose setup ships with [Grafana Tempo](https://grafana.com/oss/tempo/). To
-run it manually outside of compose:
+Distributed tracing via OpenTelemetry — backend-agnostic, so you can point it at any OTLP-compatible collector. The compose setup ships with [Grafana Tempo](https://grafana.com/oss/tempo/) and Grafana pre-wired as the UI. To run Tempo manually:
 
 ```sh
 tempo -config.file=./tempo.yaml
@@ -111,33 +98,28 @@ tempo -config.file=./tempo.yaml
 
 ## Setting up
 
-1. Set up the `.env` file.
-2. Run the app (
-   `cargo run --release`
-   or
-   `cargo run --release --features='<your-features>'`
-   ).
+1. Copy `.env.example` to `.env` and fill in the values.
+2. Run:
 
-> [!NOTE]
-> Refer to the [`.env.example`](./.env.example) file for all the required
-> variables and how to set them up accordingly.
+```sh
+cargo run --release
+# or, to enable specific features:
+cargo run --release --features='<your-features>'
+```
 
-### Advanced setting up (Containerization)
+### Docker Compose
 
-> [!IMPORTANT]
-> Make sure you aren't running PostgreSQL or Grafana Tempo locally due to port
-> conflicts!
-
-The project uses Docker with compose. To run it just run:
+The compose file brings up PostgreSQL, Redis, Grafana Tempo, and Grafana alongside the bot:
 
 ```sh
 docker-compose up -d
 ```
 
-You need to install Docker Compose from
-[docker.com/compose/install](https://docs.docker.com/compose/install/) though.
+> [!IMPORTANT]
+> Make sure you aren't running PostgreSQL or Grafana Tempo locally due to port
+> conflicts!
 
 > [!NOTE]
-> The [`Dockerfile`](./Dockerfile) builds the features in its `FEATURES` arg
-> (defaults to `ai-deepseek opentelemetry tokio_console`); override it through the
+> The [`Dockerfile`](./Dockerfile) builds with the features listed in its `FEATURES`
+> arg (defaults to `ai-deepseek opentelemetry tokio_console`). Override via the
 > compose build args to change provider or feature set.
