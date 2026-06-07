@@ -33,21 +33,25 @@ services:
       timeout: 5s
       retries: 5
 
-  jaeger:
-    image: jaegertracing/jaeger:2.15.1
-    container_name: jaeger
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
     restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
     ports:
-      - "16686:16686" # UI
+      - "3200:3200" # Tempo API
       - "4317:4317" # OTLP gRPC
       - "4318:4318" # OTLP HTTP
     networks:
       - bot-network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:16686/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "wget", "--spider", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   bot:
     build:
@@ -60,7 +64,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      jaeger:
+      tempo:
         condition: service_healthy
     env_file:
       - .env
@@ -69,7 +73,7 @@ services:
 
       REDIS_URL: redis://redis:6379
 
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
       OTEL_SERVICE_NAME: serenity-discord-bot
 
       RUST_LOG: warn,serenity_discord_bot=warn,serenity=warn,poise=warn,tokio::task=off
@@ -82,3 +86,4 @@ networks:
 
 volumes:
   postgres-data:
+  tempo-data:
