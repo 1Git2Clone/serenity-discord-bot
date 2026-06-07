@@ -9,7 +9,7 @@ use super::helper_functions::handle_message;
 use crate::prelude::*;
 
 #[tracing::instrument(
-    skip(ctx, event, _framework),
+    skip(ctx, event, _framework, data),
     fields(
         category = "event_handler",
         event.name = %event.snake_case_name(),
