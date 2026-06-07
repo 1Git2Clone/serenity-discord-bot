@@ -10,6 +10,11 @@ distributor:
         http:
           endpoint: 0.0.0.0:4318
 
+live_store:
+  shutdown_marker_dir: ./tempo-data/live-store/shutdown-marker
+  wal:
+    path: ./tempo-data/live-store/traces
+
 storage:
   trace:
     backend: local
