@@ -4,7 +4,7 @@ datasources:
     type: tempo
     uid: tempo
     access: proxy
-    url: http://tempo:3200
+    url: http://localhost:3200
     isDefault: true
     jsonData:
       httpMethod: GET
