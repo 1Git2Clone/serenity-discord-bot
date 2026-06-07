@@ -20,6 +20,5 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/serenity-discord-bot .
-COPY .env .
 
 CMD ["./serenity-discord-bot"]
