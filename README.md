@@ -31,6 +31,11 @@
     src="https://codeberg.org/1Kill2Steal/skill-icons/raw/branch/main/icons/Redis-Dark.svg"
     alt="Redis"
   />
+  <img
+    height="50px"
+    src="https://codeberg.org/1Kill2Steal/skill-icons/raw/branch/main/icons/Grafana-Dark.svg"
+    alt="Grafana"
+  />
 </p>
 <!-- markdownlint-enable MD033 -->
 
