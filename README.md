@@ -80,6 +80,8 @@ feature by compiling the bot with `--features="tokio_console"`.
 The project uses back-end agnostic OpenTelemetry meaning you can choose your
 preferred back-end if you choose to turn the `opentelemetry` feature flag on.
 
+![otel-tui trace view](./assets/otel-tui-trace.png)
+
 ## Setting up
 
 1. Set up the `.env` file.
