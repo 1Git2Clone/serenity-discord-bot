@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /// Nom someone
-#[poise::command(prefix_command, slash_command)]
+#[poise::command(discard_spare_arguments, prefix_command, slash_command)]
 #[tracing::instrument(
     skip(ctx),
     fields(
@@ -10,13 +10,11 @@ use crate::prelude::*;
         author = %ctx.author().id,
         target_user = %user.as_ref().map(|u| u.id.get()).unwrap_or(0),
         guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
-        extra_msg = %msg.as_deref().unwrap_or("")
     )
 )]
 pub async fn nom(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
-    #[rest] msg: Option<String>,
 ) -> Result<(), Error> {
     let target_replied_user = user.as_ref().unwrap_or(get_replied_user(ctx).await);
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Nom)?;

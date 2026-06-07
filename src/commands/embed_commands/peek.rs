@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /// Send a peek GIF in the chat (you lurker)
-#[poise::command(prefix_command, slash_command)]
+#[poise::command(discard_spare_arguments, prefix_command, slash_command)]
 #[tracing::instrument(
     skip(ctx),
     fields(
@@ -9,10 +9,9 @@ use crate::prelude::*;
         command.name = %ctx.command().name,
         author = %ctx.author().id,
         guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
-        extra_msg = %msg.as_deref().unwrap_or("")
     )
 )]
-pub async fn peek(ctx: Context<'_>, #[rest] msg: Option<String>) -> Result<(), Error> {
+pub async fn peek(ctx: Context<'_>) -> Result<(), Error> {
     let embed_item: &str = cmd_utils::get_rand_embed_from_type(&EmbedType::Peek)?;
     let response: String = format!("{} is lurking . . .", ctx.author().name,);
     let bot_user = Arc::clone(&ctx.data().bot_user);
