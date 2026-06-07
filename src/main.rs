@@ -34,10 +34,9 @@ async fn main() -> Result<(), Error> {
         .with_filter(env_layer);
 
     #[cfg(feature = "tokio_console")]
-    let console_layer = console_subscriber::ConsoleLayer::builder()
+    let (console_layer, console_server) = console_subscriber::ConsoleLayer::builder()
         .with_default_env()
-        .build()
-        .0;
+        .build();
 
     let registry = tracing_subscriber::registry().with(fmt_layer);
 
@@ -80,6 +79,9 @@ async fn main() -> Result<(), Error> {
     };
 
     registry.init();
+
+    #[cfg(feature = "tokio_console")]
+    tokio::spawn(console_server.serve());
 
     let token = BOT_TOKEN.to_string();
     // Either all or non_privileged intents only.
