@@ -52,6 +52,7 @@ A Hu Tao-themed Discord bot built with [Serenity](https://github.com/serenity-rs
 - XP levelling with a 60-second cooldown, stored in PostgreSQL
 - `/toplevels` — server leaderboard embed
 - `/uptime` — bot uptime
+- `/reminder` — schedule a DM for later (`create`/`list`/`search`), with a saveable default timezone (`/reminder timezone`, per-server or global) and browsable, paginated history
 - Levenshtein-distance typo correction on unrecognised prefix commands
 
 ### Optional features

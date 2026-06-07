@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO user_timezones (user_id, guild_id, timezone) VALUES ($1, $2, $3) ON CONFLICT (user_id, guild_id) DO UPDATE SET timezone = EXCLUDED.timezone",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "560e87db16dd6d7d5571e6d66ec33fc4f518d90c886a89c439cad7cb14cc6b6f"
+}
