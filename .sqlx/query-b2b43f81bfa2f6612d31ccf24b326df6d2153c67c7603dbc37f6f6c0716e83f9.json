@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM reminders WHERE user_id = $1 AND finished_at IS NOT NULL AND id NOT IN ( SELECT id FROM reminders WHERE user_id = $1 AND finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT $2 )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b2b43f81bfa2f6612d31ccf24b326df6d2153c67c7603dbc37f6f6c0716e83f9"
+}

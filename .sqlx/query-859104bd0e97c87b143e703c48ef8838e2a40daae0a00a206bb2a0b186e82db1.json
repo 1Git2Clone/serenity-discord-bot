@@ -1,0 +1,55 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT remind_at, finished_at, message\n           FROM reminders\n           WHERE user_id = $1\n             AND ($2::bool OR (finished_at IS NULL) = $3::bool)\n             AND ($4::text IS NULL OR message ILIKE $4 ESCAPE '\\')\n           ORDER BY (finished_at IS NULL) DESC, COALESCE(finished_at, remind_at)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "remind_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "remind_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "message"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bool",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "859104bd0e97c87b143e703c48ef8838e2a40daae0a00a206bb2a0b186e82db1"
+}

@@ -122,6 +122,7 @@ async fn main() -> Result<(), Error> {
             commands: vec![
                 commands::general_commands::help(),
                 commands::general_commands::age(),
+                commands::general_commands::reminder(),
                 #[cfg(feature = "ai")]
                 commands::general_commands::ai(),
                 #[cfg(feature = "ai")]
@@ -180,6 +181,11 @@ async fn main() -> Result<(), Error> {
                     ai::init_registered_channels(&pool).await?;
                     cache::init().await;
                 }
+
+                tokio::spawn(crate::data::reminders::reminder_polling_loop(
+                    Arc::clone(&ctx.http),
+                    Arc::clone(&pool),
+                ));
 
                 Ok(Data {
                     // It's better to clone the bot user once when it starts rather than do http

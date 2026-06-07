@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/reminder` slash command group that DMs you at a set time: `create`, `list`, `search`, and `timezone`
+- Per-user default timezone via `/reminder timezone`, saved per-server or globally; `create` resolves the zone from the explicit option, then the server default, then the global default, then UTC
+- Timezone input accepts IANA names (`Europe/Sofia`), bare cities (`Sofia`), or GMT offsets (`GMT+2`, `+02:00`), with Discord autocomplete over the IANA database
+- Reminder history: fired reminders are kept (capped at 100 per user) and browsable; `/reminder list` and `/reminder search` show them in an ephemeral, button-paginated embed (first/prev/next/last plus a jump-to-page modal)
+- AI replies now also trigger when the bot is mentioned anywhere in a message, not only in DMs or `/aichannel` channels
+
 ### Fixed
 
 - Docker: consolidated to a single `tempo.yaml` using `/var/tempo` paths — the image pre-creates this directory with the correct uid, so it works for both Docker and local use without a separate config file
+- Docker: bumped the builder image to rust 1.94 to satisfy the sqlx 0.9 MSRV
 
 ## [0.2.0] - 2026-06-07
 
