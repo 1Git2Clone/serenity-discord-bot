@@ -597,7 +597,12 @@ pub async fn handle_ai_channel_message(
     };
     AI_RATE_LIMIT.insert(new_message.author.id, ()).await;
 
-    let _ = new_message.channel_id.broadcast_typing(ctx).await;
+    new_message
+        .channel_id
+        .broadcast_typing(ctx)
+        .instrument(tracing::info_span!("broadcast_typing", category = "discord"))
+        .await
+        .ok();
 
     // The triggering message is already in the window (recorded in `handle_message`
     // before this runs), so no trailing turn is appended.
