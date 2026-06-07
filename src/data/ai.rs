@@ -10,6 +10,7 @@ use llm::{
 };
 use moka::future::Cache;
 use redis::AsyncCommands;
+use tracing::Instrument;
 
 // Backend is chosen at compile time via the `ai-<backend>` Cargo feature. Fail
 // loudly if `ai` is on but no backend was picked (e.g. `--features ai` alone),
@@ -243,7 +244,12 @@ pub async fn chat(messages: &[AiMessage]) -> Result<String, Error> {
         })
         .collect::<Vec<_>>();
 
-    let response = AI_PROVIDER.chat(&conversation).await?;
+    // Span the provider call on its own so its latency (the actual model/network
+    // round-trip) is separable from the local message conversion.
+    let response = AI_PROVIDER
+        .chat(&conversation)
+        .instrument(tracing::info_span!("llm_request", category = "llm"))
+        .await?;
     tracing::info!("Raw AI response: {response}");
 
     Ok(response.text().unwrap_or_else(|| response.to_string()))
@@ -321,6 +327,7 @@ fn entry_to_message(entry: &str, bot_user_id: u64) -> Option<AiMessage> {
 
 /// Append a message to a channel's window, but only if the window already exists
 /// (i.e. the channel is "warm" from a prior AI interaction). No-op without Redis.
+#[tracing::instrument(skip(author, content), fields(category = "redis"))]
 pub async fn record_message(channel_id: u64, author: &serenity::User, content: &str) {
     let Some(mut conn) = crate::data::cache::conn().await else {
         return;
@@ -354,6 +361,10 @@ pub async fn record_message(channel_id: u64, author: &serenity::User, content: &
 /// window from a one-off Discord fetch. `current` is appended as a trailing user
 /// turn — used by `/ai`, whose prompt isn't a channel message; the auto-reply
 /// passes `None` since the triggering message is already in the window.
+#[tracing::instrument(
+    skip(cache_http, current),
+    fields(category = "ai_context", channel_id = %channel_id)
+)]
 pub async fn channel_context(
     cache_http: impl serenity::CacheHttp,
     channel_id: serenity::ChannelId,
@@ -385,6 +396,7 @@ pub async fn channel_context(
 }
 
 /// Fetch the recent window from Discord and map it to prompt messages.
+#[tracing::instrument(skip_all, fields(category = "discord_fetch", channel_id = %channel_id))]
 async fn fetch_from_discord(
     cache_http: &impl serenity::CacheHttp,
     channel_id: serenity::ChannelId,
@@ -407,6 +419,7 @@ async fn fetch_from_discord(
 }
 
 /// Seed a cold channel's Redis window from Discord and return the prompt.
+#[tracing::instrument(skip_all, fields(category = "discord_fetch", channel_id = %channel_id))]
 async fn seed_from_discord(
     cache_http: &impl serenity::CacheHttp,
     channel_id: serenity::ChannelId,
@@ -488,7 +501,10 @@ pub async fn handle_ai_channel_message(
     let prompt = channel_context(ctx, new_message.channel_id, data.bot_user.id.get(), None).await;
     let response = chat(&prompt).await?;
 
-    new_message.reply(ctx, response).await?;
+    new_message
+        .reply(ctx, response)
+        .instrument(tracing::info_span!("discord_reply", category = "discord"))
+        .await?;
 
     Ok(())
 }
