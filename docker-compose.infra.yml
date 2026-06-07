@@ -11,13 +11,6 @@ services:
       - "3200:3200"
       - "4317:4317"
       - "4318:4318"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3200/ready"]
-      start_period: 30s
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -31,8 +24,7 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
     depends_on:
-      tempo:
-        condition: service_healthy
+      - tempo
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       start_period: 30s
