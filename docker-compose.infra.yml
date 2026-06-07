@@ -3,20 +3,17 @@ services:
     image: grafana/tempo:latest
     container_name: tempo
     restart: unless-stopped
+    network_mode: host
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
       - tempo-data:/var/tempo
-    ports:
-      - "3200:3200"
-      - "4317:4317"
-      - "4318:4318"
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    network_mode: host
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - grafana-data:/var/lib/grafana
