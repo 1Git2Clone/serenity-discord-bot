@@ -94,6 +94,12 @@ feature by compiling the bot with `--features="tokio_console"`.
 
 The project uses back-end agnostic OpenTelemetry meaning you can choose your
 preferred back-end if you choose to turn the `opentelemetry` feature flag on.
+The compose setup ships with [Grafana Tempo](https://grafana.com/oss/tempo/). To
+run it manually outside of compose:
+
+```sh
+tempo -config.file=./tempo.yaml
+```
 
 ![otel-tui trace view](./assets/otel-tui-trace.png)
 
