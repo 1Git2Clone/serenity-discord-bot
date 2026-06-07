@@ -13,15 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Grafana Tempo as the OTLP tracing backend, replacing Jaeger
 - Grafana service in Docker Compose with the Tempo datasource auto-provisioned — no manual setup required
-- `tempo.yaml` config with local storage paths so Tempo can be run outside of compose without root
+- `tempo.yaml` config with all storage paths explicitly set to `/var/tempo` — matching what the image pre-creates with the correct uid, works for both local and Docker use
 - `broadcast_typing` OTel span so the Discord typing-indicator HTTP call shows up in traces instead of being swallowed by `handle_ai_channel_message` overhead
 
 ### Fixed
 
 - Tokio Console: the gRPC server was never spawned — `.build()` returns `(ConsoleLayer, Server)` but only the layer was kept; the server was dropped, so there was nothing for `tokio-console` to connect to
 - Docker: `COPY .env` baked secrets into the image layer; switched to `env_file` injection at runtime
-- Grafana Tempo: storage paths defaulted to `/var/tempo`, causing a permission error when running as a non-root user locally; switched to relative paths under `./tempo-data/`
-- Grafana Tempo 3.x: the new `live_store` module also defaults to `/var/tempo` for its WAL and shutdown marker, independent of the `storage.trace` config; now explicitly configured
+- Grafana Tempo: all storage paths now explicitly configured to `/var/tempo` — the image pre-creates this directory for uid 10001; locally, create it once with `sudo mkdir -p /var/tempo && sudo chown $USER /var/tempo`
+- Grafana Tempo 3.x: the new `live_store` module defaults to `/var/tempo` for its WAL and shutdown marker independently of `storage.trace`; now explicitly configured
 
 ## [0.1.1] - 2025-12-01
 
