@@ -567,8 +567,9 @@ async fn seed_from_discord(
         .collect()
 }
 
-/// Reply to a message in a registered AI channel, honoring the per-user rate
-/// limit and the per-channel processing lock.
+/// Reply to a message, honoring the per-user rate limit and the per-channel
+/// processing lock. Triggers in DMs, /aichannel-registered channels, and any
+/// channel where the bot is mentioned.
 #[tracing::instrument(
     skip(ctx, data, new_message),
     fields(
@@ -582,9 +583,12 @@ pub async fn handle_ai_channel_message(
     data: &Data,
     new_message: &serenity::Message,
 ) -> Result<(), Error> {
-    // Always reply in DMs; in servers, only in /aichannel-enabled channels.
     let is_dm = new_message.guild_id.is_none();
-    if !is_dm && !is_ai_channel(new_message.channel_id.get()) {
+    let is_mentioned = new_message
+        .mentions
+        .iter()
+        .any(|u| u.id == data.bot_user.id);
+    if !is_dm && !is_ai_channel(new_message.channel_id.get()) && !is_mentioned {
         return Ok(());
     }
 
