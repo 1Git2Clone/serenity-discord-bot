@@ -350,6 +350,53 @@ fn to_message(author_id: u64, name: &str, content: &str, bot_user_id: u64) -> Op
     }
 }
 
+/// A message rendered for the model: its text plus any embeds flattened to text
+/// (author/title/description/fields/footer), with images noted but not shown.
+/// Command outputs are usually embed-only with empty `content`, so without this
+/// the model can't see them at all.
+fn render_message(message: &serenity::Message) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    let content = message.content.trim();
+    if !content.is_empty() {
+        parts.push(content.to_string());
+    }
+
+    for embed in &message.embeds {
+        parts.push(render_embed(embed));
+    }
+
+    parts.join("\n")
+}
+
+fn render_embed(embed: &serenity::Embed) -> String {
+    let mut bits: Vec<String> = vec!["[embed]".to_string()];
+
+    if let Some(author) = &embed.author {
+        bits.push(format!("author: {}", author.name));
+    }
+    if let Some(title) = &embed.title {
+        bits.push(format!("title: {title}"));
+    }
+    if let Some(description) = &embed.description {
+        bits.push(description.clone());
+    }
+    for field in &embed.fields {
+        bits.push(format!("{}: {}", field.name, field.value));
+    }
+    if let Some(footer) = &embed.footer {
+        bits.push(format!("footer: {}", footer.text));
+    }
+    if embed.image.is_some() {
+        bits.push("[image attached]".to_string());
+    }
+    if embed.thumbnail.is_some() {
+        bits.push("[thumbnail attached]".to_string());
+    }
+
+    bits.join(" | ")
+}
+
 fn encode_entry(author_id: u64, name: &str, content: &str) -> String {
     format!("{author_id}{AI_CTX_SEP}{name}{AI_CTX_SEP}{content}")
 }
@@ -364,8 +411,13 @@ fn entry_to_message(entry: &str, bot_user_id: u64) -> Option<AiMessage> {
 
 /// Append a message to a channel's window, but only if the window already exists
 /// (i.e. the channel is "warm" from a prior AI interaction). No-op without Redis.
-#[tracing::instrument(skip(author, content), fields(category = "redis"))]
-pub async fn record_message(channel_id: u64, author: &serenity::User, content: &str) {
+#[tracing::instrument(skip(message), fields(category = "redis", channel_id = %message.channel_id))]
+pub async fn record_message(message: &serenity::Message) {
+    let rendered = render_message(message);
+    if rendered.trim().is_empty() {
+        return;
+    }
+
     let Some(mut conn) = crate::data::cache::conn().await else {
         return;
     };
@@ -380,8 +432,12 @@ pub async fn record_message(channel_id: u64, author: &serenity::User, content: &
     );
 
     let result: redis::RedisResult<i64> = script
-        .key(ctx_key(channel_id))
-        .arg(encode_entry(author.id.get(), &author_name(author), content))
+        .key(ctx_key(message.channel_id.get()))
+        .arg(encode_entry(
+            message.author.id.get(),
+            &author_name(&message.author),
+            &rendered,
+        ))
         .arg(*AI_MAX_MSG_CONTEXT as i64)
         .arg(AI_CTX_TTL_SECS)
         .invoke_async(&mut conn)
@@ -450,7 +506,12 @@ async fn fetch_from_discord(
     messages
         .iter()
         .filter_map(|m| {
-            to_message(m.author.id.get(), &author_name(&m.author), &m.content, bot_user_id)
+            to_message(
+                m.author.id.get(),
+                &author_name(&m.author),
+                &render_message(m),
+                bot_user_id,
+            )
         })
         .collect()
 }
@@ -468,17 +529,22 @@ async fn seed_from_discord(
         .messages(cache_http, GetMessages::new().limit(limit))
         .await
         .unwrap_or_default();
-    messages.retain(|m| {
-        (!m.author.bot || m.author.id.get() == bot_user_id) && !m.content.trim().is_empty()
-    });
+    messages.retain(|m| !m.author.bot || m.author.id.get() == bot_user_id);
     messages.reverse();
 
+    // (author_id, name, rendered text); drop messages that render to nothing.
+    let rendered: Vec<(u64, String, String)> = messages
+        .iter()
+        .map(|m| (m.author.id.get(), author_name(&m.author), render_message(m)))
+        .filter(|(_, _, text)| !text.trim().is_empty())
+        .collect();
+
     if let Some(mut conn) = crate::data::cache::conn().await
-        && !messages.is_empty()
+        && !rendered.is_empty()
     {
-        let encoded: Vec<String> = messages
+        let encoded: Vec<String> = rendered
             .iter()
-            .map(|m| encode_entry(m.author.id.get(), &author_name(&m.author), &m.content))
+            .map(|(id, name, text)| encode_entry(*id, name, text))
             .collect();
         let result: redis::RedisResult<()> = redis::pipe()
             .atomic()
@@ -495,11 +561,9 @@ async fn seed_from_discord(
         }
     }
 
-    messages
+    rendered
         .iter()
-        .filter_map(|m| {
-            to_message(m.author.id.get(), &author_name(&m.author), &m.content, bot_user_id)
-        })
+        .filter_map(|(id, name, text)| to_message(*id, name, text, bot_user_id))
         .collect()
 }
 
