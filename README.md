@@ -105,6 +105,8 @@ tempo -config.file=./tempo.yaml
 
 ![Grafana Tempo trace view](./assets/grafana-tempo-trace.png)
 
+![Grafana Tempo flame graph](./assets/grafana-tempo-flamegraph.png)
+
 ## Setting up
 
 1. Set up the `.env` file.
