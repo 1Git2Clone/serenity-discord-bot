@@ -82,9 +82,10 @@ RUSTFLAGS="--cfg tokio_unstable" cargo run --features tokio_console
 
 #### Telemetry
 
-Distributed tracing via OpenTelemetry — backend-agnostic, so you can point it at any OTLP-compatible collector. The compose setup ships with [Grafana Tempo](https://grafana.com/oss/tempo/) and Grafana pre-wired as the UI. To run Tempo manually:
+Distributed tracing via OpenTelemetry — backend-agnostic, so you can point it at any OTLP-compatible collector. The compose setup ships with [Grafana Tempo](https://grafana.com/oss/tempo/) and Grafana pre-wired as the UI. To run Tempo manually (create `/var/tempo` once with your user as owner):
 
 ```sh
+sudo mkdir -p /var/tempo && sudo chown $USER /var/tempo
 tempo -config.file=./tempo.yaml
 ```
 

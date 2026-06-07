@@ -11,14 +11,14 @@ distributor:
           endpoint: 0.0.0.0:4318
 
 live_store:
-  shutdown_marker_dir: ./tempo-data/live-store/shutdown-marker
+  shutdown_marker_dir: /var/tempo/live-store/shutdown-marker
   wal:
-    path: ./tempo-data/live-store/traces
+    path: /var/tempo/live-store/traces
 
 storage:
   trace:
     backend: local
     local:
-      path: ./tempo-data/blocks
+      path: /var/tempo/blocks
     wal:
-      path: ./tempo-data/wal
+      path: /var/tempo/wal

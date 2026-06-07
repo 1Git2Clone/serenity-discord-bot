@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
-      - ./tempo-docker.yaml:/etc/tempo.yaml
+      - ./tempo.yaml:/etc/tempo.yaml
       - tempo-data:/var/tempo
     ports:
       - "3200:3200" # Tempo API
