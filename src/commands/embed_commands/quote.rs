@@ -3,7 +3,7 @@ use crate::data::voicelines::HU_TAO_VOICELINES_JP;
 use crate::prelude::*;
 
 /// Send a Hu Tao quote!
-#[poise::command(prefix_command, slash_command)]
+#[poise::command(discard_spare_arguments, prefix_command, slash_command)]
 #[tracing::instrument(
     skip(ctx),
     fields(
@@ -11,10 +11,9 @@ use crate::prelude::*;
         command.name = %ctx.command().name,
         author = %ctx.author().id,
         guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
-        extra_msg = %msg.as_deref().unwrap_or("")
     )
 )]
-pub async fn quote(ctx: Context<'_>, #[rest] msg: Option<String>) -> Result<(), Error> {
+pub async fn quote(ctx: Context<'_>) -> Result<(), Error> {
     let response = HU_TAO_VOICELINES_JP
         .choose(&mut rand::rng())
         .ok_or("No Hu Tao voicelines!")?
