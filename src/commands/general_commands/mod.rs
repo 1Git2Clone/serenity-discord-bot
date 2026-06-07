@@ -1,6 +1,9 @@
 pub mod help;
 pub use help::help;
 
+pub mod reminder;
+pub use reminder::reminder;
+
 pub mod age;
 pub use age::age;
 

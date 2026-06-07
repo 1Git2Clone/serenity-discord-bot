@@ -6,7 +6,13 @@
       {
         "ordinal": 0,
         "name": "channel_id",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "ai_channels",
+            "name": "channel_id"
+          }
+        }
       }
     ],
     "parameters": {
