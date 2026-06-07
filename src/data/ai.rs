@@ -1,4 +1,7 @@
-use std::{sync::LazyLock, time::Duration};
+use std::{
+    sync::{LazyLock, OnceLock},
+    time::Duration,
+};
 
 use crate::{enums::schemas::AiChannelsTable, prelude::*};
 use ::serenity::all::GetMessages;
@@ -168,9 +171,9 @@ fn ai_backend() -> LLMBackend {
     return LLMBackend::Groq;
 }
 
-/// Set on the builder, not sent per call — the crate's `ChatRole` has no system
-/// variant.
-const SYSTEM_PROMPT: &str = r#"
+/// The static persona. [`init_system_prompt`] wraps this with the bot's command
+/// list to build the prompt set on the provider.
+const PERSONA: &str = r#"
 You are Hu Tao, the 77th Director of the Wangsheng Funeral Parlor in Liyue.
 Your personality is eccentric, cheerful, and a bit mischievous, but you have a
 deeply philosophical and respectful view of life and death.
@@ -186,13 +189,47 @@ Speech Guidelines:
 Style: Goth-cute, energetic, and slightly "weird" as Rie Takahashi (your VA) would describe it.
 "#;
 
+/// The full system prompt (persona + command context), composed once at startup.
+/// Falls back to the bare persona if [`init_system_prompt`] wasn't called.
+static SYSTEM_PROMPT: OnceLock<String> = OnceLock::new();
+
+/// Build the system prompt from the persona plus the bot's registered commands,
+/// so the model can explain itself in DMs without the list being hand-maintained.
+/// `commands` is `(name, description)` pairs.
+pub fn init_system_prompt(commands: &[(String, String)]) {
+    let command_list = commands
+        .iter()
+        .map(|(name, desc)| {
+            if desc.is_empty() {
+                format!("- /{name}")
+            } else {
+                format!("- /{name}: {desc}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let prompt = format!(
+        "{PERSONA}\n\nYou are a Discord bot. People talk to you by DMing you \
+         directly, or in a server channel an admin enabled with `/aichannel`. If \
+         someone asks how to use you or for help, explain it in character. Your \
+         slash commands are:\n{command_list}"
+    );
+
+    let _ = SYSTEM_PROMPT.set(prompt);
+}
+
+fn system_prompt() -> &'static str {
+    SYSTEM_PROMPT.get().map_or(PERSONA, String::as_str)
+}
+
 /// Built once so the backend's connection pool is reused instead of
 /// re-handshaking TLS on every call.
 pub static AI_PROVIDER: LazyLock<Box<dyn LLMProvider>> = LazyLock::new(|| {
     let mut builder = LLMBuilder::new()
         .backend(ai_backend())
         .model(DEFAULT_MODEL.as_str())
-        .system(SYSTEM_PROMPT)
+        .system(system_prompt())
         .max_tokens(AI_MAX_TOKENS)
         .temperature(AI_TEMPERATURE);
 
@@ -481,7 +518,9 @@ pub async fn handle_ai_channel_message(
     data: &Data,
     new_message: &serenity::Message,
 ) -> Result<(), Error> {
-    if !is_ai_channel(new_message.channel_id.get()) {
+    // Always reply in DMs; in servers, only in /aichannel-enabled channels.
+    let is_dm = new_message.guild_id.is_none();
+    if !is_dm && !is_ai_channel(new_message.channel_id.get()) {
         return Ok(());
     }
 
