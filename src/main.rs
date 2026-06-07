@@ -26,13 +26,17 @@ async fn main() -> Result<(), Error> {
         LazyLock::force(&AI_MAX_MSG_CONTEXT);
     }
 
-    let env_layer = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
+    // With RUST_LOG unset, a bare "info" floods the console with every infra crate
+    // (serenity, poise, h2, hyper, the gateway socket, …). Default to quieting them
+    // and keeping the app at info; RUST_LOG still overrides when set.
+    let env_layer = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("warn,serenity_discord_bot=info"));
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_thread_ids(true)
         .with_thread_names(true)
         .with_target(false)
-        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
         .with_filter(env_layer);
 
     #[cfg(feature = "tokio_console")]
@@ -70,7 +74,15 @@ async fn main() -> Result<(), Error> {
 
         opentelemetry::global::set_tracer_provider(tracer_provider.clone());
 
-        registry.with(tracing_opentelemetry::layer().with_tracer(tracer))
+        // Dedicated filter so the OTEL layer doesn't ingest the same infra firehose
+        // (and the `tokio_unstable` runtime spans) and bury the app's traces.
+        let otel_filter = EnvFilter::new("warn,serenity_discord_bot=info,tokio=off,runtime=off");
+
+        registry.with(
+            tracing_opentelemetry::layer()
+                .with_tracer(tracer)
+                .with_filter(otel_filter),
+        )
     };
 
     registry.init();
