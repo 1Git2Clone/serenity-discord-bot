@@ -17,14 +17,8 @@ async fn main() -> Result<(), Error> {
 
     let _ = dotenv::dotenv()?;
 
-    #[cfg(feature = "ai")]
-    {
-        use crate::data::ai::{AI_MAX_MSG_CONTEXT, AI_PROVIDER};
-
-        // Build the provider now so a bad config fails on boot, not on the first `/ai`.
-        LazyLock::force(&AI_PROVIDER);
-        LazyLock::force(&AI_MAX_MSG_CONTEXT);
-    }
+    // AI init happens in `setup` below, once the registered command list is known
+    // (the system prompt is built from it).
 
     // With RUST_LOG unset, a bare "info" floods the console with every infra crate
     // (serenity, poise, h2, hyper, the gateway socket, …). Default to quieting them
@@ -164,8 +158,25 @@ async fn main() -> Result<(), Error> {
 
                 #[cfg(feature = "ai")]
                 {
-                    crate::data::ai::init_registered_channels(&pool).await?;
-                    crate::data::cache::init().await;
+                    use crate::data::{ai, cache};
+
+                    // Self-healing command context: derive the list from what's
+                    // actually registered so the system prompt never goes stale.
+                    let commands: Vec<(String, String)> = framework
+                        .options()
+                        .commands
+                        .iter()
+                        .map(|cmd| (cmd.name.clone(), cmd.description.clone().unwrap_or_default()))
+                        .collect();
+                    ai::init_system_prompt(&commands);
+
+                    // Build the provider now (fails fast on bad config) — after the
+                    // system prompt is set so the command list is baked in.
+                    LazyLock::force(&ai::AI_PROVIDER);
+                    LazyLock::force(&ai::AI_MAX_MSG_CONTEXT);
+
+                    ai::init_registered_channels(&pool).await?;
+                    cache::init().await;
                 }
 
                 Ok(Data {
