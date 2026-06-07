@@ -103,6 +103,8 @@ tempo -config.file=./tempo.yaml
 
 ![otel-tui trace view](./assets/otel-tui-trace.png)
 
+![Grafana Tempo trace view](./assets/grafana-tempo-trace.png)
+
 ## Setting up
 
 1. Set up the `.env` file.
