@@ -75,6 +75,8 @@ Discord on every reply; without it, the bot falls back to Discord fetches.
 You can also enable the [Tokio Console](https://github.com/tokio-rs/console)
 feature by compiling the bot with `--features="tokio_console"`.
 
+![tokio-console task view](./assets/tokio-console-demo.png)
+
 > [!NOTE]
 > Make sure to also compile with `RUSTFLAGS="--cfg tokio_unstable"` if you
 > choose to do so.
