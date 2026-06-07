@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) FROM reminders WHERE user_id = $1",
+  "query": "SELECT COUNT(*) FROM reminders WHERE user_id = $1 AND finished_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       null
     ]
   },
-  "hash": "5e7f19738f83be60c400d0c1be18b143fc5843511f467ca8be9b468948ed6383"
+  "hash": "2120110bba3e59e9a0b755ddb8d4a1caff96974b6fbd2939b05183fc745f1bce"
 }

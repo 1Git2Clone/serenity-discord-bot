@@ -7,6 +7,12 @@ use crate::prelude::*;
 const MAX_PENDING_PER_USER: i64 = 50;
 /// Discord caps autocomplete responses at 25 entries.
 const MAX_AUTOCOMPLETE: usize = 25;
+/// Max characters allowed in a reminder message.
+const MAX_MESSAGE_CHARS: usize = 500;
+/// Reminders shown per page in `list`.
+const PAGE_SIZE: usize = 6;
+/// How long the list paginator stays interactive.
+const PAGINATE_TIMEOUT_SECS: u64 = 300;
 
 /// A user-supplied timezone: either a named IANA zone (`Europe/Sofia`) or a
 /// fixed offset from GMT (`GMT+2`, `+02:00`). Both implement `TimeZone`, but
@@ -229,7 +235,9 @@ async fn fetch_default_tz(
 #[allow(clippy::too_many_arguments)]
 pub async fn create(
     ctx: Context<'_>,
-    #[description = "What to remind you of"] message: String,
+    #[description = "What to remind you of"]
+    #[max_length = 500]
+    message: String,
     #[description = "Hour 0–23 (default 0 = midnight, in your timezone)"]
     #[min = 0]
     #[max = 23]
@@ -251,6 +259,15 @@ pub async fn create(
     #[autocomplete = "autocomplete_timezone"]
     timezone: Option<String>,
 ) -> Result<(), Error> {
+    // `max_length` is enforced by Discord for the slash option; guard anyway.
+    if message.chars().count() > MAX_MESSAGE_CHARS {
+        ctx.say(format!(
+            "Reminders are capped at {MAX_MESSAGE_CHARS} characters."
+        ))
+        .await?;
+        return Ok(());
+    }
+
     // Explicit arg wins; otherwise fall back to the user's saved default.
     let tz_string = match timezone {
         Some(t) => Some(t),
@@ -308,10 +325,13 @@ pub async fn create(
     }
 
     let user_id = ctx.author().id.get() as i64;
-    let pending = sqlx::query_scalar!("SELECT COUNT(*) FROM reminders WHERE user_id = $1", user_id)
-        .fetch_one(&*ctx.data().pool)
-        .await?
-        .unwrap_or(0);
+    let pending = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM reminders WHERE user_id = $1 AND finished_at IS NULL",
+        user_id,
+    )
+    .fetch_one(&*ctx.data().pool)
+    .await?
+    .unwrap_or(0);
     if pending >= MAX_PENDING_PER_USER {
         ctx.say(format!(
             "You already have {MAX_PENDING_PER_USER} pending reminders — wait for some to fire first."
@@ -339,7 +359,41 @@ pub async fn create(
     Ok(())
 }
 
-/// List your pending reminders.
+/// Which reminders `list` shows.
+#[derive(Debug, poise::ChoiceParameter, PartialEq)]
+enum StatusFilter {
+    #[name = "All"]
+    All,
+    #[name = "Pending"]
+    Pending,
+    #[name = "Finished"]
+    Finished,
+}
+
+/// Escape LIKE wildcards so a user's `%`/`_` match literally (paired with
+/// `ESCAPE '\'` in the query).
+fn escape_like(term: &str) -> String {
+    term.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
+/// Render one reminder row into a list line. No DB id — it's a global serial
+/// that means nothing to the user and leaks total volume.
+fn render_row(remind_at: DateTime<Utc>, finished_at: Option<DateTime<Utc>>, message: &str) -> String {
+    let ts = remind_at.timestamp();
+    let msg = if message.chars().count() > 120 {
+        format!("{}…", message.chars().take(120).collect::<String>())
+    } else {
+        message.to_string()
+    };
+    match finished_at {
+        None => format!("⏳ <t:{ts}:F> (<t:{ts}:R>) — {msg}"),
+        Some(_) => format!("✅ <t:{ts}:F> — {msg}"),
+    }
+}
+
+/// List your reminders, with optional status filter and message search.
 #[poise::command(slash_command, rename = "list")]
 #[tracing::instrument(
     skip(ctx),
@@ -349,38 +403,160 @@ pub async fn create(
         author = %ctx.author().id,
     )
 )]
-pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn list(
+    ctx: Context<'_>,
+    #[description = "Which reminders to show (default All)"] status: Option<StatusFilter>,
+    #[description = "Only show reminders whose message contains this text"]
+    #[max_length = 100]
+    search: Option<String>,
+) -> Result<(), Error> {
+    let status = status.unwrap_or(StatusFilter::All);
     let user_id = ctx.author().id.get() as i64;
+
+    // `search` is NULL -> no filter; otherwise a literal-escaped ILIKE pattern.
+    let pattern = search.as_deref().map(|t| format!("%{}%", escape_like(t)));
+
     let rows = sqlx::query!(
-        "SELECT id, remind_at, message FROM reminders WHERE user_id = $1 ORDER BY remind_at",
+        r#"SELECT remind_at, finished_at, message
+           FROM reminders
+           WHERE user_id = $1
+             AND ($2::bool OR (finished_at IS NULL) = $3::bool)
+             AND ($4::text IS NULL OR message ILIKE $4 ESCAPE '\')
+           ORDER BY (finished_at IS NULL) DESC, COALESCE(finished_at, remind_at)"#,
         user_id,
+        status == StatusFilter::All,
+        status == StatusFilter::Pending,
+        pattern,
     )
     .fetch_all(&*ctx.data().pool)
     .await?;
 
     if rows.is_empty() {
-        ctx.say("You have no pending reminders.").await?;
+        let what = match status {
+            StatusFilter::All => "reminders",
+            StatusFilter::Pending => "pending reminders",
+            StatusFilter::Finished => "finished reminders",
+        };
+        let suffix = if pattern.is_some() { " matching that search" } else { "" };
+        ctx.say(format!("You have no {what}{suffix}.")).await?;
         return Ok(());
     }
 
-    let mut out = format!("**Your pending reminders ({}):**\n", rows.len());
-    for row in &rows {
-        let ts = row.remind_at.timestamp();
-        let msg = if row.message.chars().count() > 80 {
-            format!("{}…", row.message.chars().take(80).collect::<String>())
-        } else {
-            row.message.clone()
-        };
-        let line = format!("`#{}` <t:{ts}:F> (<t:{ts}:R>) — {msg}\n", row.id);
-        // Discord caps messages at 2000 chars.
-        if out.len() + line.len() > 1900 {
-            out.push_str("…and more.");
-            break;
-        }
-        out.push_str(&line);
+    let lines: Vec<String> = rows
+        .iter()
+        .map(|r| render_row(r.remind_at, r.finished_at, &r.message))
+        .collect();
+
+    let total = lines.len();
+    let pages: Vec<String> = lines
+        .chunks(PAGE_SIZE)
+        .map(|chunk| chunk.join("\n\n"))
+        .collect();
+    let header = format!("Your reminders ({total})");
+
+    paginate(ctx, &header, &pages).await
+}
+
+/// Ephemeral, button-driven embed pager: ⏮ ◀ [page x/y → modal] ▶ ⏭.
+async fn paginate(ctx: Context<'_>, header: &str, pages: &[String]) -> Result<(), Error> {
+    let total = pages.len();
+    let id = ctx.id();
+    let (first, prev, goto, next, last) = (
+        format!("{id}first"),
+        format!("{id}prev"),
+        format!("{id}goto"),
+        format!("{id}next"),
+        format!("{id}last"),
+    );
+
+    let render = |page: usize| {
+        serenity::CreateEmbed::new()
+            .title(header)
+            .description(&pages[page])
+            .footer(serenity::CreateEmbedFooter::new(format!("Page {}/{total}", page + 1)))
+    };
+    let buttons = |page: usize| {
+        let at_start = page == 0;
+        let at_end = page + 1 >= total;
+        serenity::CreateActionRow::Buttons(vec![
+            serenity::CreateButton::new(&first).emoji('⏮').disabled(at_start),
+            serenity::CreateButton::new(&prev).emoji('◀').disabled(at_start),
+            serenity::CreateButton::new(&goto)
+                .label(format!("{}/{total}", page + 1))
+                .style(serenity::ButtonStyle::Secondary),
+            serenity::CreateButton::new(&next).emoji('▶').disabled(at_end),
+            serenity::CreateButton::new(&last).emoji('⏭').disabled(at_end),
+        ])
+    };
+
+    let mut reply = poise::CreateReply::default().ephemeral(true).embed(render(0));
+    if total > 1 {
+        reply = reply.components(vec![buttons(0)]);
+    }
+    let handle = ctx.send(reply).await?;
+    if total <= 1 {
+        return Ok(());
     }
 
-    ctx.say(out).await?;
+    let mut page = 0usize;
+    while let Some(press) = serenity::collector::ComponentInteractionCollector::new(ctx)
+        .filter(move |p| p.data.custom_id.starts_with(&id.to_string()))
+        .timeout(std::time::Duration::from_secs(PAGINATE_TIMEOUT_SECS))
+        .await
+    {
+        let cid = &press.data.custom_id;
+        if *cid == goto {
+            // The modal IS this interaction's response; the page change is then
+            // applied via the modal-submit interaction.
+            let modal = serenity::CreateQuickModal::new("Go to page")
+                .timeout(std::time::Duration::from_secs(60))
+                .short_field(format!("Page number (1–{total})"));
+            if let Some(resp) = press.quick_modal(ctx.serenity_context(), modal).await? {
+                if let Ok(n) = resp.inputs[0].trim().parse::<usize>() {
+                    page = n.saturating_sub(1).min(total - 1);
+                }
+                resp.interaction
+                    .create_response(
+                        ctx.serenity_context(),
+                        serenity::CreateInteractionResponse::UpdateMessage(
+                            serenity::CreateInteractionResponseMessage::new()
+                                .embed(render(page))
+                                .components(vec![buttons(page)]),
+                        ),
+                    )
+                    .await?;
+            }
+            continue;
+        }
+
+        page = if *cid == first {
+            0
+        } else if *cid == prev {
+            page.saturating_sub(1)
+        } else if *cid == next {
+            (page + 1).min(total - 1)
+        } else if *cid == last {
+            total - 1
+        } else {
+            continue;
+        };
+
+        press
+            .create_response(
+                ctx.serenity_context(),
+                serenity::CreateInteractionResponse::UpdateMessage(
+                    serenity::CreateInteractionResponseMessage::new()
+                        .embed(render(page))
+                        .components(vec![buttons(page)]),
+                ),
+            )
+            .await?;
+    }
+
+    // Drop the buttons once navigation times out so stale controls don't linger.
+    handle
+        .edit(ctx, poise::CreateReply::default().embed(render(page)).components(vec![]))
+        .await?;
     Ok(())
 }
 
