@@ -34,6 +34,8 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
+![Bot profile](./assets/bot-profile.png)
+
 ## Features overview
 
 This is a list of some of the Bots available features. For a more comprehensive
