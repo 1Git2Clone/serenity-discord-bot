@@ -36,6 +36,8 @@
 
 ![Bot profile](./assets/bot-profile.png)
 
+[Try the bot out!](https://discord.com/oauth2/authorize?client_id=1211325231659089920 "Bot ID: 1211325231659089920")
+
 ## Features overview
 
 This is a list of some of the Bots available features. For a more comprehensive
