@@ -108,7 +108,7 @@ preferred back-end if you choose to turn the `opentelemetry` feature flag on.
 ### Advanced setting up (Containerization)
 
 > [!IMPORTANT]
-> Make sure you aren't running PostgreSQL or Jaeger locally due to port
+> Make sure you aren't running PostgreSQL or Grafana Tempo locally due to port
 > conflicts!
 
 The project uses Docker with compose. To run it just run:
