@@ -26,6 +26,11 @@
     src="https://codeberg.org/1Kill2Steal/skill-icons/raw/branch/main/icons/Docker.svg"
     alt="Docker"
   />
+  <img
+    height="50px"
+    src="https://codeberg.org/1Kill2Steal/skill-icons/raw/branch/main/icons/Redis-Dark.svg"
+    alt="Redis"
+  />
 </p>
 <!-- markdownlint-enable MD033 -->
 
