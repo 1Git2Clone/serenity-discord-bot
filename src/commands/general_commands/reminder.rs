@@ -11,6 +11,8 @@ const MAX_AUTOCOMPLETE: usize = 25;
 const MAX_MESSAGE_CHARS: usize = 500;
 /// Reminders shown per page in `list`.
 const PAGE_SIZE: usize = 6;
+/// Message chars shown per list row before truncating, so long ones don't flood the page.
+const ROW_PREVIEW_CHARS: usize = 120;
 /// How long the list paginator stays interactive.
 const PAGINATE_TIMEOUT_SECS: u64 = 300;
 
@@ -189,7 +191,7 @@ fn build_remind_at(tz: &UserTz, y: i32, mo: u32, d: u32, h: u32, mi: u32) -> Res
 #[poise::command(
     slash_command,
     rename = "reminder",
-    subcommands("create", "list", "timezone"),
+    subcommands("create", "list", "search", "timezone"),
     subcommand_required
 )]
 pub async fn reminder(_: Context<'_>) -> Result<(), Error> {
@@ -382,8 +384,8 @@ fn escape_like(term: &str) -> String {
 /// that means nothing to the user and leaks total volume.
 fn render_row(remind_at: DateTime<Utc>, finished_at: Option<DateTime<Utc>>, message: &str) -> String {
     let ts = remind_at.timestamp();
-    let msg = if message.chars().count() > 120 {
-        format!("{}…", message.chars().take(120).collect::<String>())
+    let msg = if message.chars().count() > ROW_PREVIEW_CHARS {
+        format!("{}…", message.chars().take(ROW_PREVIEW_CHARS).collect::<String>())
     } else {
         message.to_string()
     };
@@ -393,28 +395,17 @@ fn render_row(remind_at: DateTime<Utc>, finished_at: Option<DateTime<Utc>>, mess
     }
 }
 
-/// List your reminders, with optional status filter and message search.
-#[poise::command(slash_command, rename = "list")]
-#[tracing::instrument(
-    skip(ctx),
-    fields(
-        category = "discord_command",
-        command.name = %ctx.command().qualified_name,
-        author = %ctx.author().id,
-    )
-)]
-pub async fn list(
+/// Query the user's reminders for a status (and optional search term) and show
+/// them in the paginated embed. Shared by `list` and `search`.
+async fn show_reminders(
     ctx: Context<'_>,
-    #[description = "Which reminders to show (default All)"] status: Option<StatusFilter>,
-    #[description = "Only show reminders whose message contains this text"]
-    #[max_length = 100]
-    search: Option<String>,
+    status: StatusFilter,
+    search: Option<&str>,
 ) -> Result<(), Error> {
-    let status = status.unwrap_or(StatusFilter::All);
     let user_id = ctx.author().id.get() as i64;
 
     // `search` is NULL -> no filter; otherwise a literal-escaped ILIKE pattern.
-    let pattern = search.as_deref().map(|t| format!("%{}%", escape_like(t)));
+    let pattern = search.map(|t| format!("%{}%", escape_like(t)));
 
     let rows = sqlx::query!(
         r#"SELECT remind_at, finished_at, message
@@ -452,9 +443,49 @@ pub async fn list(
         .chunks(PAGE_SIZE)
         .map(|chunk| chunk.join("\n\n"))
         .collect();
-    let header = format!("Your reminders ({total})");
+    let header = match search {
+        Some(term) => format!("Reminders matching “{term}” ({total})"),
+        None => format!("Your reminders ({total})"),
+    };
 
     paginate(ctx, &header, &pages).await
+}
+
+/// List your reminders, optionally filtered by status.
+#[poise::command(slash_command, rename = "list")]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().qualified_name,
+        author = %ctx.author().id,
+    )
+)]
+pub async fn list(
+    ctx: Context<'_>,
+    #[description = "Which reminders to show (default All)"] status: Option<StatusFilter>,
+) -> Result<(), Error> {
+    show_reminders(ctx, status.unwrap_or(StatusFilter::All), None).await
+}
+
+/// Search your reminders by message text.
+#[poise::command(slash_command, rename = "search")]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().qualified_name,
+        author = %ctx.author().id,
+    )
+)]
+pub async fn search(
+    ctx: Context<'_>,
+    #[description = "Text to look for in the reminder message"]
+    #[max_length = 100]
+    query: String,
+    #[description = "Which reminders to search (default All)"] status: Option<StatusFilter>,
+) -> Result<(), Error> {
+    show_reminders(ctx, status.unwrap_or(StatusFilter::All), Some(&query)).await
 }
 
 /// Ephemeral, button-driven embed pager: ⏮ ◀ [page x/y → modal] ▶ ⏭.
