@@ -9,6 +9,33 @@ use utils::{
     string_manipulation::pascal_to_snake_case,
 };
 
+/// Generates the embed (GIF) commands from a declarative spec. See
+/// [`utils::embed_commands`] for the field reference.
+///
+/// ```ignore
+/// embed_commands! {
+///     /// Hug someone
+///     hug => interaction {
+///         embed: Hug,
+///         verb: "hugs",
+///         on_self: reply_embed("Aww~ I'll hug you!"),
+///     },
+///     /// Send a peek GIF in the chat (you lurker)
+///     peek => solo {
+///         embed: Peek,
+///         title: format!("{} is lurking . . .", ctx.author().name),
+///     },
+/// }
+/// ```
+///
+/// Expansion expects the caller to have the crate prelude in scope
+/// (`Context`, `Error`, `serenity`, `EmbedType`, `cmd_utils`, etc.).
+#[proc_macro]
+pub fn embed_commands(input: TokenStream) -> TokenStream {
+    let cmds = syn::parse_macro_input!(input as utils::embed_commands::EmbedCommands);
+    utils::embed_commands::expand(&cmds).into()
+}
+
 // Credit:
 // https://stackoverflow.com/questions/68025264/how-to-get-all-the-variants-of-an-enum-in-a-vect-with-a-proc-macro/69812881#69812881
 #[proc_macro_derive(IterateVariants)]
