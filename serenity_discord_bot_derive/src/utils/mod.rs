@@ -1,5 +1,4 @@
 pub mod data;
-pub mod embed_commands;
 pub mod string_manipulation;
 
 use quote::quote;
