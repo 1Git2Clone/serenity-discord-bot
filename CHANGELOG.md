@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The 17 embed (GIF) commands now share one spec-driven implementation (`InteractionSpec`/`OnSelf` plus embed helpers) instead of one near-identical file each; behavior is unchanged
+
 ## [0.2.1] - 2026-06-08
 
 ### Added
