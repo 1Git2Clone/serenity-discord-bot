@@ -43,7 +43,7 @@ fn render_row(remind_at: DateTime<Utc>, finished_at: Option<DateTime<Utc>>, mess
 
 /// Query the user's reminders for a status (and optional search term) and show
 /// them in the paginated embed. Shared by `list` and `search`.
-pub(super) async fn show_reminders(
+async fn show_reminders(
     ctx: Context<'_>,
     status: StatusFilter,
     search: Option<&str>,
