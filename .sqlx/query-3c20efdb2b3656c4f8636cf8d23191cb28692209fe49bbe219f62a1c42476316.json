@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM reminders WHERE id = $1 AND user_id = $2 AND finished_at IS NULL RETURNING remind_at, message",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "remind_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "remind_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "message"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3c20efdb2b3656c4f8636cf8d23191cb28692209fe49bbe219f62a1c42476316"
+}
