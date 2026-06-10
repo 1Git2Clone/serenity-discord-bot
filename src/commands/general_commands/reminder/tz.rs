@@ -31,6 +31,14 @@ impl UserTz {
         }
     }
 
+    /// Convert a UTC instant to a local `NaiveDateTime` in this zone.
+    pub(super) fn to_local(&self, utc: DateTime<Utc>) -> chrono::NaiveDateTime {
+        match self {
+            Self::Named(tz) => utc.with_timezone(tz).naive_local(),
+            Self::Fixed(off) => utc.with_timezone(off).naive_local(),
+        }
+    }
+
     /// "Now" wall-clock fields in this zone, for filling unspecified inputs.
     pub(super) fn now_parts(&self) -> (i32, u32, u32) {
         use chrono::Datelike as _;

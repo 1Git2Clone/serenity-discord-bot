@@ -127,10 +127,11 @@ pub async fn create(
     }
 
     sqlx::query!(
-        "INSERT INTO reminders (user_id, remind_at, message) VALUES ($1, $2, $3)",
+        "INSERT INTO reminders (user_id, remind_at, message, timezone) VALUES ($1, $2, $3, $4)",
         user_id,
         remind_at,
         message,
+        tz_name,
     )
     .execute(&*ctx.data().pool)
     .await?;
