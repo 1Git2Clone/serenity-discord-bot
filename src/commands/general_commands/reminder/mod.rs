@@ -11,7 +11,7 @@ use tz::timezone;
 use crate::prelude::*;
 
 /// Discord caps autocomplete responses at 25 entries.
-pub(super) const MAX_AUTOCOMPLETE: usize = 25;
+const MAX_AUTOCOMPLETE: usize = 25;
 
 /// Reminders that DM you at a set time.
 #[poise::command(

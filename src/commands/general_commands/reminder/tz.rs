@@ -16,7 +16,7 @@ pub(super) enum UserTz {
 impl UserTz {
     /// Interpret wall-clock fields in this zone and convert to a UTC instant.
     /// Returns the daylight-saving disposition so the caller can report a gap.
-    pub(super) fn to_utc(
+    fn to_utc(
         &self,
         y: i32,
         mo: u32,
@@ -148,7 +148,7 @@ fn resolve_named(input: &str) -> Result<Tz, String> {
 }
 
 /// Days in a given month, leap years included.
-pub(super) fn days_in_month(y: i32, m: u32) -> u32 {
+fn days_in_month(y: i32, m: u32) -> u32 {
     use chrono::Datelike as _;
     let (ny, nm) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
     chrono::NaiveDate::from_ymd_opt(ny, nm, 1)
