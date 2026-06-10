@@ -1,12 +1,8 @@
 use crate::prelude::*;
 
 pub mod spec;
-
-pub mod interactions;
-pub use interactions::*;
-
-pub mod solo;
-pub use solo::*;
+pub use spec::interactions::*;
+pub use spec::solo::*;
 
 pub mod quote;
 pub use quote::quote;

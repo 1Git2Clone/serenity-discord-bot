@@ -1,7 +1,6 @@
-//! The no-interaction embed commands, built on
-//! [`send_embed`](super::spec::send_embed).
+//! The no-interaction embed commands, built on [`send_embed`](super::send_embed).
 
-use super::spec::send_embed;
+use super::send_embed;
 use crate::prelude::*;
 
 /// Bury yourself (perhaps to help Hu Tao's busines idk...)

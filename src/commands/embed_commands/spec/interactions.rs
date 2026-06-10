@@ -1,7 +1,6 @@
-//! The user interaction commands, each a spec passed to
-//! [`run_interaction`](super::spec::run_interaction).
+//! The user interaction commands, each a spec passed to [`run_interaction`].
 
-use super::spec::{InteractionSpec, OnSelf, run_interaction};
+use super::{InteractionSpec, OnSelf, run_interaction};
 use crate::prelude::*;
 
 /// Tie someone up (HUH?)
