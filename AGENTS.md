@@ -78,3 +78,32 @@ For non-trivial tasks, state a brief plan with a verifiable check per step:
 Prefer writing tests first when the task is a bug fix or a well-defined
 feature: a failing test that reproduces the problem is a stronger success
 criterion than "make it work."
+
+---
+
+## Commit Conventions
+
+Use conventional commits: `type(scope): short description`.
+
+### Format
+
+```
+type(scope): short description
+
+Body paragraphs explaining what and why. Keep them concise.
+
+Co-authored-by: Name <email>
+```
+
+- **Types**: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, etc.
+- **Scopes**: scan `git log --oneline -50` before committing and match existing
+  naming, casing, and granularity. Don't invent new scopes without checking.
+- **Co-author**: append `Co-authored-by: DeepSeek V4 Pro <service@deepseek.com>`
+  for tool-assisted commits.
+
+### Before committing
+
+- Run `git diff --cached --check` to catch trailing whitespace and merge
+  conflict markers.
+- If the commit is an amend, confirm it hasn't been pushed first and verify
+  the branch.
