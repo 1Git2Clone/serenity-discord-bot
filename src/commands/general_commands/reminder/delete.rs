@@ -1,13 +1,15 @@
 use crate::prelude::*;
 
 use super::MAX_AUTOCOMPLETE;
+use super::tz::resolve_tz;
 
 /// Autocomplete for `/reminder delete`: returns pending reminders as `"<id> <time> — <preview>"`.
 /// The id prefix is parsed back in the handler; the rest is shown to the user in the dropdown.
+/// Times are displayed in the timezone stored on the reminder at create time.
 async fn autocomplete_pending_reminder(ctx: Context<'_>, partial: &str) -> Vec<String> {
     let user_id = ctx.author().id.get() as i64;
     let rows = sqlx::query!(
-        "SELECT id, remind_at, message FROM reminders \
+        "SELECT id, remind_at, timezone, message FROM reminders \
          WHERE user_id = $1 AND finished_at IS NULL \
          ORDER BY remind_at \
          LIMIT 50",
@@ -22,9 +24,12 @@ async fn autocomplete_pending_reminder(ctx: Context<'_>, partial: &str) -> Vec<S
         .filter(|r| needle.is_empty() || r.message.to_lowercase().contains(&needle))
         .take(MAX_AUTOCOMPLETE)
         .map(|r| {
-            let ts = r.remind_at.format("%Y-%m-%d %H:%M UTC");
             let preview: String = r.message.chars().take(80).collect();
-            format!("{} {ts} — {preview}", r.id)
+            let (ts, tz_name) = match resolve_tz(Some(&r.timezone)) {
+                Ok((tz, name)) => (tz.to_local(r.remind_at).format("%Y-%m-%d %H:%M").to_string(), name),
+                Err(_) => (r.remind_at.format("%Y-%m-%d %H:%M").to_string(), "UTC".to_string()),
+            };
+            format!("{} {ts} {tz_name} — {preview}", r.id)
         })
         .collect()
 }
