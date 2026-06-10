@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, remind_at, timezone, message FROM reminders WHERE user_id = $1 AND finished_at IS NULL ORDER BY remind_at LIMIT 50",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "remind_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "remind_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "timezone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "timezone"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "message"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f4c986e5321944ba86004fe3bdc5736942df5db04960f73a99a774ee2199778b"
+}
