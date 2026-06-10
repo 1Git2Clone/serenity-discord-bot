@@ -7,6 +7,9 @@
 use super::user_interaction;
 use crate::prelude::*;
 
+pub mod interactions;
+pub mod solo;
+
 /// How an interaction command behaves; one spec per command.
 pub struct InteractionSpec {
     /// The embed type the random GIF is picked from.
@@ -33,7 +36,7 @@ pub enum OnSelf {
 }
 
 /// The shared red embed with the bot tag footer.
-pub(super) fn footer_embed(ctx: &Context<'_>, image: String) -> serenity::CreateEmbed {
+fn footer_embed(ctx: &Context<'_>, image: String) -> serenity::CreateEmbed {
     serenity::CreateEmbed::new()
         .color((255, 0, 0))
         .image(image)
@@ -54,11 +57,7 @@ pub(super) fn footer_embed(ctx: &Context<'_>, image: String) -> serenity::Create
         guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
     )
 )]
-pub(super) async fn send_embed(
-    ctx: Context<'_>,
-    title: Option<String>,
-    image: String,
-) -> Result<(), Error> {
+async fn send_embed(ctx: Context<'_>, title: Option<String>, image: String) -> Result<(), Error> {
     let mut embed = footer_embed(&ctx, image);
     if let Some(title) = title {
         embed = embed.title(title);
@@ -79,7 +78,7 @@ pub(super) async fn send_embed(
         guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
     )
 )]
-pub(super) async fn run_interaction(
+async fn run_interaction(
     ctx: Context<'_>,
     user: Option<serenity::User>,
     spec: InteractionSpec,
