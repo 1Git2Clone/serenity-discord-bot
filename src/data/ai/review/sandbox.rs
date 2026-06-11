@@ -47,13 +47,15 @@ impl Workspace {
         )
         .await?;
 
-        // Checkout the PR.
-        run_gh_checked(
+        // Fetch the PR head and check it out.
+        // We avoid `gh pr checkout` because its internal `git checkout -b
+        // --track` fails on shallow clones (Git 2.54+).
+        run_git_checked(
             dir.path(),
-            token,
-            &["pr", "checkout", &pr.to_string()],
+            &["fetch", "origin", &format!("pull/{pr}/head")],
         )
         .await?;
+        run_git_checked(dir.path(), &["checkout", "FETCH_HEAD"]).await?;
 
         // Resolve base ref name.
         let view_out = run_gh_stdout(
