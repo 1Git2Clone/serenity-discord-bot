@@ -48,11 +48,12 @@ A Hu Tao-themed Discord bot built with [Serenity](https://github.com/serenity-rs
 ## Features
 
 - `/help` — lists every registered command
-- Embed interaction commands: pat, hug, kiss, slap, punch, bonk, nom, kill, kick, bury, peek, avatar, drive, chair, boom, quote
-- XP levelling with a 60-second cooldown, stored in PostgreSQL
-- `/toplevels` — server leaderboard embed
-- `/uptime` — bot uptime
+- Embed interaction commands: tieup, pat, hug, kiss, slap, punch, bonk, nom, kill, kick, bury, selfbury, peek, avatar, drive, chair, boom, quote
+- XP levelling with a 60-second cooldown, stored in PostgreSQL — `/level` for a member's level, `/toplevels` for the server leaderboard
 - `/reminder` — schedule a DM for later (`create`/`list`/`search`/`delete`), with a saveable default timezone (`/reminder timezone`, per-server or global) and browsable, paginated history
+- `/age` — your or another member's account creation date
+- `/cookie` — give someone a cookie
+- `/uptime` — bot uptime
 - Levenshtein-distance typo correction on unrecognised prefix commands
 
 ### Optional features
@@ -65,11 +66,45 @@ Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.examp
 
 - `/ai` — one-off prompt in any channel or DM
 - `/aichannel` — toggle a channel where the bot auto-replies to every message (requires Manage Channels)
+- `/ai-review` — AI code review of a GitHub PR (see below)
 - Set `REDIS_URL` to keep conversation context in Redis; without it the bot re-fetches recent messages from Discord on every reply
 
 ![AI channel demo](./assets/ai-channel-demo.png)
 
 ![AI DM demo](./assets/ai-dm-demo.png)
+
+#### AI code review
+
+`/ai-review run url:<repo-url> pr:<n>` — a Hu Tao-themed code review
+agent shallow-clones the PR, inspects it with read-only tools (`list_files`,
+`read_file`, `git_diff`, `git_log`, plus `pr_conversation` for the existing
+comment/review threads), and posts a structured review as a PR comment. Reviews run one at a time; without the setup below the command
+replies that it isn't configured.
+
+Setup, on top of the AI feature above:
+
+1. `git` and the [GitHub CLI](https://cli.github.com/) (`gh`) on the host —
+   the agent shells out to them. No `gh auth login` needed.
+2. Create a GitHub OAuth App with Device Flow enabled (Settings → Developer
+   settings → OAuth Apps). Set `GITHUB_OAUTH_CLIENT_ID` in `.env`. No client
+   secret is required. Set `GITHUB_OAUTH_SCOPE` to `repo` to allow
+   private-repo reviews (default is `public_repo`).
+3. An administrator runs `/ai-review enable` in the server (and `/ai-review
+   disable` to turn it off). Enabled servers are stored in PostgreSQL, so
+   the setting survives restarts.
+4. Optional: `AI_REVIEW_MAX_ITERATIONS` (default 20), `AI_REVIEW_TIMEOUT_SECS`
+   (default 600), and `GITHUB_TOKEN_TTL_SECS` (default 3600) in `.env`.
+
+On first use (and after the in-memory TTL or a bot restart) the requester
+receives an ephemeral message with a github.com/login/device link and a short
+code. Once they approve, the bot verifies they have push access to the target
+repo before starting the review. The PR comment is posted as the requester's
+GitHub identity. Tokens are never written to disk or a database — they are
+held in memory only and expire after the TTL.
+
+`AI_MODEL` must support function calling (`deepseek-chat` does). Private
+repos additionally require a gh credential helper on the host for the
+workspace's base-branch fetch; public repos work out of the box.
 
 #### Tokio Console
 
@@ -101,12 +136,21 @@ tempo -config.file=./tempo.yaml
 ## Setting up
 
 1. Copy `.env.example` to `.env` and fill in the values.
-2. Run:
+2. Have PostgreSQL running and reachable at `DATABASE_URL` — migrations run
+   automatically at startup.
+3. Run:
 
 ```sh
 cargo run --release
 # or, to enable specific features:
 cargo run --release --features='<your-features>'
+```
+
+To run the telemetry stack (Grafana Tempo + Grafana) in containers while
+running the bot natively:
+
+```sh
+docker-compose -f docker-compose.infra.yml up -d
 ```
 
 ### Docker Compose
