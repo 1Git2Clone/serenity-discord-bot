@@ -1,3 +1,5 @@
+use tracing::Instrument;
+
 use crate::{
     data::ai::review::{
         self,
@@ -143,10 +145,13 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
         ))
         .await?;
 
-        tokio::spawn(async move {
-            let _guard = guard;
-            run_and_report(http, channel_id, owner, repo, pr).await;
-        });
+        tokio::spawn(
+            async move {
+                let _guard = guard;
+                run_and_report(http, channel_id, owner, repo, pr).await;
+            }
+            .instrument(tracing::Span::current()),
+        );
     } else {
         // No cached token — start device flow.
         let dc = match start_device_flow().await {
@@ -170,77 +175,80 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
         )
         .await?;
 
-        tokio::spawn(async move {
-            // Poll until the user approves or the code expires.
-            let token = match poll_device_flow(&dc).await {
-                Ok(t) => t,
-                Err(e) => {
+        tokio::spawn(
+            async move {
+                // Poll until the user approves or the code expires.
+                let token = match poll_device_flow(&dc).await {
+                    Ok(t) => t,
+                    Err(e) => {
+                        let _ = channel_id
+                            .say(
+                                &http,
+                                format!("GitHub authorization wasn't completed: {e}"),
+                            )
+                            .await;
+                        return;
+                    }
+                };
+
+                // Store the token in the cache.
+                GITHUB_TOKEN_CACHE.insert(user_id, token.clone()).await;
+
+                // Tell the requester which account got linked, so a wrong-account
+                // approval is visible immediately.
+                if let Ok(login) = fetch_login(&token).await {
                     let _ = channel_id
                         .say(
                             &http,
-                            format!("GitHub authorization wasn't completed: {e}"),
+                            format!("<@{user_id}> linked GitHub account `{login}`."),
                         )
                         .await;
-                    return;
                 }
-            };
 
-            // Store the token in the cache.
-            GITHUB_TOKEN_CACHE.insert(user_id, token.clone()).await;
+                // Verify push permission.
+                match has_push_permission(&token, &owner, &repo).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        let _ = channel_id
+                            .say(
+                                &http,
+                                format!(
+                                    "You need push access to `{owner}/{repo}` to request a review."
+                                ),
+                            )
+                            .await;
+                        return;
+                    }
+                    Err(e) => {
+                        let _ = channel_id
+                            .say(&http, format!("Could not verify your GitHub permissions: {e}"))
+                            .await;
+                        return;
+                    }
+                }
 
-            // Tell the requester which account got linked, so a wrong-account
-            // approval is visible immediately.
-            if let Ok(login) = fetch_login(&token).await {
+                // Acquire the global review guard.
+                let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
+                    let _ = channel_id
+                        .say(&http, "A review is already running — please wait for it to finish.")
+                        .await;
+                    return;
+                };
+
                 let _ = channel_id
                     .say(
                         &http,
-                        format!("<@{user_id}> linked GitHub account `{login}`."),
+                        format!(
+                            "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
+                        ),
                     )
                     .await;
+
+                let _guard = guard;
+                run_and_report(http, channel_id, owner, repo, pr).await;
             }
-
-            // Verify push permission.
-            match has_push_permission(&token, &owner, &repo).await {
-                Ok(true) => {}
-                Ok(false) => {
-                    let _ = channel_id
-                        .say(
-                            &http,
-                            format!(
-                                "You need push access to `{owner}/{repo}` to request a review."
-                            ),
-                        )
-                        .await;
-                    return;
-                }
-                Err(e) => {
-                    let _ = channel_id
-                        .say(&http, format!("Could not verify your GitHub permissions: {e}"))
-                        .await;
-                    return;
-                }
-            }
-
-            // Acquire the global review guard.
-            let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
-                let _ = channel_id
-                    .say(&http, "A review is already running — please wait for it to finish.")
-                    .await;
-                return;
-            };
-
-            let _ = channel_id
-                .say(
-                    &http,
-                    format!(
-                        "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
-                    ),
-                )
-                .await;
-
-            let _guard = guard;
-            run_and_report(http, channel_id, owner, repo, pr).await;
-        });
+            .instrument(tracing::Span::current()),
+        );
     }
 
     Ok(())
@@ -255,7 +263,17 @@ async fn run_and_report(
     repo: String,
     pr: u64,
 ) {
-    let bot_token = match get_installation_token(&owner).await {
+    let owner_span = owner.clone();
+    let repo_span = repo.clone();
+    async move {
+    let bot_token = match get_installation_token(&owner)
+        .instrument(tracing::info_span!(
+            "get_installation_token",
+            category = "ai_review",
+            owner = %owner,
+        ))
+        .await
+    {
         Ok(t) => t,
         Err(e) => {
             tracing::error!(
@@ -275,7 +293,15 @@ async fn run_and_report(
             return;
         }
     };
-    let result = review::run_review(owner.clone(), repo.clone(), pr, bot_token).await;
+    let result = review::run_review(owner.clone(), repo.clone(), pr, bot_token)
+        .instrument(tracing::info_span!(
+            "run_review",
+            category = "ai_review",
+            owner = %owner,
+            repo = %repo,
+            pr = %pr,
+        ))
+        .await;
 
     match result {
         Ok(comment_url) => {
@@ -321,6 +347,14 @@ async fn run_and_report(
                 .await;
         }
     }
+    }.instrument(tracing::info_span!(
+        "run_and_report",
+        category = "ai_review",
+        owner = %owner_span,
+        repo = %repo_span,
+        pr = %pr,
+    ))
+    .await;
 }
 
 // ── URL parser ──────────────────────────────────────────────────────────────
