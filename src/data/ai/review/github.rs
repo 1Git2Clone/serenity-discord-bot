@@ -58,6 +58,7 @@ struct TokenResponse {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /// Start the GitHub OAuth device flow. Returns codes the user needs to authorize.
+#[tracing::instrument(fields(category = "github_api"))]
 pub async fn start_device_flow() -> Result<DeviceCode, Error> {
     let response = HTTP
         .post("https://github.com/login/device/code")
@@ -89,6 +90,10 @@ pub async fn start_device_flow() -> Result<DeviceCode, Error> {
 }
 
 /// Poll GitHub until the user authorizes or the code expires. Returns the access token.
+#[tracing::instrument(
+    skip(dc),
+    fields(category = "github_api")
+)]
 pub async fn poll_device_flow(dc: &DeviceCode) -> Result<String, Error> {
     let mut interval = dc.interval;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(dc.expires_in);
@@ -140,6 +145,10 @@ pub async fn poll_device_flow(dc: &DeviceCode) -> Result<String, Error> {
 }
 
 /// Fetch the GitHub login name for the given token.
+#[tracing::instrument(
+    skip(token),
+    fields(category = "github_api")
+)]
 pub async fn fetch_login(token: &str) -> Result<String, Error> {
     #[derive(Deserialize)]
     struct UserResponse {
@@ -160,6 +169,14 @@ pub async fn fetch_login(token: &str) -> Result<String, Error> {
 }
 
 /// Returns true if the token has push, maintain, or admin permission on the repo.
+#[tracing::instrument(
+    skip(token),
+    fields(
+        category = "github_api",
+        owner = %owner,
+        repo = %repo,
+    )
+)]
 pub async fn has_push_permission(token: &str, owner: &str, repo: &str) -> Result<bool, Error> {
     #[derive(Deserialize)]
     struct Permissions {
@@ -199,6 +216,7 @@ pub async fn has_push_permission(token: &str, owner: &str, repo: &str) -> Result
 /// Generate a short-lived GitHub App installation access token for the given
 /// repo owner. Discovers the installation ID dynamically by querying the
 /// user and org endpoints — no per-user config needed.
+#[tracing::instrument(fields(category = "github_api", owner = %owner))]
 pub async fn get_installation_token(owner: &str) -> Result<String, Error> {
     let app_id = GITHUB_APP_ID.as_str();
     let private_key_pem = GITHUB_APP_PRIVATE_KEY.as_str();
@@ -254,6 +272,10 @@ pub async fn get_installation_token(owner: &str) -> Result<String, Error> {
 
 /// Try the user endpoint first, then the org endpoint, to find the GitHub
 /// App installation ID for the given account name.
+#[tracing::instrument(
+    skip(jwt),
+    fields(category = "github_api", owner = %owner)
+)]
 async fn discover_installation(owner: &str, jwt: &str) -> Result<String, Error> {
     let auth_header = format!("Bearer {jwt}");
 
