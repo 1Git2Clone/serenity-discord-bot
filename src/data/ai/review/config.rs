@@ -2,24 +2,41 @@ use std::sync::LazyLock;
 
 use crate::data::ai::config::AiChannelCache;
 
-pub static GITHUB_APP_TOKEN: LazyLock<String> = LazyLock::new(|| {
-    #[allow(
-        clippy::expect_used,
-        reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
-    )]
-    std::env::var("GITHUB_APP_TOKEN")
-        .expect("Set the `GITHUB_APP_TOKEN` variable for /ai-review.")
+#[allow(
+    clippy::expect_used,
+    reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+)]
+pub static GITHUB_OAUTH_CLIENT_ID: LazyLock<String> = LazyLock::new(|| {
+    std::env::var("GITHUB_OAUTH_CLIENT_ID")
+        .expect("Set the `GITHUB_OAUTH_CLIENT_ID` variable for /ai-review.")
 });
 
-pub static AI_REVIEW_ROLE: LazyLock<u64> = LazyLock::new(|| {
-    #[allow(
-        clippy::expect_used,
-        reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
-    )]
-    std::env::var("AI_REVIEW_ROLE")
-        .expect("Set the `AI_REVIEW_ROLE` variable (role ID allowed to use /ai-review).")
-        .parse::<u64>()
-        .expect("`AI_REVIEW_ROLE` must be a valid u64.")
+pub static GITHUB_OAUTH_SCOPE: LazyLock<String> = LazyLock::new(|| {
+    match std::env::var("GITHUB_OAUTH_SCOPE") {
+        Ok(var) => var,
+        Err(std::env::VarError::NotUnicode(var)) => {
+            panic!("`GITHUB_OAUTH_SCOPE` environment variable is not valid unicode. Var: {var:?}")
+        }
+        Err(std::env::VarError::NotPresent) => "public_repo".to_string(),
+    }
+});
+
+pub static GITHUB_TOKEN_TTL_SECS: LazyLock<u64> = LazyLock::new(|| {
+    match std::env::var("GITHUB_TOKEN_TTL_SECS") {
+        Ok(var) =>
+        {
+            #[allow(
+                clippy::expect_used,
+                reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+            )]
+            var.parse::<u64>()
+                .expect("`GITHUB_TOKEN_TTL_SECS` must be a valid u64.")
+        }
+        Err(std::env::VarError::NotUnicode(var)) => {
+            panic!("`GITHUB_TOKEN_TTL_SECS` environment variable is not valid unicode. Var: {var:?}")
+        }
+        Err(std::env::VarError::NotPresent) => 3600,
+    }
 });
 
 pub static AI_REVIEW_MAX_ITERATIONS: LazyLock<u32> = LazyLock::new(|| {

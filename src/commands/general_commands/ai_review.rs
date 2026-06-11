@@ -1,10 +1,89 @@
 use crate::{
-    data::ai::review::{self, config::AI_REVIEW_GUARD},
+    data::ai::review::{
+        self,
+        config::AI_REVIEW_GUARD,
+        github::{
+            fetch_login, has_push_permission, poll_device_flow, start_device_flow,
+            GITHUB_TOKEN_CACHE,
+        },
+    },
     prelude::*,
 };
 
+/// AI code review of GitHub pull requests.
+#[poise::command(
+    slash_command,
+    rename = "ai-review",
+    guild_only,
+    subcommands("run", "enable", "disable"),
+    subcommand_required
+)]
+#[allow(
+    clippy::unused_async,
+    reason = "Poise requires subcommand parents to be async."
+)]
+pub async fn ai_review(_: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+/// Allow /ai-review in this server (Administrator only).
+#[poise::command(slash_command, guild_only, required_permissions = "ADMINISTRATOR")]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+    )
+)]
+pub async fn enable(ctx: Context<'_>) -> Result<(), Error> {
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.say("This command can only be used in a server.").await?;
+        return Ok(());
+    };
+
+    let changed = review::set_review_guild(&ctx.data().pool, guild_id.get(), true).await?;
+    let reply = if changed {
+        "`/ai-review run` is now enabled in this server."
+    } else {
+        "`/ai-review run` is already enabled in this server."
+    };
+    ctx.say(reply).await?;
+
+    Ok(())
+}
+
+/// Disallow /ai-review in this server (Administrator only).
+#[poise::command(slash_command, guild_only, required_permissions = "ADMINISTRATOR")]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().name,
+        author = %ctx.author().id,
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+    )
+)]
+pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.say("This command can only be used in a server.").await?;
+        return Ok(());
+    };
+
+    let changed = review::set_review_guild(&ctx.data().pool, guild_id.get(), false).await?;
+    let reply = if changed {
+        "`/ai-review run` is now disabled in this server."
+    } else {
+        "`/ai-review run` wasn't enabled in this server."
+    };
+    ctx.say(reply).await?;
+
+    Ok(())
+}
+
 /// Request an AI code review of a GitHub pull request.
-#[poise::command(slash_command, rename = "ai-review", guild_only, check = "has_review_role")]
+#[poise::command(slash_command, guild_only, check = "review_available")]
 #[tracing::instrument(
     skip(ctx),
     fields(
@@ -16,7 +95,7 @@ use crate::{
         pr = %pr,
     )
 )]
-pub async fn ai_review(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
+pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
     // Parse the URL: accept only https://github.com/<owner>/<repo> with
     // optional trailing slash and optional `.git` suffix.
     let (owner, repo) = match parse_github_url(&url) {
@@ -27,75 +106,202 @@ pub async fn ai_review(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Err
         }
     };
 
-    // Acquire the global review guard (one review at a time).
-    let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
-        ctx.say("A review is already running — please wait for it to finish.")
-            .await?;
-        return Ok(());
-    };
-
-    ctx.say(format!(
-        "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
-    ))
-    .await?;
-
+    let user_id = ctx.author().id.get();
     let http = std::sync::Arc::clone(&ctx.serenity_context().http);
     let channel_id = ctx.channel_id();
 
-    // Spawn the pipeline so the interaction can return before the 15-minute
-    // token expiry.
-    tokio::spawn(async move {
-        // Move the guard into the task so it's held for the full duration.
-        let _guard = guard;
-
-        let result = review::run_review(owner.clone(), repo.clone(), pr).await;
-
-        match result {
-            Ok(comment_url) => {
-                tracing::info!(
-                    category = "ai_review",
-                    owner = %owner,
-                    repo = %repo,
-                    pr = %pr,
-                    "Review posted: {comment_url}"
-                );
-                let _ = channel_id
-                    .say(&http, format!("Review of `{owner}/{repo}#{pr}` posted: {comment_url}"))
+    // Check if the user already has a cached token.
+    if let Some(token) = GITHUB_TOKEN_CACHE.get(&user_id).await {
+        // Verify push permission before acquiring the guard.
+        match has_push_permission(&token, &owner, &repo).await {
+            Ok(true) => {}
+            Ok(false) => {
+                let _ = ctx
+                    .say(format!(
+                        "You need push access to `{owner}/{repo}` to request a review."
+                    ))
                     .await;
+                return Ok(());
             }
             Err(e) => {
-                tracing::error!(
-                    category = "ai_review",
-                    owner = %owner,
-                    repo = %repo,
-                    pr = %pr,
-                    error = %e,
-                    "Review failed"
-                );
-                // Keep the message under Discord's 2000-char cap or the send
-                // itself fails and the user gets no feedback at all.
-                let mut err_text = e.to_string();
-                if err_text.len() > 1600 {
-                    let mut end = 1600;
-                    while end > 0 && !err_text.is_char_boundary(end) {
-                        end -= 1;
-                    }
-                    err_text.truncate(end);
-                    err_text.push('…');
+                let _ = ctx
+                    .say(format!("Could not verify your GitHub permissions: {e}"))
+                    .await;
+                return Ok(());
+            }
+        }
+
+        // Acquire the global review guard.
+        let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
+            ctx.say("A review is already running — please wait for it to finish.")
+                .await?;
+            return Ok(());
+        };
+
+        ctx.say(format!(
+            "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
+        ))
+        .await?;
+
+        tokio::spawn(async move {
+            let _guard = guard;
+            run_and_report(http, channel_id, owner, repo, pr, token).await;
+        });
+    } else {
+        // No cached token — start device flow.
+        let dc = match start_device_flow().await {
+            Ok(dc) => dc,
+            Err(e) => {
+                let _ = ctx
+                    .say(format!("Failed to start GitHub authorization: {e}"))
+                    .await;
+                return Ok(());
+            }
+        };
+
+        ctx.send(
+            poise::CreateReply::default()
+                .ephemeral(true)
+                .content(format!(
+                    "Authorize the bot at <{}> and enter code `{}`.\n\
+                     The review will start automatically once you approve.",
+                    dc.verification_uri, dc.user_code
+                )),
+        )
+        .await?;
+
+        tokio::spawn(async move {
+            // Poll until the user approves or the code expires.
+            let token = match poll_device_flow(&dc).await {
+                Ok(t) => t,
+                Err(e) => {
+                    let _ = channel_id
+                        .say(
+                            &http,
+                            format!("GitHub authorization wasn't completed: {e}"),
+                        )
+                        .await;
+                    return;
                 }
+            };
+
+            // Store the token in the cache.
+            GITHUB_TOKEN_CACHE.insert(user_id, token.clone()).await;
+
+            // Tell the requester which account got linked, so a wrong-account
+            // approval is visible immediately.
+            if let Ok(login) = fetch_login(&token).await {
                 let _ = channel_id
                     .say(
                         &http,
-                        format!(
-                            "Review of `{owner}/{repo}#{pr}` failed:\n```\n{err_text}\n```"
-                        ),
+                        format!("<@{user_id}> linked GitHub account `{login}`."),
                     )
                     .await;
             }
-        }
-    });
+
+            // Verify push permission.
+            match has_push_permission(&token, &owner, &repo).await {
+                Ok(true) => {}
+                Ok(false) => {
+                    let _ = channel_id
+                        .say(
+                            &http,
+                            format!(
+                                "You need push access to `{owner}/{repo}` to request a review."
+                            ),
+                        )
+                        .await;
+                    return;
+                }
+                Err(e) => {
+                    let _ = channel_id
+                        .say(&http, format!("Could not verify your GitHub permissions: {e}"))
+                        .await;
+                    return;
+                }
+            }
+
+            // Acquire the global review guard.
+            let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
+                let _ = channel_id
+                    .say(&http, "A review is already running — please wait for it to finish.")
+                    .await;
+                return;
+            };
+
+            let _ = channel_id
+                .say(
+                    &http,
+                    format!(
+                        "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
+                    ),
+                )
+                .await;
+
+            let _guard = guard;
+            run_and_report(http, channel_id, owner, repo, pr, token).await;
+        });
+    }
 
     Ok(())
+}
+
+// ── Shared review runner ─────────────────────────────────────────────────────
+
+async fn run_and_report(
+    http: std::sync::Arc<serenity::http::Http>,
+    channel_id: serenity::model::id::ChannelId,
+    owner: String,
+    repo: String,
+    pr: u64,
+    token: String,
+) {
+    let result = review::run_review(owner.clone(), repo.clone(), pr, token).await;
+
+    match result {
+        Ok(comment_url) => {
+            tracing::info!(
+                category = "ai_review",
+                owner = %owner,
+                repo = %repo,
+                pr = %pr,
+                "Review posted: {comment_url}"
+            );
+            let _ = channel_id
+                .say(
+                    &http,
+                    format!("Review of `{owner}/{repo}#{pr}` posted: {comment_url}"),
+                )
+                .await;
+        }
+        Err(e) => {
+            tracing::error!(
+                category = "ai_review",
+                owner = %owner,
+                repo = %repo,
+                pr = %pr,
+                error = %e,
+                "Review failed"
+            );
+            // Keep the message under Discord's 2000-char cap or the send
+            // itself fails and the user gets no feedback at all.
+            let mut err_text = e.to_string();
+            if err_text.len() > 1600 {
+                let mut end = 1600;
+                while end > 0 && !err_text.is_char_boundary(end) {
+                    end -= 1;
+                }
+                err_text.truncate(end);
+                err_text.push('…');
+            }
+            let _ = channel_id
+                .say(
+                    &http,
+                    format!("Review of `{owner}/{repo}#{pr}` failed:\n```\n{err_text}\n```"),
+                )
+                .await;
+        }
+    }
 }
 
 // ── URL parser ──────────────────────────────────────────────────────────────
@@ -127,29 +333,26 @@ fn parse_github_url(url: &str) -> Result<(String, String), String> {
     Ok((parts[0].to_string(), parts[1].to_string()))
 }
 
-// ── Role check ──────────────────────────────────────────────────────────────
+// ── Availability check ──────────────────────────────────────────────────────
 
-async fn has_review_role(ctx: Context<'_>) -> Result<bool, Error> {
-    // The review env vars are optional (the rest of the `ai` feature works
-    // without them), so a missing var must not hit the panicking statics —
+async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
+    // GITHUB_OAUTH_CLIENT_ID is optional (the rest of the `ai` feature works
+    // without it), so a missing var must not hit the panicking static —
     // that would poison the `LazyLock` and kill the command for the whole
     // process lifetime.
-    if std::env::var("GITHUB_APP_TOKEN").is_err() || std::env::var("AI_REVIEW_ROLE").is_err() {
+    if std::env::var("GITHUB_OAUTH_CLIENT_ID").is_err() {
         let _ = ctx
-            .say("AI review is not configured (`GITHUB_APP_TOKEN` / `AI_REVIEW_ROLE` are unset).")
+            .say("AI review is not configured (`GITHUB_OAUTH_CLIENT_ID` is unset).")
             .await;
         return Ok(false);
     }
-    let role_id = serenity::RoleId::new(*review::config::AI_REVIEW_ROLE);
-    let Some(member) = ctx.author_member().await else {
-        let _ = ctx
-            .say("This command is only available to server members.")
-            .await;
+    let Some(guild_id) = ctx.guild_id() else {
+        let _ = ctx.say("This command can only be used in a server.").await;
         return Ok(false);
     };
-    if !member.roles.contains(&role_id) {
+    if !review::is_review_guild(guild_id.get()) {
         let _ = ctx
-            .say("You don't have permission to use `/ai-review`.")
+            .say("AI review isn't enabled in this server — an administrator can turn it on with `/ai-review enable`.")
             .await;
         return Ok(false);
     }
