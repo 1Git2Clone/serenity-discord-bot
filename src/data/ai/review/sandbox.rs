@@ -235,6 +235,10 @@ async fn run_gh_checked(
 }
 
 /// Run `git` with error-on-failure semantics (used during checkout).
+#[tracing::instrument(
+    skip(dir, args),
+    fields(category = "ai_review_tool", binary = "git")
+)]
 async fn run_git_checked(
     dir: &Path,
     args: &[&str],
