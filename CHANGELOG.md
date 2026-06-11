@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `/ai-review run url:<repo-url> pr:<n>` — requests an AI code review of a GitHub PR from Discord. A Hu Tao-themed review agent shallow-clones the PR, inspects it with read-only tools (`list_files`, `read_file`, `git_diff`, `git_log`, `pr_conversation`), and posts a structured review as a PR comment. The `pr_conversation` tool reads existing comments, reviews, and inline threads so the agent doesn't repeat prior feedback, and it reviews incrementally when it finds its own earlier `<!-- ai-review -->` comment — bugs are restless spirits, clean code crosses over peacefully. On first use (and after a restart or cache TTL) the requester links their GitHub account via the OAuth device flow (github.com/login/device); the bot verifies they have push access to the target repo; the review comment is posted as the requester's identity. Tokens are held in memory only — never written to disk. One review runs at a time. Requires `GITHUB_OAUTH_CLIENT_ID` (see `.env.example`)
+- `/ai-review enable` / `/ai-review disable` — per-server opt-in for the review command (Administrator only), persisted in the new `ai_review_guilds` table and cached in memory
 - `/reminder delete` subcommand: cancels a pending reminder chosen from an autocomplete dropdown (filtered by message text); only the reminder's owner can delete it
 - Reminders now store the resolved timezone at create time; `/reminder delete` autocomplete displays each reminder's fire time in that timezone instead of UTC
 
 ### Changed
 
 - The 17 embed (GIF) commands now share one spec-driven implementation (`InteractionSpec`/`OnSelf` plus embed helpers) instead of one near-identical file each; behavior is unchanged
+
+### Fixed
+
+- Docker: the runtime image now includes `git` and the GitHub CLI — the default build features include `ai-deepseek`, so `/ai-review` would have failed inside the container with its subprocess dependencies missing
 
 ## [0.2.1] - 2026-06-08
 
