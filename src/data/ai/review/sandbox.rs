@@ -138,6 +138,10 @@ impl Workspace {
     }
 
     /// Read a file guarded by a path-traversal check.
+    #[tracing::instrument(
+        skip(self),
+        fields(category = "ai_review_tool", tool = "read_file", path = %path_str)
+    )]
     async fn read_file_guarded(&self, path_str: &str) -> String {
         let full_path = self.dir.path().join(path_str);
         // Canonicalize the target (this fails if the file doesn't exist,

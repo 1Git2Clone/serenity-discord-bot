@@ -41,7 +41,9 @@ pub async fn ai_review(_: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn enable(ctx: Context<'_>) -> Result<(), Error> {
     let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used in a server.").await?;
+        ctx.say("This command can only be used in a server.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
+            .await?;
         return Ok(());
     };
 
@@ -51,7 +53,9 @@ pub async fn enable(ctx: Context<'_>) -> Result<(), Error> {
     } else {
         "`/ai-review run` is already enabled in this server."
     };
-    ctx.say(reply).await?;
+    ctx.say(reply)
+        .instrument(tracing::info_span!("send_reply", category = "discord"))
+        .await?;
 
     Ok(())
 }
@@ -69,7 +73,9 @@ pub async fn enable(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
     let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used in a server.").await?;
+        ctx.say("This command can only be used in a server.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
+            .await?;
         return Ok(());
     };
 
@@ -79,7 +85,9 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
     } else {
         "`/ai-review run` wasn't enabled in this server."
     };
-    ctx.say(reply).await?;
+    ctx.say(reply)
+        .instrument(tracing::info_span!("send_reply", category = "discord"))
+        .await?;
 
     Ok(())
 }
@@ -420,17 +428,22 @@ async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
                 .say(format!(
                     "AI review is not configured (`{var}` is unset)."
                 ))
+                .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await;
             return Ok(false);
         }
     }
     let Some(guild_id) = ctx.guild_id() else {
-        let _ = ctx.say("This command can only be used in a server.").await;
+        let _ = ctx
+            .say("This command can only be used in a server.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
+            .await;
         return Ok(false);
     };
     if !review::is_review_guild(guild_id.get()) {
         let _ = ctx
             .say("AI review isn't enabled in this server — an administrator can turn it on with `/ai-review enable`.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
             .await;
         return Ok(false);
     }
