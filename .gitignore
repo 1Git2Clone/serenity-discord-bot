@@ -1,5 +1,6 @@
 /target
 /.env
+*.pem
 /tempo-data
 
 !/database/

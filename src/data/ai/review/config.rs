@@ -17,8 +17,10 @@ pub static GITHUB_APP_ID: LazyLock<String> = LazyLock::new(|| {
 });
 
 pub static GITHUB_APP_PRIVATE_KEY: LazyLock<String> = LazyLock::new(|| {
-    std::env::var("GITHUB_APP_PRIVATE_KEY")
-        .expect("Set the `GITHUB_APP_PRIVATE_KEY` variable for /ai-review.")
+    let path = std::env::var("GITHUB_APP_PRIVATE_KEY_PATH")
+        .expect("Set the `GITHUB_APP_PRIVATE_KEY_PATH` variable for /ai-review.");
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|_| panic!("Failed to read `GITHUB_APP_PRIVATE_KEY_PATH` file: {path}"))
 });
 
 pub static GITHUB_OAUTH_SCOPE: LazyLock<String> = LazyLock::new(|| {
