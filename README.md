@@ -85,10 +85,13 @@ Setup, on top of the AI feature above:
 
 1. `git` and the [GitHub CLI](https://cli.github.com/) (`gh`) on the host —
    the agent shells out to them. No `gh auth login` needed.
-2. Create a GitHub OAuth App with Device Flow enabled (Settings → Developer
-   settings → OAuth Apps). Set `GITHUB_OAUTH_CLIENT_ID` in `.env`. No client
-   secret is required. Set `GITHUB_OAUTH_SCOPE` to `repo` to allow
-   private-repo reviews (default is `public_repo`).
+2. Create a GitHub App (Settings → Developer settings → GitHub Apps) with
+   Device Flow enabled and Pull requests: read & write permission, then
+   install it on the repos you want reviewable. Set `GITHUB_OAUTH_CLIENT_ID`
+   (client ID, `Iv` prefix), `GITHUB_APP_ID` (numeric), and
+   `GITHUB_APP_PRIVATE_KEY_PATH` (path to a generated `.pem`) in `.env`. Set
+   `GITHUB_OAUTH_SCOPE` to `repo` to allow private-repo reviews (default is
+   `public_repo`).
 3. An administrator runs `/ai-review enable` in the server (and `/ai-review
    disable` to turn it off). Enabled servers are stored in PostgreSQL, so
    the setting survives restarts.
@@ -98,9 +101,10 @@ Setup, on top of the AI feature above:
 On first use (and after the in-memory TTL or a bot restart) the requester
 receives an ephemeral message with a github.com/login/device link and a short
 code. Once they approve, the bot verifies they have push access to the target
-repo before starting the review. The PR comment is posted as the requester's
-GitHub identity. Tokens are never written to disk or a database — they are
-held in memory only and expire after the TTL.
+repo before starting the review. The PR comment itself is posted by the bot's
+GitHub App, not the requester. User tokens (used only for the permission
+check) are never written to disk or a database — they are held in memory only
+and expire after the TTL.
 
 `AI_MODEL` must support function calling (`deepseek-chat` does). Private
 repos additionally require a gh credential helper on the host for the
