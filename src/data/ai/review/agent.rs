@@ -207,6 +207,10 @@ async fn agent_loop(
 
 // ── PR metadata fetch ───────────────────────────────────────────────────────
 
+#[tracing::instrument(
+    skip(token),
+    fields(category = "ai_review", owner = %owner, repo = %repo, pr = %pr)
+)]
 async fn fetch_pr_metadata(
     owner: &str,
     repo: &str,
@@ -238,6 +242,10 @@ async fn fetch_pr_metadata(
 
 /// Fetch the PR conversation: top-level comments, reviews, and inline code
 /// review threads, formatted as plain text for the model.
+#[tracing::instrument(
+    skip(token),
+    fields(category = "ai_review", owner = %owner, repo = %repo, pr = %pr)
+)]
 async fn fetch_pr_conversation(
     owner: &str,
     repo: &str,
@@ -308,6 +316,10 @@ async fn fetch_pr_conversation(
 /// Fetch the PR diff from the GitHub API. Unlike a local
 /// `git diff base...HEAD`, this doesn't depend on the merge base being
 /// present in the shallow clone.
+#[tracing::instrument(
+    skip(token),
+    fields(category = "ai_review", owner = %owner, repo = %repo, pr = %pr)
+)]
 async fn fetch_pr_diff(
     owner: &str,
     repo: &str,
@@ -333,6 +345,10 @@ async fn fetch_pr_diff(
 
 // ── Comment posting ─────────────────────────────────────────────────────────
 
+#[tracing::instrument(
+    skip(token),
+    fields(category = "ai_review", owner = %owner, repo = %repo, pr = %pr)
+)]
 async fn post_review_comment(
     workspace: &sandbox::Workspace,
     owner: &str,

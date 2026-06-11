@@ -173,6 +173,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                     dc.verification_uri, dc.user_code
                 )),
         )
+        .instrument(tracing::info_span!("send_ephemeral", category = "discord"))
         .await?;
 
         tokio::spawn(
@@ -202,6 +203,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                             &http,
                             format!("<@{user_id}> linked GitHub account `{login}`."),
                         )
+                        .instrument(tracing::info_span!("send_linked_account", category = "discord"))
                         .await;
                 }
 
@@ -242,6 +244,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                             "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
                         ),
                     )
+                    .instrument(tracing::info_span!("send_review_started", category = "discord"))
                     .await;
 
                 let _guard = guard;
