@@ -28,9 +28,9 @@ impl Workspace {
         owner: &str,
         repo: &str,
         pr: u64,
+        token: &str,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let dir = tempfile::tempdir()?;
-        let token = super::config::GITHUB_APP_TOKEN.as_str();
 
         // Clone (shallow).
         run_gh_checked(
@@ -169,8 +169,7 @@ async fn run_git(dir: &Path, args: &[&str]) -> String {
     cmd.args(args)
         .current_dir(dir)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env_remove("GITHUB_APP_TOKEN");
+        .stderr(Stdio::piped());
     let output = match cmd.output().await {
         Ok(o) => o,
         Err(e) => return format!("error: git command failed: {e}"),
@@ -222,8 +221,7 @@ async fn run_git_checked(
     cmd.args(args)
         .current_dir(dir)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env_remove("GITHUB_APP_TOKEN");
+        .stderr(Stdio::piped());
     let output = cmd.output().await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -232,8 +230,8 @@ async fn run_git_checked(
     Ok(())
 }
 
-/// Raw `gh` subprocess — token is set as `GH_TOKEN` only when `token` is
-/// `Some`. The `GITHUB_APP_TOKEN` env var is always removed from the child.
+/// Raw `gh` subprocess — the requester's token is set as `GH_TOKEN` only
+/// when `token` is `Some`.
 async fn run_gh_raw(
     dir: &Path,
     token: Option<&str>,
@@ -243,8 +241,7 @@ async fn run_gh_raw(
     cmd.args(args)
         .current_dir(dir)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env_remove("GITHUB_APP_TOKEN");
+        .stderr(Stdio::piped());
     if let Some(t) = token {
         cmd.env("GH_TOKEN", t);
     }

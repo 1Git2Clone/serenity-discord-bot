@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use super::{
     client::{self, Message, Tool},
-    config::{AI_REVIEW_MAX_ITERATIONS, AI_REVIEW_TIMEOUT_SECS, GITHUB_APP_TOKEN},
+    config::{AI_REVIEW_MAX_ITERATIONS, AI_REVIEW_TIMEOUT_SECS},
     sandbox,
 };
 
@@ -171,9 +171,8 @@ async fn fetch_pr_metadata(
     owner: &str,
     repo: &str,
     pr: u64,
+    token: &str,
 ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
-    let token = GITHUB_APP_TOKEN.as_str();
-
     let mut cmd = tokio::process::Command::new("gh");
     cmd.args([
         "pr", "view", &pr.to_string(),
@@ -182,9 +181,7 @@ async fn fetch_pr_metadata(
     ])
     .stdout(std::process::Stdio::piped())
     .stderr(std::process::Stdio::piped())
-    .env("GH_TOKEN", token)
-    .env_remove("GITHUB_APP_TOKEN");
-
+    .env("GH_TOKEN", token);
     let output = cmd.output().await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -206,9 +203,8 @@ async fn fetch_pr_diff(
     owner: &str,
     repo: &str,
     pr: u64,
+    token: &str,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let token = GITHUB_APP_TOKEN.as_str();
-
     let mut cmd = tokio::process::Command::new("gh");
     cmd.args([
         "pr", "diff", &pr.to_string(),
@@ -216,9 +212,7 @@ async fn fetch_pr_diff(
     ])
     .stdout(std::process::Stdio::piped())
     .stderr(std::process::Stdio::piped())
-    .env("GH_TOKEN", token)
-    .env_remove("GITHUB_APP_TOKEN");
-
+    .env("GH_TOKEN", token);
     let output = cmd.output().await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -236,9 +230,9 @@ async fn post_review_comment(
     repo: &str,
     pr: u64,
     review_body: &str,
+    token: &str,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let dir = workspace.path();
-    let token = GITHUB_APP_TOKEN.as_str();
 
     let full_body = format!(
         "<!-- ai-review -->\n*Automated review requested via Discord. May be wrong; verify before acting.*\n\n{review_body}"
@@ -256,9 +250,7 @@ async fn post_review_comment(
     .current_dir(dir)
     .stdout(std::process::Stdio::piped())
     .stderr(std::process::Stdio::piped())
-    .env("GH_TOKEN", token)
-    .env_remove("GITHUB_APP_TOKEN");
-
+    .env("GH_TOKEN", token);
     let output = cmd.output().await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -276,18 +268,19 @@ pub async fn run_review(
     owner: String,
     repo: String,
     pr: u64,
+    token: String,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     // Fetch PR metadata (can be done before checkout — `gh pr view` uses
     // `--repo` so it doesn't need a local clone).
-    let (title, body) = fetch_pr_metadata(&owner, &repo, pr).await?;
+    let (title, body) = fetch_pr_metadata(&owner, &repo, pr, &token).await?;
 
-    let workspace = sandbox::Workspace::checkout(&owner, &repo, pr).await?;
+    let workspace = sandbox::Workspace::checkout(&owner, &repo, pr, &token).await?;
 
     // Build the initial context for the model. The diff comes from the API
     // rather than the local `git_diff` tool: a shallow clone may not contain
     // the merge base, which would silently turn the "full diff" into a git
     // error string.
-    let diff_output = fetch_pr_diff(&owner, &repo, pr).await?;
+    let diff_output = fetch_pr_diff(&owner, &repo, pr, &token).await?;
     let initial_context = format!(
         "Repository: {owner}/{repo}\n\
          PR #{pr}: {title}\n\n\
@@ -303,7 +296,8 @@ pub async fn run_review(
     .map_err(|_| "review timed out")??;
 
     // Post the review as a PR comment.
-    let comment_url = post_review_comment(&workspace, &owner, &repo, pr, &review_body).await?;
+    let comment_url =
+        post_review_comment(&workspace, &owner, &repo, pr, &review_body, &token).await?;
 
     Ok(comment_url)
 }
