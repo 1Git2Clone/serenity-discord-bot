@@ -65,6 +65,7 @@ Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.examp
 
 - `/ai` — one-off prompt in any channel or DM
 - `/aichannel` — toggle a channel where the bot auto-replies to every message (requires Manage Channels)
+- `/ai-review url:<repo-url> pr:<n>` — request an AI code review of a GitHub PR; a separate (out-of-character) agent clones the PR, inspects it with read-only tools, and posts a structured review as a PR comment. Set `GITHUB_APP_TOKEN` (a GitHub App token scoped to the target repos) and `AI_REVIEW_ROLE` (the Discord role ID allowed to trigger it). Reviews run one at a time
 - Set `REDIS_URL` to keep conversation context in Redis; without it the bot re-fetches recent messages from Discord on every reply
 
 ![AI channel demo](./assets/ai-channel-demo.png)

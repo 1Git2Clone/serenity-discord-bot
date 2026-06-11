@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `/ai-review url:<repo-url> pr:<n>` — requests an AI code review of a GitHub PR from Discord. A separate review agent (not the Hu Tao persona) shallow-clones the PR, inspects it with read-only tools (`list_files`, `read_file`, `git_diff`, `git_log`), and posts a structured review as a PR comment via the GitHub App token. Gated by the `AI_REVIEW_ROLE` Discord role; one review runs at a time. Requires `GITHUB_APP_TOKEN` and `AI_REVIEW_ROLE` (see `.env.example`)
 - `/reminder delete` subcommand: cancels a pending reminder chosen from an autocomplete dropdown (filtered by message text); only the reminder's owner can delete it
 - Reminders now store the resolved timezone at create time; `/reminder delete` autocomplete displays each reminder's fire time in that timezone instead of UTC
 

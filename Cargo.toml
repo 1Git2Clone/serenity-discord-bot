@@ -8,6 +8,7 @@ rust-version = "1.94"
 
 [dependencies]
 serde = { version = "1.0.197", features = ["derive"], optional = true }
+serde_json = { version = "1.0.145", optional = true }
 dotenv = "0.15.0"
 poise = "0.6.1"
 serenity = "0.12.0"
@@ -25,6 +26,7 @@ rayon = "1.10.0"
 regex = "1.11.1"
 reqwest = { version = "0.13.2", default-features = false }
 serenity_discord_bot_derive = { path = "./serenity_discord_bot_derive" }
+tempfile = { version = "3", optional = true }
 strsim = "0.11.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "std"] }
@@ -61,7 +63,7 @@ opentelemetry = [
 ]
 # Standalone Redis store; `ai` builds on it.
 redis = ["dep:redis"]
-ai = ["dep:llm", "dep:dashmap", "redis"]
+ai = ["dep:llm", "dep:dashmap", "redis", "dep:tempfile", "reqwest/rustls", "reqwest/json", "serde", "dep:serde_json"]
 
 # Pick a provider as needed
 ai-deepseek  = ["ai", "llm/deepseek"]

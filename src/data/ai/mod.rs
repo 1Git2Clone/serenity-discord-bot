@@ -19,6 +19,7 @@ mod config;
 mod context;
 mod handler;
 mod provider;
+pub mod review;
 
 pub use channels::{init_registered_channels, is_ai_channel, toggle_ai_channel, AI_REGISTERED_CHANNELS};
 pub use config::{
