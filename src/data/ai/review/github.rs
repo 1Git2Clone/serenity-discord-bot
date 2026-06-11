@@ -1,11 +1,17 @@
-use std::{sync::LazyLock, time::Duration};
+use std::{
+    sync::LazyLock,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use moka::future::Cache;
 use serde::Deserialize;
 
 use crate::prelude::Error;
 
-use super::config::{GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_SCOPE, GITHUB_TOKEN_TTL_SECS};
+use super::config::{
+    GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_PRIVATE_KEY,
+    GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_SCOPE, GITHUB_TOKEN_TTL_SECS,
+};
 
 static HTTP: LazyLock<reqwest::Client> = LazyLock::new(|| {
     #[allow(
@@ -186,4 +192,60 @@ pub async fn has_push_permission(token: &str, owner: &str, repo: &str) -> Result
         .permissions
         .map(|p| p.admin || p.maintain || p.push)
         .unwrap_or(false))
+}
+
+// ── GitHub App installation token ───────────────────────────────────────────
+
+/// Generate a short-lived GitHub App installation access token by signing a
+/// JWT with the app's private key and exchanging it at the installation
+/// endpoint. The returned token is valid for one hour and acts as the app,
+/// not the user who authorized the device flow.
+pub async fn get_installation_token() -> Result<String, Error> {
+    let app_id = GITHUB_APP_ID.as_str();
+    let private_key_pem = GITHUB_APP_PRIVATE_KEY.as_str();
+    let installation_id = GITHUB_APP_INSTALLATION_ID.as_str();
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?;
+    let claims = serde_json::json!({
+        "iat": now.as_secs(),
+        "exp": now.as_secs() + 600, // 10 minutes, GitHub's max
+        "iss": app_id,
+    });
+
+    let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+    let key = jsonwebtoken::EncodingKey::from_rsa_pem(private_key_pem.as_bytes())
+        .map_err(|e| format!("invalid GITHUB_APP_PRIVATE_KEY: {e}"))?;
+    let jwt = jsonwebtoken::encode(&header, &claims, &key)
+        .map_err(|e| format!("JWT signing failed: {e}"))?;
+
+    let response = HTTP
+        .post(format!(
+            "https://api.github.com/app/installations/{installation_id}/access_tokens"
+        ))
+        .header("Authorization", format!("Bearer {jwt}"))
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!(
+            "installation token error ({status}): {body}"
+        )
+        .into());
+    }
+
+    #[derive(Deserialize)]
+    struct InstallationToken {
+        token: String,
+    }
+
+    let token = response
+        .json::<InstallationToken>()
+        .await
+        .map_err(|e| format!("failed to parse installation token: {e}"))?
+        .token;
+
+    Ok(token)
 }

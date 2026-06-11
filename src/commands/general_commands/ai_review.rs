@@ -3,8 +3,8 @@ use crate::{
         self,
         config::AI_REVIEW_GUARD,
         github::{
-            fetch_login, has_push_permission, poll_device_flow, start_device_flow,
-            GITHUB_TOKEN_CACHE,
+            fetch_login, get_installation_token, has_push_permission,
+            poll_device_flow, start_device_flow, GITHUB_TOKEN_CACHE,
         },
     },
     prelude::*,
@@ -145,7 +145,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
 
         tokio::spawn(async move {
             let _guard = guard;
-            run_and_report(http, channel_id, owner, repo, pr, token).await;
+            run_and_report(http, channel_id, owner, repo, pr).await;
         });
     } else {
         // No cached token — start device flow.
@@ -239,7 +239,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                 .await;
 
             let _guard = guard;
-            run_and_report(http, channel_id, owner, repo, pr, token).await;
+            run_and_report(http, channel_id, owner, repo, pr).await;
         });
     }
 
@@ -254,9 +254,28 @@ async fn run_and_report(
     owner: String,
     repo: String,
     pr: u64,
-    token: String,
 ) {
-    let result = review::run_review(owner.clone(), repo.clone(), pr, token).await;
+    let bot_token = match get_installation_token().await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!(
+                category = "ai_review",
+                owner = %owner,
+                repo = %repo,
+                pr = %pr,
+                error = %e,
+                "Failed to generate installation token"
+            );
+            let _ = channel_id
+                .say(
+                    &http,
+                    format!("Review of `{owner}/{repo}#{pr}` failed: {e}"),
+                )
+                .await;
+            return;
+        }
+    };
+    let result = review::run_review(owner.clone(), repo.clone(), pr, bot_token).await;
 
     match result {
         Ok(comment_url) => {
@@ -336,15 +355,23 @@ fn parse_github_url(url: &str) -> Result<(String, String), String> {
 // ── Availability check ──────────────────────────────────────────────────────
 
 async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
-    // GITHUB_OAUTH_CLIENT_ID is optional (the rest of the `ai` feature works
-    // without it), so a missing var must not hit the panicking static —
-    // that would poison the `LazyLock` and kill the command for the whole
-    // process lifetime.
-    if std::env::var("GITHUB_OAUTH_CLIENT_ID").is_err() {
-        let _ = ctx
-            .say("AI review is not configured (`GITHUB_OAUTH_CLIENT_ID` is unset).")
-            .await;
-        return Ok(false);
+    // Check all required env vars before touching the panicking LazyLock
+    // statics — a missing var would poison the Lock and kill the command
+    // for the whole process lifetime.
+    for var in &[
+        "GITHUB_OAUTH_CLIENT_ID",
+        "GITHUB_APP_ID",
+        "GITHUB_APP_PRIVATE_KEY",
+        "GITHUB_APP_INSTALLATION_ID",
+    ] {
+        if std::env::var(var).is_err() {
+            let _ = ctx
+                .say(format!(
+                    "AI review is not configured (`{var}` is unset)."
+                ))
+                .await;
+            return Ok(false);
+        }
     }
     let Some(guild_id) = ctx.guild_id() else {
         let _ = ctx.say("This command can only be used in a server.").await;
