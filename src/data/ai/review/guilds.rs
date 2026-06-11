@@ -22,6 +22,10 @@ pub fn is_review_guild(guild_id: u64) -> bool {
 
 /// Enable or disable `/ai-review run` for a guild in both the DB and the
 /// in-memory set. Returns `true` if the state changed.
+#[tracing::instrument(
+    skip(pool),
+    fields(category = "sql", guild_id = %guild_id, enabled = %enabled)
+)]
 pub async fn set_review_guild(pool: &PgPool, guild_id: u64, enabled: bool) -> Result<bool, Error> {
     if enabled {
         if AI_REVIEW_GUILDS.contains(&guild_id) {

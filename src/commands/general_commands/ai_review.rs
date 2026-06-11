@@ -41,7 +41,9 @@ pub async fn ai_review(_: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn enable(ctx: Context<'_>) -> Result<(), Error> {
     let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used in a server.").await?;
+        ctx.say("This command can only be used in a server.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
+            .await?;
         return Ok(());
     };
 
@@ -51,7 +53,9 @@ pub async fn enable(ctx: Context<'_>) -> Result<(), Error> {
     } else {
         "`/ai-review run` is already enabled in this server."
     };
-    ctx.say(reply).await?;
+    ctx.say(reply)
+        .instrument(tracing::info_span!("send_reply", category = "discord"))
+        .await?;
 
     Ok(())
 }
@@ -69,7 +73,9 @@ pub async fn enable(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
     let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used in a server.").await?;
+        ctx.say("This command can only be used in a server.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
+            .await?;
         return Ok(());
     };
 
@@ -79,7 +85,9 @@ pub async fn disable(ctx: Context<'_>) -> Result<(), Error> {
     } else {
         "`/ai-review run` wasn't enabled in this server."
     };
-    ctx.say(reply).await?;
+    ctx.say(reply)
+        .instrument(tracing::info_span!("send_reply", category = "discord"))
+        .await?;
 
     Ok(())
 }
@@ -103,7 +111,10 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
     let (owner, repo) = match parse_github_url(&url) {
         Ok(parsed) => parsed,
         Err(e) => {
-            let _ = ctx.say(format!("Invalid URL: {e}")).await;
+            let _ = ctx
+                .say(format!("Invalid URL: {e}"))
+                .instrument(tracing::info_span!("send_error", category = "discord"))
+                .await;
             return Ok(());
         }
     };
@@ -122,12 +133,14 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                     .say(format!(
                         "You need push access to `{owner}/{repo}` to request a review."
                     ))
+                    .instrument(tracing::info_span!("send_error", category = "discord"))
                     .await;
                 return Ok(());
             }
             Err(e) => {
                 let _ = ctx
                     .say(format!("Could not verify your GitHub permissions: {e}"))
+                    .instrument(tracing::info_span!("send_error", category = "discord"))
                     .await;
                 return Ok(());
             }
@@ -136,6 +149,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
         // Acquire the global review guard.
         let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
             ctx.say("A review is already running — please wait for it to finish.")
+                .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await?;
             return Ok(());
         };
@@ -143,6 +157,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
         ctx.say(format!(
             "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
         ))
+        .instrument(tracing::info_span!("send_review_started", category = "discord"))
         .await?;
 
         tokio::spawn(
@@ -159,6 +174,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
             Err(e) => {
                 let _ = ctx
                     .say(format!("Failed to start GitHub authorization: {e}"))
+                    .instrument(tracing::info_span!("send_error", category = "discord"))
                     .await;
                 return Ok(());
             }
@@ -173,6 +189,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                     dc.verification_uri, dc.user_code
                 )),
         )
+        .instrument(tracing::info_span!("send_ephemeral", category = "discord"))
         .await?;
 
         tokio::spawn(
@@ -186,6 +203,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                                 &http,
                                 format!("GitHub authorization wasn't completed: {e}"),
                             )
+                            .instrument(tracing::info_span!("send_error", category = "discord"))
                             .await;
                         return;
                     }
@@ -202,6 +220,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                             &http,
                             format!("<@{user_id}> linked GitHub account `{login}`."),
                         )
+                        .instrument(tracing::info_span!("send_linked_account", category = "discord"))
                         .await;
                 }
 
@@ -216,36 +235,40 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                                     "You need push access to `{owner}/{repo}` to request a review."
                                 ),
                             )
+                            .instrument(tracing::info_span!("send_error", category = "discord"))
                             .await;
                         return;
                     }
                     Err(e) => {
                         let _ = channel_id
                             .say(&http, format!("Could not verify your GitHub permissions: {e}"))
+                            .instrument(tracing::info_span!("send_error", category = "discord"))
                             .await;
                         return;
                     }
                 }
 
-                // Acquire the global review guard.
-                let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
-                    let _ = channel_id
-                        .say(&http, "A review is already running — please wait for it to finish.")
-                        .await;
-                    return;
-                };
-
+            // Acquire the global review guard.
+            let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
                 let _ = channel_id
-                    .say(
-                        &http,
-                        format!(
-                            "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
-                        ),
-                    )
+                    .say(&http, "A review is already running — please wait for it to finish.")
+                    .instrument(tracing::info_span!("send_error", category = "discord"))
                     .await;
+                return;
+            };
 
-                let _guard = guard;
-                run_and_report(http, channel_id, owner, repo, pr).await;
+            let _ = channel_id
+                .say(
+                    &http,
+                    format!(
+                        "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
+                    ),
+                )
+                .instrument(tracing::info_span!("send_review_started", category = "discord"))
+                .await;
+
+            let _guard = guard;
+            run_and_report(http, channel_id, owner, repo, pr).await;
             }
             .instrument(tracing::Span::current()),
         );
@@ -289,6 +312,7 @@ async fn run_and_report(
                     &http,
                     format!("Review of `{owner}/{repo}#{pr}` failed: {e}"),
                 )
+                .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await;
             return;
         }
@@ -317,6 +341,7 @@ async fn run_and_report(
                     &http,
                     format!("Review of `{owner}/{repo}#{pr}` posted: {comment_url}"),
                 )
+                .instrument(tracing::info_span!("send_review_result", category = "discord"))
                 .await;
         }
         Err(e) => {
@@ -344,6 +369,7 @@ async fn run_and_report(
                     &http,
                     format!("Review of `{owner}/{repo}#{pr}` failed:\n```\n{err_text}\n```"),
                 )
+                .instrument(tracing::info_span!("send_review_result", category = "discord"))
                 .await;
         }
     }
@@ -402,17 +428,22 @@ async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
                 .say(format!(
                     "AI review is not configured (`{var}` is unset)."
                 ))
+                .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await;
             return Ok(false);
         }
     }
     let Some(guild_id) = ctx.guild_id() else {
-        let _ = ctx.say("This command can only be used in a server.").await;
+        let _ = ctx
+            .say("This command can only be used in a server.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
+            .await;
         return Ok(false);
     };
     if !review::is_review_guild(guild_id.get()) {
         let _ = ctx
             .say("AI review isn't enabled in this server — an administrator can turn it on with `/ai-review enable`.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
             .await;
         return Ok(false);
     }

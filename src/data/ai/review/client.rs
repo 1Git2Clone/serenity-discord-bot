@@ -105,6 +105,10 @@ struct ChatRequest {
 
 /// Send a chat-completions request to DeepSeek. Returns the model's content
 /// and/or tool calls.
+#[tracing::instrument(
+    skip(messages, tools),
+    fields(category = "llm")
+)]
 pub async fn chat(
     messages: &[Message],
     tools: &[Tool],
