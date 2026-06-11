@@ -307,7 +307,7 @@ async fn discover_installation(owner: &str, jwt: &str) -> Result<String, Error> 
 
     let body = resp.text().await.unwrap_or_default();
     Err(format!(
-        "GitHub App is not installed for `{owner}` (tried user and org). \
+        "GitHub App is not installed for `{owner}` (tried user and org): {body}. \
          Install the app at https://github.com/apps/hu-tao-reviewer/installations/new"
     )
     .into())
