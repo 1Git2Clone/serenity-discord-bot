@@ -255,7 +255,7 @@ async fn run_and_report(
     repo: String,
     pr: u64,
 ) {
-    let bot_token = match get_installation_token().await {
+    let bot_token = match get_installation_token(&owner).await {
         Ok(t) => t,
         Err(e) => {
             tracing::error!(
@@ -362,7 +362,6 @@ async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
         "GITHUB_OAUTH_CLIENT_ID",
         "GITHUB_APP_ID",
         "GITHUB_APP_PRIVATE_KEY",
-        "GITHUB_APP_INSTALLATION_ID",
     ] {
         if std::env::var(var).is_err() {
             let _ = ctx
