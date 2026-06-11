@@ -346,7 +346,7 @@ async fn fetch_pr_diff(
 // ── Comment posting ─────────────────────────────────────────────────────────
 
 #[tracing::instrument(
-    skip(token),
+    skip(workspace, token),
     fields(category = "ai_review", owner = %owner, repo = %repo, pr = %pr)
 )]
 async fn post_review_comment(
