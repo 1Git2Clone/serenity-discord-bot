@@ -9,7 +9,7 @@ use serde::Deserialize;
 use crate::prelude::Error;
 
 use super::config::{
-    GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_PRIVATE_KEY,
+    GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY,
     GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_SCOPE, GITHUB_TOKEN_TTL_SECS,
 };
 
@@ -196,28 +196,30 @@ pub async fn has_push_permission(token: &str, owner: &str, repo: &str) -> Result
 
 // ── GitHub App installation token ───────────────────────────────────────────
 
-/// Generate a short-lived GitHub App installation access token by signing a
-/// JWT with the app's private key and exchanging it at the installation
-/// endpoint. The returned token is valid for one hour and acts as the app,
-/// not the user who authorized the device flow.
-pub async fn get_installation_token() -> Result<String, Error> {
+/// Generate a short-lived GitHub App installation access token for the given
+/// repo owner. Discovers the installation ID dynamically by querying the
+/// user and org endpoints — no per-user config needed.
+pub async fn get_installation_token(owner: &str) -> Result<String, Error> {
     let app_id = GITHUB_APP_ID.as_str();
     let private_key_pem = GITHUB_APP_PRIVATE_KEY.as_str();
-    let installation_id = GITHUB_APP_INSTALLATION_ID.as_str();
 
+    // Sign a JWT for the app.
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?;
     let claims = serde_json::json!({
         "iat": now.as_secs(),
-        "exp": now.as_secs() + 600, // 10 minutes, GitHub's max
+        "exp": now.as_secs() + 600,
         "iss": app_id,
     });
-
     let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
     let key = jsonwebtoken::EncodingKey::from_rsa_pem(private_key_pem.as_bytes())
         .map_err(|e| format!("invalid GITHUB_APP_PRIVATE_KEY: {e}"))?;
     let jwt = jsonwebtoken::encode(&header, &claims, &key)
         .map_err(|e| format!("JWT signing failed: {e}"))?;
 
+    // Discover the installation ID for this owner.
+    let installation_id = discover_installation(owner, &jwt).await?;
+
+    // Exchange the JWT for an installation access token.
     let response = HTTP
         .post(format!(
             "https://api.github.com/app/installations/{installation_id}/access_tokens"
@@ -248,4 +250,65 @@ pub async fn get_installation_token() -> Result<String, Error> {
         .token;
 
     Ok(token)
+}
+
+/// Try the user endpoint first, then the org endpoint, to find the GitHub
+/// App installation ID for the given account name.
+async fn discover_installation(owner: &str, jwt: &str) -> Result<String, Error> {
+    let auth_header = format!("Bearer {jwt}");
+
+    // Try user account first.
+    let resp = HTTP
+        .get(format!("https://api.github.com/users/{owner}/installation"))
+        .header("Authorization", &auth_header)
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await?;
+
+    if resp.status().is_success() {
+        #[derive(Deserialize)]
+        struct Installation {
+            id: u64,
+        }
+        let id = resp
+            .json::<Installation>()
+            .await
+            .map_err(|e| format!("failed to parse installation: {e}"))?
+            .id;
+        return Ok(id.to_string());
+    }
+
+    if resp.status() != reqwest::StatusCode::NOT_FOUND {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("installation lookup error ({status}): {body}").into());
+    }
+
+    // Try org account.
+    let resp = HTTP
+        .get(format!("https://api.github.com/orgs/{owner}/installation"))
+        .header("Authorization", &auth_header)
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await?;
+
+    if resp.status().is_success() {
+        #[derive(Deserialize)]
+        struct Installation {
+            id: u64,
+        }
+        let id = resp
+            .json::<Installation>()
+            .await
+            .map_err(|e| format!("failed to parse installation: {e}"))?
+            .id;
+        return Ok(id.to_string());
+    }
+
+    let body = resp.text().await.unwrap_or_default();
+    Err(format!(
+        "GitHub App is not installed for `{owner}` (tried user and org). \
+         Install the app at https://github.com/apps/hu-tao-reviewer/installations/new"
+    )
+    .into())
 }
