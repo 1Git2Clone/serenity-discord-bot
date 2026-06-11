@@ -53,7 +53,7 @@ struct TokenResponse {
 
 /// Start the GitHub OAuth device flow. Returns codes the user needs to authorize.
 pub async fn start_device_flow() -> Result<DeviceCode, Error> {
-    let resp = HTTP
+    let response = HTTP
         .post("https://github.com/login/device/code")
         .header("Accept", "application/json")
         .json(&serde_json::json!({
@@ -61,10 +61,17 @@ pub async fn start_device_flow() -> Result<DeviceCode, Error> {
             "scope": GITHUB_OAUTH_SCOPE.as_str(),
         }))
         .send()
-        .await?
-        .error_for_status()?
-        .json::<DeviceCodeResponse>()
         .await?;
+
+    // GitHub puts the diagnosis in the body (e.g. device_flow_disabled);
+    // error_for_status would throw it away.
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("GitHub device flow error ({status}): {body}").into());
+    }
+
+    let resp = response.json::<DeviceCodeResponse>().await?;
 
     Ok(DeviceCode {
         user_code: resp.user_code,
@@ -87,7 +94,7 @@ pub async fn poll_device_flow(dc: &DeviceCode) -> Result<String, Error> {
             return Err("device flow authorization timed out".into());
         }
 
-        let resp = HTTP
+        let response = HTTP
             .post("https://github.com/login/oauth/access_token")
             .header("Accept", "application/json")
             .json(&serde_json::json!({
@@ -96,10 +103,15 @@ pub async fn poll_device_flow(dc: &DeviceCode) -> Result<String, Error> {
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
             }))
             .send()
-            .await?
-            .error_for_status()?
-            .json::<TokenResponse>()
             .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(format!("GitHub token poll error ({status}): {body}").into());
+        }
+
+        let resp = response.json::<TokenResponse>().await?;
 
         if let Some(token) = resp.access_token
             && !token.is_empty()
