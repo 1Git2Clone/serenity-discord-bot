@@ -22,6 +22,11 @@ read surrounding code and history when the diff alone is not enough to judge
 a change. Do not guess at code you have not read — that's how you end up
 haunting the wrong commit!
 
+Use the pr_conversation tool to see what the living have already said in the
+PR thread. Do not repeat feedback that has already been given. If you find a
+previous comment marked <!-- ai-review -->, that one is from you — review
+incrementally instead of performing the full rites all over again.
+
 Review priorities, in order:
 1. Correctness: logic errors, unhandled edge cases, broken invariants. A bug
    is just a ghost waiting to possess the production server.
@@ -139,6 +144,18 @@ fn tool_definitions() -> Vec<Tool> {
                 }),
             },
         },
+        Tool {
+            tool_type: "function".into(),
+            function: super::client::ToolFunction {
+                name: "pr_conversation".into(),
+                description: "Read the PR's conversation: issue comments, reviews, and inline code review threads. Use it to see prior feedback and to find your own previous <!-- ai-review --> comment.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }),
+            },
+        },
     ]
 }
 
@@ -147,6 +164,10 @@ fn tool_definitions() -> Vec<Tool> {
 async fn agent_loop(
     workspace: &sandbox::Workspace,
     initial_context: &str,
+    owner: &str,
+    repo: &str,
+    pr: u64,
+    token: &str,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let tools = tool_definitions();
     let mut messages = vec![
@@ -172,7 +193,15 @@ async fn agent_loop(
                 for call in &calls {
                     let args: Value =
                         serde_json::from_str(&call.function.arguments).unwrap_or_default();
-                    let result = workspace.execute(&call.function.name, args).await;
+                    // pr_conversation is API-side (needs the token), the rest
+                    // run against the local workspace.
+                    let result = if call.function.name == "pr_conversation" {
+                        fetch_pr_conversation(owner, repo, pr, token)
+                            .await
+                            .unwrap_or_else(|e| format!("error: {e}"))
+                    } else {
+                        workspace.execute(&call.function.name, args).await
+                    };
                     messages.push(Message::Tool {
                         tool_call_id: call.id.clone(),
                         content: result,
@@ -218,6 +247,75 @@ async fn fetch_pr_metadata(
     let body = json["body"].as_str().unwrap_or("").to_string();
 
     Ok((title, body))
+}
+
+/// Fetch the PR conversation: top-level comments, reviews, and inline code
+/// review threads, formatted as plain text for the model.
+async fn fetch_pr_conversation(
+    owner: &str,
+    repo: &str,
+    pr: u64,
+    token: &str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let repo_arg = format!("{owner}/{repo}");
+
+    let mut view = tokio::process::Command::new("gh");
+    view.args([
+        "pr", "view", &pr.to_string(),
+        "--repo", &repo_arg,
+        "--json", "comments,reviews",
+    ])
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::piped())
+    .env("GH_TOKEN", token);
+    let output = view.output().await?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("gh pr view failed: {stderr}").into());
+    }
+    let json: Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout))?;
+
+    let mut out = String::new();
+
+    out.push_str("== Reviews ==\n");
+    for review in json["reviews"].as_array().into_iter().flatten() {
+        let author = review["author"]["login"].as_str().unwrap_or("(unknown)");
+        let state = review["state"].as_str().unwrap_or("");
+        let body = review["body"].as_str().unwrap_or("");
+        out.push_str(&format!("[{state}] {author}: {body}\n---\n"));
+    }
+
+    out.push_str("\n== Comments ==\n");
+    for comment in json["comments"].as_array().into_iter().flatten() {
+        let author = comment["author"]["login"].as_str().unwrap_or("(unknown)");
+        let body = comment["body"].as_str().unwrap_or("");
+        out.push_str(&format!("{author}: {body}\n---\n"));
+    }
+
+    // Inline code review comments come from the REST API; `gh pr view` doesn't
+    // expose them.
+    let mut api = tokio::process::Command::new("gh");
+    api.args(["api", &format!("repos/{repo_arg}/pulls/{pr}/comments")])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .env("GH_TOKEN", token);
+    let output = api.output().await?;
+    if output.status.success() {
+        let inline: Value = serde_json::from_str(&String::from_utf8_lossy(&output.stdout))?;
+        out.push_str("\n== Inline comments ==\n");
+        for comment in inline.as_array().into_iter().flatten() {
+            let author = comment["user"]["login"].as_str().unwrap_or("(unknown)");
+            let path = comment["path"].as_str().unwrap_or("?");
+            let line = comment["line"]
+                .as_u64()
+                .or_else(|| comment["original_line"].as_u64())
+                .unwrap_or(0);
+            let body = comment["body"].as_str().unwrap_or("");
+            out.push_str(&format!("{path}:{line} {author}: {body}\n---\n"));
+        }
+    }
+
+    Ok(sandbox::truncate(&out))
 }
 
 /// Fetch the PR diff from the GitHub API. Unlike a local
@@ -314,7 +412,7 @@ pub async fn run_review(
 
     let review_body = tokio::time::timeout(
         std::time::Duration::from_secs(*AI_REVIEW_TIMEOUT_SECS),
-        agent_loop(&workspace, &initial_context),
+        agent_loop(&workspace, &initial_context, &owner, &repo, pr, &token),
     )
     .await
     .map_err(|_| "review timed out")??;
