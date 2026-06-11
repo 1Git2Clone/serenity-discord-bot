@@ -11,6 +11,21 @@ pub static GITHUB_OAUTH_CLIENT_ID: LazyLock<String> = LazyLock::new(|| {
         .expect("Set the `GITHUB_OAUTH_CLIENT_ID` variable for /ai-review.")
 });
 
+pub static GITHUB_APP_ID: LazyLock<String> = LazyLock::new(|| {
+    std::env::var("GITHUB_APP_ID")
+        .expect("Set the `GITHUB_APP_ID` variable for /ai-review.")
+});
+
+pub static GITHUB_APP_PRIVATE_KEY: LazyLock<String> = LazyLock::new(|| {
+    std::env::var("GITHUB_APP_PRIVATE_KEY")
+        .expect("Set the `GITHUB_APP_PRIVATE_KEY` variable for /ai-review.")
+});
+
+pub static GITHUB_APP_INSTALLATION_ID: LazyLock<String> = LazyLock::new(|| {
+    std::env::var("GITHUB_APP_INSTALLATION_ID")
+        .expect("Set the `GITHUB_APP_INSTALLATION_ID` variable for /ai-review.")
+});
+
 pub static GITHUB_OAUTH_SCOPE: LazyLock<String> = LazyLock::new(|| {
     match std::env::var("GITHUB_OAUTH_SCOPE") {
         Ok(var) => var,
