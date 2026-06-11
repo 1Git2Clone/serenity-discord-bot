@@ -24,6 +24,10 @@ impl Workspace {
 
 impl Workspace {
     /// Clone `owner/repo`, checkout PR `pr`, and resolve the PR's base ref.
+    #[tracing::instrument(
+        skip(token),
+        fields(category = "ai_review", owner = %owner, repo = %repo, pr = %pr)
+    )]
     pub async fn checkout(
         owner: &str,
         repo: &str,
@@ -82,6 +86,10 @@ impl Workspace {
 
     /// Execute a named tool with JSON arguments. Errors are returned as
     /// strings so the agent loop can relay them to the model.
+    #[tracing::instrument(
+        skip(self, args),
+        fields(category = "ai_review_tool", tool = %name)
+    )]
     pub async fn execute(&self, name: &str, args: Value) -> String {
         match name {
             "list_files" => {
@@ -130,6 +138,10 @@ impl Workspace {
     }
 
     /// Read a file guarded by a path-traversal check.
+    #[tracing::instrument(
+        skip(self),
+        fields(category = "ai_review_tool", tool = "read_file", path = %path_str)
+    )]
     async fn read_file_guarded(&self, path_str: &str) -> String {
         let full_path = self.dir.path().join(path_str);
         // Canonicalize the target (this fails if the file doesn't exist,
@@ -166,6 +178,10 @@ impl Workspace {
 
 /// Run `git` in `dir` without exposing any GitHub token. Returns combined
 /// stdout + stderr, truncated.
+#[tracing::instrument(
+    skip(dir, args),
+    fields(category = "ai_review_tool", binary = "git")
+)]
 async fn run_git(dir: &Path, args: &[&str]) -> String {
     let mut cmd = TokioCommand::new("git");
     cmd.args(args)
@@ -187,6 +203,10 @@ async fn run_git(dir: &Path, args: &[&str]) -> String {
 }
 
 /// Run `gh` with `GH_TOKEN` set, returning stdout on success.
+#[tracing::instrument(
+    skip(token, args),
+    fields(category = "ai_review_tool", binary = "gh")
+)]
 async fn run_gh_stdout(
     dir: &Path,
     token: &str,
@@ -201,6 +221,10 @@ async fn run_gh_stdout(
 }
 
 /// Run `gh` with `GH_TOKEN`, returning `Err` on non-zero exit.
+#[tracing::instrument(
+    skip(token, args),
+    fields(category = "ai_review_tool", binary = "gh")
+)]
 async fn run_gh_checked(
     dir: &Path,
     token: &str,
@@ -215,6 +239,10 @@ async fn run_gh_checked(
 }
 
 /// Run `git` with error-on-failure semantics (used during checkout).
+#[tracing::instrument(
+    skip(dir, args),
+    fields(category = "ai_review_tool", binary = "git")
+)]
 async fn run_git_checked(
     dir: &Path,
     args: &[&str],
@@ -234,6 +262,10 @@ async fn run_git_checked(
 
 /// Raw `gh` subprocess — the requester's token is set as `GH_TOKEN` only
 /// when `token` is `Some`.
+#[tracing::instrument(
+    skip(token, args),
+    fields(category = "ai_review_tool", binary = "gh")
+)]
 async fn run_gh_raw(
     dir: &Path,
     token: Option<&str>,
