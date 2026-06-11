@@ -361,7 +361,7 @@ async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
     for var in &[
         "GITHUB_OAUTH_CLIENT_ID",
         "GITHUB_APP_ID",
-        "GITHUB_APP_PRIVATE_KEY",
+        "GITHUB_APP_PRIVATE_KEY_PATH",
     ] {
         if std::env::var(var).is_err() {
             let _ = ctx
