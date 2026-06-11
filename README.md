@@ -75,7 +75,7 @@ Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.examp
 
 #### AI code review
 
-`/ai-review run url:<repo-url> pr:<n>` — a separate (out-of-character) review
+`/ai-review run url:<repo-url> pr:<n>` — a Hu Tao-themed code review
 agent shallow-clones the PR, inspects it with read-only tools (`list_files`,
 `read_file`, `git_diff`, `git_log`), and posts a structured review as a PR
 comment. Reviews run one at a time; without the setup below the command
