@@ -16,25 +16,13 @@ pub(crate) async fn test_pool() -> Option<PgPool> {
     PgPoolOptions::new().connect(&url).await.ok()
 }
 
-/// Connect to Redis through the shared cache handle. Loads `.env` first, then
-/// returns `None` when `REDIS_URL` is absent or unreachable, so Redis tests
-/// can skip gracefully.
-///
-/// The shared manager's background task dies with the tokio runtime of
-/// whichever test created it, so PING (with retries) to let it reconnect on
-/// this test's runtime before handing it out.
+/// Connect to Redis through the cache handle (a fresh per-call manager in
+/// test builds). Loads `.env` first, then returns `None` when `REDIS_URL` is
+/// absent or unreachable, so Redis tests can skip gracefully.
 #[cfg(feature = "redis")]
 pub(crate) async fn test_redis() -> Option<redis::aio::ConnectionManager> {
     dotenv::dotenv().ok();
-    let mut conn = crate::data::cache::conn().await?;
-    for _ in 0..10 {
-        let pong: Result<String, _> = redis::cmd("PING").query_async(&mut conn).await;
-        if pong.is_ok() {
-            return Some(conn);
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-    None
+    crate::data::cache::conn().await
 }
 
 fn sized_send_sunc_unpin<T: Sized + Send + Sync + Unpin>() {}
