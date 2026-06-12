@@ -3,13 +3,32 @@
 use std::env;
 
 use redis::aio::ConnectionManager;
+#[cfg(not(test))]
 use tokio::sync::OnceCell;
 
+#[cfg(not(test))]
 static REDIS: OnceCell<Option<ConnectionManager>> = OnceCell::const_new();
 
 /// A handle to the shared connection (cloning multiplexes over one connection),
 /// or `None` when `REDIS_URL` is unset or the connection failed.
 pub async fn conn() -> Option<ConnectionManager> {
+    // Each #[tokio::test] runs on its own runtime, while the shared manager's
+    // driver task lives on the runtime that first created it and dies with
+    // it. Hand tests a fresh manager per call so none of them ever observes
+    // another test's dead connection mid-flight.
+    #[cfg(test)]
+    {
+        // Self-sufficient env loading: tests must see the same REDIS_URL no
+        // matter which of them runs (and loads `.env`) first.
+        dotenv::dotenv().ok();
+        let url = env::var("REDIS_URL").ok()?;
+        return redis::Client::open(url)
+            .ok()?
+            .get_connection_manager()
+            .await
+            .ok();
+    }
+    #[cfg(not(test))]
     REDIS
         .get_or_init(|| async {
             let url = env::var("REDIS_URL").ok()?;
