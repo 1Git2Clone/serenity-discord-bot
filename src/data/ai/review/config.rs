@@ -10,8 +10,7 @@ pub static GITHUB_OAUTH_CLIENT_ID: LazyLock<String> = LazyLock::new(|| {
 });
 
 pub static GITHUB_APP_ID: LazyLock<String> = LazyLock::new(|| {
-    std::env::var("GITHUB_APP_ID")
-        .expect("Set the `GITHUB_APP_ID` variable for /ai-review.")
+    std::env::var("GITHUB_APP_ID").expect("Set the `GITHUB_APP_ID` variable for /ai-review.")
 });
 
 pub static GITHUB_APP_PRIVATE_KEY: LazyLock<String> = LazyLock::new(|| {
@@ -21,15 +20,14 @@ pub static GITHUB_APP_PRIVATE_KEY: LazyLock<String> = LazyLock::new(|| {
         .unwrap_or_else(|_| panic!("Failed to read `GITHUB_APP_PRIVATE_KEY_PATH` file: {path}"))
 });
 
-pub static GITHUB_OAUTH_SCOPE: LazyLock<String> = LazyLock::new(|| {
-    match std::env::var("GITHUB_OAUTH_SCOPE") {
+pub static GITHUB_OAUTH_SCOPE: LazyLock<String> =
+    LazyLock::new(|| match std::env::var("GITHUB_OAUTH_SCOPE") {
         Ok(var) => var,
         Err(std::env::VarError::NotUnicode(var)) => {
             panic!("`GITHUB_OAUTH_SCOPE` environment variable is not valid unicode. Var: {var:?}")
         }
         Err(std::env::VarError::NotPresent) => "public_repo".to_string(),
-    }
-});
+    });
 
 pub static GITHUB_TOKEN_TTL_SECS: LazyLock<u64> = LazyLock::new(|| {
     match std::env::var("GITHUB_TOKEN_TTL_SECS") {
@@ -43,7 +41,9 @@ pub static GITHUB_TOKEN_TTL_SECS: LazyLock<u64> = LazyLock::new(|| {
                 .expect("`GITHUB_TOKEN_TTL_SECS` must be a valid u64.")
         }
         Err(std::env::VarError::NotUnicode(var)) => {
-            panic!("`GITHUB_TOKEN_TTL_SECS` environment variable is not valid unicode. Var: {var:?}")
+            panic!(
+                "`GITHUB_TOKEN_TTL_SECS` environment variable is not valid unicode. Var: {var:?}"
+            )
         }
         Err(std::env::VarError::NotPresent) => 3600,
     }
@@ -61,7 +61,9 @@ pub static AI_REVIEW_MAX_ITERATIONS: LazyLock<u32> = LazyLock::new(|| {
                 .expect("`AI_REVIEW_MAX_ITERATIONS` must be a valid u32.")
         }
         Err(std::env::VarError::NotUnicode(var)) => {
-            panic!("`AI_REVIEW_MAX_ITERATIONS` environment variable is not valid unicode. Var: {var:?}")
+            panic!(
+                "`AI_REVIEW_MAX_ITERATIONS` environment variable is not valid unicode. Var: {var:?}"
+            )
         }
         Err(std::env::VarError::NotPresent) => 20,
     }
@@ -79,7 +81,9 @@ pub static AI_REVIEW_TIMEOUT_SECS: LazyLock<u64> = LazyLock::new(|| {
                 .expect("`AI_REVIEW_TIMEOUT_SECS` must be a valid u64.")
         }
         Err(std::env::VarError::NotUnicode(var)) => {
-            panic!("`AI_REVIEW_TIMEOUT_SECS` environment variable is not valid unicode. Var: {var:?}")
+            panic!(
+                "`AI_REVIEW_TIMEOUT_SECS` environment variable is not valid unicode. Var: {var:?}"
+            )
         }
         Err(std::env::VarError::NotPresent) => 600,
     }

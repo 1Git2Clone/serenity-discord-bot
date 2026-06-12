@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{self, check_ai_rate_limit, try_acquire_channel_lock, AI_RATE_LIMIT_SECS},
+    data::ai::{self, AI_RATE_LIMIT_SECS, check_ai_rate_limit, try_acquire_channel_lock},
     prelude::*,
 };
 
@@ -92,12 +92,12 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
 pub async fn aichannel(ctx: Context<'_>) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
     let Some(guild_id) = ctx.guild_id() else {
-        ctx.say("This command can only be used in a server.").await?;
+        ctx.say("This command can only be used in a server.")
+            .await?;
         return Ok(());
     };
 
-    let enabled =
-        ai::toggle_ai_channel(&ctx.data().pool, channel_id.get(), guild_id.get()).await?;
+    let enabled = ai::toggle_ai_channel(&ctx.data().pool, channel_id.get(), guild_id.get()).await?;
 
     let reply = if enabled {
         format!(

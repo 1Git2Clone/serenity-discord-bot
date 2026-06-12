@@ -1,7 +1,12 @@
 use crate::prelude::*;
 
 /// Give someone a cookie!
-#[poise::command(discard_spare_arguments, slash_command, prefix_command, rename = "cookie")]
+#[poise::command(
+    discard_spare_arguments,
+    slash_command,
+    prefix_command,
+    rename = "cookie"
+)]
 #[tracing::instrument(
     skip(ctx),
     fields(

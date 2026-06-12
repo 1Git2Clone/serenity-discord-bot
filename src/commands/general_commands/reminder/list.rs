@@ -28,10 +28,17 @@ fn escape_like(term: &str) -> String {
         .replace('_', "\\_")
 }
 
-fn render_row(remind_at: DateTime<Utc>, finished_at: Option<DateTime<Utc>>, message: &str) -> String {
+fn render_row(
+    remind_at: DateTime<Utc>,
+    finished_at: Option<DateTime<Utc>>,
+    message: &str,
+) -> String {
     let ts = remind_at.timestamp();
     let msg = if message.chars().count() > ROW_PREVIEW_CHARS {
-        format!("{}…", message.chars().take(ROW_PREVIEW_CHARS).collect::<String>())
+        format!(
+            "{}…",
+            message.chars().take(ROW_PREVIEW_CHARS).collect::<String>()
+        )
     } else {
         message.to_string()
     };
@@ -72,7 +79,11 @@ async fn show_reminders(
             StatusFilter::Pending => "pending reminders",
             StatusFilter::Finished => "finished reminders",
         };
-        let suffix = if pattern.is_some() { " matching that search" } else { "" };
+        let suffix = if pattern.is_some() {
+            " matching that search"
+        } else {
+            ""
+        };
         ctx.say(format!("You have no {what}{suffix}.")).await?;
         return Ok(());
     }
@@ -148,23 +159,36 @@ async fn paginate(ctx: Context<'_>, header: &str, pages: &[String]) -> Result<()
         serenity::CreateEmbed::new()
             .title(header)
             .description(&pages[page])
-            .footer(serenity::CreateEmbedFooter::new(format!("Page {}/{total}", page + 1)))
+            .footer(serenity::CreateEmbedFooter::new(format!(
+                "Page {}/{total}",
+                page + 1
+            )))
     };
     let buttons = |page: usize| {
         let at_start = page == 0;
         let at_end = page + 1 >= total;
         serenity::CreateActionRow::Buttons(vec![
-            serenity::CreateButton::new(&first).emoji('⏮').disabled(at_start),
-            serenity::CreateButton::new(&prev).emoji('◀').disabled(at_start),
+            serenity::CreateButton::new(&first)
+                .emoji('⏮')
+                .disabled(at_start),
+            serenity::CreateButton::new(&prev)
+                .emoji('◀')
+                .disabled(at_start),
             serenity::CreateButton::new(&goto)
                 .label(format!("{}/{total}", page + 1))
                 .style(serenity::ButtonStyle::Secondary),
-            serenity::CreateButton::new(&next).emoji('▶').disabled(at_end),
-            serenity::CreateButton::new(&last).emoji('⏭').disabled(at_end),
+            serenity::CreateButton::new(&next)
+                .emoji('▶')
+                .disabled(at_end),
+            serenity::CreateButton::new(&last)
+                .emoji('⏭')
+                .disabled(at_end),
         ])
     };
 
-    let mut reply = poise::CreateReply::default().ephemeral(true).embed(render(0));
+    let mut reply = poise::CreateReply::default()
+        .ephemeral(true)
+        .embed(render(0));
     if total > 1 {
         reply = reply.components(vec![buttons(0)]);
     }
@@ -227,7 +251,12 @@ async fn paginate(ctx: Context<'_>, header: &str, pages: &[String]) -> Result<()
     }
 
     handle
-        .edit(ctx, poise::CreateReply::default().embed(render(page)).components(vec![]))
+        .edit(
+            ctx,
+            poise::CreateReply::default()
+                .embed(render(page))
+                .components(vec![]),
+        )
         .await?;
     Ok(())
 }

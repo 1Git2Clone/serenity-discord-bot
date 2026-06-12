@@ -219,9 +219,13 @@ async fn fetch_pr_metadata(
 ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
     let mut cmd = tokio::process::Command::new("gh");
     cmd.args([
-        "pr", "view", &pr.to_string(),
-        "--repo", &format!("{owner}/{repo}"),
-        "--json", "title,body,baseRefName,headRefName",
+        "pr",
+        "view",
+        &pr.to_string(),
+        "--repo",
+        &format!("{owner}/{repo}"),
+        "--json",
+        "title,body,baseRefName,headRefName",
     ])
     .stdout(std::process::Stdio::piped())
     .stderr(std::process::Stdio::piped())
@@ -256,9 +260,13 @@ async fn fetch_pr_conversation(
 
     let mut view = tokio::process::Command::new("gh");
     view.args([
-        "pr", "view", &pr.to_string(),
-        "--repo", &repo_arg,
-        "--json", "comments,reviews",
+        "pr",
+        "view",
+        &pr.to_string(),
+        "--repo",
+        &repo_arg,
+        "--json",
+        "comments,reviews",
     ])
     .stdout(std::process::Stdio::piped())
     .stderr(std::process::Stdio::piped())
@@ -328,8 +336,11 @@ async fn fetch_pr_diff(
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let mut cmd = tokio::process::Command::new("gh");
     cmd.args([
-        "pr", "diff", &pr.to_string(),
-        "--repo", &format!("{owner}/{repo}"),
+        "pr",
+        "diff",
+        &pr.to_string(),
+        "--repo",
+        &format!("{owner}/{repo}"),
     ])
     .stdout(std::process::Stdio::piped())
     .stderr(std::process::Stdio::piped())
@@ -368,9 +379,13 @@ async fn post_review_comment(
 
     let mut cmd = tokio::process::Command::new("gh");
     cmd.args([
-        "pr", "comment", &pr.to_string(),
-        "--repo", &format!("{owner}/{repo}"),
-        "--body-file", tmp.path().to_str().ok_or("tempfile path is not UTF-8")?,
+        "pr",
+        "comment",
+        &pr.to_string(),
+        "--repo",
+        &format!("{owner}/{repo}"),
+        "--body-file",
+        tmp.path().to_str().ok_or("tempfile path is not UTF-8")?,
     ])
     .current_dir(dir)
     .stdout(std::process::Stdio::piped())
@@ -427,14 +442,15 @@ pub async fn run_review(
 
     let review_body = tokio::time::timeout(
         std::time::Duration::from_secs(*AI_REVIEW_TIMEOUT_SECS),
-        agent_loop(&workspace, &initial_context, &owner, &repo, pr, &token)
-            .instrument(tracing::info_span!(
+        agent_loop(&workspace, &initial_context, &owner, &repo, pr, &token).instrument(
+            tracing::info_span!(
                 "agent_loop",
                 category = "ai_review",
                 owner = %owner,
                 repo = %repo,
                 pr = %pr,
-            )),
+            ),
+        ),
     )
     .await
     .map_err(|_| "review timed out")??;

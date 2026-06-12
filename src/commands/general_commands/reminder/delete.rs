@@ -26,8 +26,16 @@ async fn autocomplete_pending_reminder(ctx: Context<'_>, partial: &str) -> Vec<S
         .map(|r| {
             let preview: String = r.message.chars().take(80).collect();
             let (ts, tz_name) = match resolve_tz(Some(&r.timezone)) {
-                Ok((tz, name)) => (tz.to_local(r.remind_at).format("%Y-%m-%d %H:%M").to_string(), name),
-                Err(_) => (r.remind_at.format("%Y-%m-%d %H:%M").to_string(), "UTC".to_string()),
+                Ok((tz, name)) => (
+                    tz.to_local(r.remind_at)
+                        .format("%Y-%m-%d %H:%M")
+                        .to_string(),
+                    name,
+                ),
+                Err(_) => (
+                    r.remind_at.format("%Y-%m-%d %H:%M").to_string(),
+                    "UTC".to_string(),
+                ),
             };
             format!("{} {ts} {tz_name} — {preview}", r.id)
         })
@@ -51,7 +59,11 @@ pub async fn delete(
     reminder: String,
 ) -> Result<(), Error> {
     // The autocomplete value is "<id> <time> — <preview>"; parse the leading id.
-    let reminder_id: i64 = match reminder.split_whitespace().next().and_then(|s| s.parse().ok()) {
+    let reminder_id: i64 = match reminder
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse().ok())
+    {
         Some(id) => id,
         None => {
             ctx.say("Couldn't parse that selection — please pick one from the autocomplete list.")
@@ -78,8 +90,10 @@ pub async fn delete(
                 .await?;
         }
         None => {
-            ctx.say("No matching pending reminder found — it may have already fired or been deleted.")
-                .await?;
+            ctx.say(
+                "No matching pending reminder found — it may have already fired or been deleted.",
+            )
+            .await?;
         }
     }
     Ok(())

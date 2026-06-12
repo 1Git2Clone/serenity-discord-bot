@@ -26,8 +26,12 @@ impl UserTz {
     ) -> chrono::LocalResult<DateTime<Utc>> {
         use chrono::TimeZone as _;
         match self {
-            Self::Named(tz) => tz.with_ymd_and_hms(y, mo, d, h, mi, 0).map(|dt| dt.to_utc()),
-            Self::Fixed(off) => off.with_ymd_and_hms(y, mo, d, h, mi, 0).map(|dt| dt.to_utc()),
+            Self::Named(tz) => tz
+                .with_ymd_and_hms(y, mo, d, h, mi, 0)
+                .map(|dt| dt.to_utc()),
+            Self::Fixed(off) => off
+                .with_ymd_and_hms(y, mo, d, h, mi, 0)
+                .map(|dt| dt.to_utc()),
         }
     }
 
@@ -124,11 +128,17 @@ fn resolve_named(input: &str) -> Result<Tz, String> {
     let lower = input.to_lowercase();
     let city_of = |tz: &Tz| tz.name().rsplit('/').next().unwrap_or("").to_lowercase();
 
-    if let Some(tz) = TZ_VARIANTS.iter().find(|tz| tz.name().to_lowercase() == lower) {
+    if let Some(tz) = TZ_VARIANTS
+        .iter()
+        .find(|tz| tz.name().to_lowercase() == lower)
+    {
         return Ok(*tz);
     }
 
-    let city_hits: Vec<&Tz> = TZ_VARIANTS.iter().filter(|tz| city_of(tz) == lower).collect();
+    let city_hits: Vec<&Tz> = TZ_VARIANTS
+        .iter()
+        .filter(|tz| city_of(tz) == lower)
+        .collect();
     match city_hits.as_slice() {
         [tz] => Ok(**tz),
         [] => Err(format!(
@@ -177,7 +187,9 @@ pub(super) fn build_remind_at(
         let month_name = chrono::NaiveDate::from_ymd_opt(y, mo, 1)
             .map(|date| date.format("%B %Y").to_string())
             .unwrap_or_default();
-        return Err(format!("{month_name} has {dim} days — day {d} doesn't exist."));
+        return Err(format!(
+            "{month_name} has {dim} days — day {d} doesn't exist."
+        ));
     }
     if h > 23 {
         return Err(format!("Hour must be 0–23 (you gave {h})."));

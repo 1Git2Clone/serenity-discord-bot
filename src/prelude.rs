@@ -33,10 +33,7 @@ pub use crate::{
         user_data::USER_COOLDOWNS,
     },
     database::{bot_mentions::*, connect_to_db, level_system::*},
-    enums::{
-        command_enums::EmbedType,
-        schemas::LevelsTable,
-    },
+    enums::{command_enums::EmbedType, schemas::LevelsTable},
     media_url,
 };
 pub use serenity_discord_bot_derive::IterateVariants;

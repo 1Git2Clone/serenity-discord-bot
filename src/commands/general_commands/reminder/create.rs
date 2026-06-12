@@ -77,9 +77,15 @@ pub async fn create(
 
     let now = Utc::now();
 
-    let remind_at = if [hour.is_some(), minute.is_some(), day.is_some(), month.is_some(), year.is_some()]
-        .iter()
-        .all(|set| !set)
+    let remind_at = if [
+        hour.is_some(),
+        minute.is_some(),
+        day.is_some(),
+        month.is_some(),
+        year.is_some(),
+    ]
+    .iter()
+    .all(|set| !set)
     {
         now + chrono::Duration::hours(1)
     } else {
@@ -103,7 +109,9 @@ pub async fn create(
         ctx.say("That time is already in the past!").await?;
         return Ok(());
     }
-    let max_at = now.checked_add_months(chrono::Months::new(1)).unwrap_or(now);
+    let max_at = now
+        .checked_add_months(chrono::Months::new(1))
+        .unwrap_or(now);
     if remind_at > max_at {
         ctx.say("Reminders can be set at most one month in advance.")
             .await?;
