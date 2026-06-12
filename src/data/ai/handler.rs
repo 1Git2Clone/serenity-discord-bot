@@ -2,7 +2,7 @@ use tracing::Instrument;
 
 use super::{
     channels::is_ai_channel,
-    config::{AI_CHANNEL_CACHE, AI_RATE_LIMIT},
+    config::{check_ai_rate_limit, release_channel_lock, try_acquire_channel_lock},
     context::channel_context,
     provider::chat,
 };
@@ -29,18 +29,18 @@ pub async fn handle_ai_channel_message(
         .mentions
         .iter()
         .any(|u| u.id == data.bot_user.id);
-    if !is_dm && !is_ai_channel(new_message.channel_id.get()) && !is_mentioned {
+    if !is_dm && !is_ai_channel(new_message.channel_id.get()).await && !is_mentioned {
         return Ok(());
     }
 
-    if AI_RATE_LIMIT.get(&new_message.author.id).await.is_some() {
+    if check_ai_rate_limit(new_message.author.id.get()).await {
         return Ok(());
     }
 
-    let Some(_guard) = AI_CHANNEL_CACHE.try_acquire(new_message.channel_id.get()) else {
+    let channel_id = new_message.channel_id.get();
+    if !try_acquire_channel_lock(channel_id).await {
         return Ok(());
-    };
-    AI_RATE_LIMIT.insert(new_message.author.id, ()).await;
+    }
 
     new_message
         .channel_id
@@ -58,6 +58,8 @@ pub async fn handle_ai_channel_message(
         .reply(ctx, response)
         .instrument(tracing::info_span!("discord_reply", category = "discord"))
         .await?;
+
+    release_channel_lock(channel_id).await;
 
     Ok(())
 }

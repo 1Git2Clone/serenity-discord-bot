@@ -207,16 +207,37 @@ async fn main() -> Result<(), Error> {
         })
         .build();
 
-    let client = serenity::ClientBuilder::new(token, intents)
+    let mut client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .activity(serenity::ActivityData::custom(format!(
             "Usable prefixes: [ {} ]",
             BOT_PREFIXES.join(", ")
         )))
         .status(serenity::OnlineStatus::Idle)
-        .await;
+        .await?;
 
-    client?.start().await?;
+    // Multi-instance: when TOTAL_SHARDS / SHARD_START / SHARD_END are set,
+    // each instance owns a disjoint range. Over-provision the total (e.g. 16)
+    // and redistribute ranges to scale without resharding.
+    if let (Ok(total), Ok(start), Ok(end)) = (
+        std::env::var("TOTAL_SHARDS"),
+        std::env::var("SHARD_START"),
+        std::env::var("SHARD_END"),
+    ) {
+        let total: u32 = total
+            .parse()
+            .expect("TOTAL_SHARDS must be a positive integer");
+        let start: u32 = start
+            .parse()
+            .expect("SHARD_START must be a non-negative integer");
+        let end: u32 = end
+            .parse()
+            .expect("SHARD_END must be a non-negative integer");
+        tracing::info!("Starting shard range {start}..{end} of {total}");
+        client.start_shard_range(start..end, total).await?;
+    } else {
+        client.start().await?;
+    }
 
     Ok(())
 }

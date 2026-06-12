@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{self, AI_CHANNEL_CACHE, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS},
+    data::ai::{self, check_ai_rate_limit, release_channel_lock, try_acquire_channel_lock, AI_RATE_LIMIT_SECS},
     prelude::*,
 };
 
@@ -21,7 +21,9 @@ use crate::{
 )]
 pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
-    let Some(__guard) = AI_CHANNEL_CACHE.try_acquire(channel_id.get()) else {
+    let cid = channel_id.get();
+
+    if !try_acquire_channel_lock(cid).await {
         tracing::info!(
             "User tried to call the AI in {channel_id} while it's still processing content from within it."
         );
@@ -38,7 +40,7 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
         return Ok(());
     };
 
-    if AI_RATE_LIMIT.get(&ctx.author().id).await.is_some() {
+    if check_ai_rate_limit(ctx.author().id.get()).await {
         let rate_limit_msg = ctx
             .say(format!(
                 "Rate limited <@{}>. Please wait {} seconds between each prompt.",
@@ -50,10 +52,9 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
         sleep(Duration::from_secs(5)).await;
         rate_limit_msg.delete(ctx).await?;
 
+        release_channel_lock(cid).await;
         return Ok(());
     }
-
-    AI_RATE_LIMIT.insert(ctx.author().id, ()).await;
 
     ctx.defer().await?;
 
@@ -68,6 +69,8 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     let response = ai::chat(&prompt).await?;
 
     ctx.say(response).await?;
+
+    release_channel_lock(cid).await;
 
     Ok(())
 }
