@@ -50,3 +50,4 @@ check_coverage "src/commands/level_logic"       100
 
 # Authorization gate for /ai-review.
 check_coverage "src/data/ai/review/guilds"      90
+
