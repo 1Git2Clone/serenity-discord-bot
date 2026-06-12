@@ -51,7 +51,10 @@ mod tests {
     type TestResult = Result<(), Error>;
 
     // Use large sentinel IDs to avoid colliding with production data or other tests.
-    const ID_IS_REVIEW: u64 = 0x5AFE_0001_0000_0001;
+    // Each test owns exactly one ID; no two tests share an ID to avoid races under
+    // parallel test execution.
+    const ID_IS_REVIEW: u64 = 0x5AFE_0001_0000_0001; // never inserted — absence check only
+    const ID_INSERT: u64 = 0x5AFE_0001_0000_0007; // insert/remove round-trip only
     const ID_INIT: u64 = 0x5AFE_0001_0000_0002;
     const ID_ENABLE: u64 = 0x5AFE_0001_0000_0003;
     const ID_DISABLE: u64 = 0x5AFE_0001_0000_0004;
@@ -65,9 +68,9 @@ mod tests {
 
     #[test]
     fn is_review_guild_after_manual_insert_returns_true() {
-        AI_REVIEW_GUILDS.insert(ID_IS_REVIEW);
-        assert!(is_review_guild(ID_IS_REVIEW));
-        AI_REVIEW_GUILDS.remove(&ID_IS_REVIEW);
+        AI_REVIEW_GUILDS.insert(ID_INSERT);
+        assert!(is_review_guild(ID_INSERT));
+        AI_REVIEW_GUILDS.remove(&ID_INSERT);
     }
 
     // These two tests return before touching the DB, so a lazy (never-connects) pool suffices.
