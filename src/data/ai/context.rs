@@ -255,3 +255,45 @@ async fn seed_from_discord(
         .filter_map(|(id, name, text)| to_message(*id, name, text, bot_user_id))
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BOT_ID: u64 = 1000;
+
+    #[test]
+    fn ctx_key_includes_channel_id() {
+        assert_eq!(ctx_key(42), "ai:ctx:42");
+    }
+
+    #[test]
+    fn to_message_empty_content_is_dropped() {
+        assert!(to_message(1, "alice", "   ", BOT_ID).is_none());
+    }
+
+    #[test]
+    fn to_message_bot_is_assistant_without_prefix() {
+        let msg = to_message(BOT_ID, "hutao", "hello", BOT_ID);
+        assert!(msg.is_some());
+    }
+
+    #[test]
+    fn entry_roundtrips_through_encode_and_decode() {
+        let entry = encode_entry(1, "alice", "hi there");
+        assert!(entry_to_message(&entry, BOT_ID).is_some());
+    }
+
+    #[test]
+    fn entry_content_may_contain_colons_and_newlines() {
+        let entry = encode_entry(1, "alice", "key: value\nsecond line");
+        assert!(entry_to_message(&entry, BOT_ID).is_some());
+    }
+
+    #[test]
+    fn malformed_entry_is_dropped() {
+        assert!(entry_to_message("not-a-number\u{1f}alice\u{1f}hi", BOT_ID).is_none());
+        assert!(entry_to_message("no separators at all", BOT_ID).is_none());
+        assert!(entry_to_message("", BOT_ID).is_none());
+    }
+}
