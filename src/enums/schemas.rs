@@ -307,3 +307,141 @@ impl AiReviewGuildsTable {
         Ok(rows.into_iter().map(|row| row.guild_id).collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{data::command_data::Error, tests::test_pool};
+
+    type TestResult = Result<(), Error>;
+
+    // Sentinel IDs in their own namespace, distinct from the guilds.rs tests.
+    const USER_A: i64 = 0x5AFE_0002_0000_0001;
+    const USER_B: i64 = 0x5AFE_0002_0000_0002;
+    const USER_C: i64 = 0x5AFE_0002_0000_0003;
+    const GUILD_ROUNDTRIP: i64 = 0x5AFE_0002_0000_0011;
+    const GUILD_TOP_NINE: i64 = 0x5AFE_0002_0000_0012;
+    #[cfg(feature = "ai")]
+    const CHANNEL: i64 = 0x5AFE_0002_0000_0021;
+    #[cfg(feature = "ai")]
+    const GUILD_AI: i64 = 0x5AFE_0002_0000_0022;
+
+    /// Unchecked query (not `query!`) so tests don't add entries to the
+    /// offline `.sqlx` cache.
+    async fn delete_guild_stats(pool: &PgPool, guild_id: i64) -> TestResult {
+        sqlx::query("DELETE FROM user_stats WHERE guild_id = $1")
+            .bind(guild_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn levels_add_fetch_update_rank_roundtrip() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        delete_guild_stats(&pool, GUILD_ROUNDTRIP).await?;
+
+        LevelsTable::add_user_level(&pool, USER_A, GUILD_ROUNDTRIP, 50, 1).await?;
+        assert_eq!(
+            LevelsTable::fetch_user_level(&pool, USER_A, GUILD_ROUNDTRIP).await?,
+            (50, 1)
+        );
+
+        LevelsTable::update_user_level(&pool, 25, 3, USER_A, GUILD_ROUNDTRIP).await?;
+        assert_eq!(
+            LevelsTable::fetch_user_level(&pool, USER_A, GUILD_ROUNDTRIP).await?,
+            (25, 3)
+        );
+
+        let (level, xp, rank) =
+            LevelsTable::fetch_user_level_and_rank(&pool, USER_A, GUILD_ROUNDTRIP).await?;
+        assert_eq!((level, xp), (3, 25));
+        assert_eq!(rank, 1);
+
+        delete_guild_stats(&pool, GUILD_ROUNDTRIP).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn levels_top_nine_orders_by_level_then_xp() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        delete_guild_stats(&pool, GUILD_TOP_NINE).await?;
+
+        LevelsTable::add_user_level(&pool, USER_A, GUILD_TOP_NINE, 10, 1).await?;
+        LevelsTable::add_user_level(&pool, USER_B, GUILD_TOP_NINE, 90, 2).await?;
+        LevelsTable::add_user_level(&pool, USER_C, GUILD_TOP_NINE, 10, 2).await?;
+
+        let top = LevelsTable::fetch_top_nine_users(&pool, GUILD_TOP_NINE).await?;
+        let ids: Vec<i64> = top.iter().map(|u| u.user_id).collect();
+        assert_eq!(ids, vec![USER_B, USER_C, USER_A]);
+
+        delete_guild_stats(&pool, GUILD_TOP_NINE).await?;
+        Ok(())
+    }
+
+    /// One test for everything touching the bot_mentions singleton row, so
+    /// parallel tests can't interleave writes to it. The row's value is
+    /// restored at the end.
+    #[tokio::test]
+    async fn mentions_fetch_update_and_add_roundtrip() -> TestResult {
+        use crate::database::bot_mentions::add_mentions;
+
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        let mentions = MentionsTable::fetch_mentions(&pool).await?;
+        MentionsTable::update_mentions(&pool, mentions).await?;
+        assert_eq!(MentionsTable::fetch_mentions(&pool).await?, mentions);
+
+        assert_eq!(add_mentions(&pool, 5).await?, mentions + 5);
+        assert_eq!(add_mentions(&pool, -5).await?, mentions);
+        Ok(())
+    }
+
+    #[cfg(feature = "ai")]
+    #[tokio::test]
+    async fn ai_channels_register_unregister_fetch() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        AiChannelsTable::unregister(&pool, CHANNEL).await?;
+
+        AiChannelsTable::register(&pool, CHANNEL, GUILD_AI).await?;
+        // Registering twice is a no-op (ON CONFLICT DO NOTHING).
+        AiChannelsTable::register(&pool, CHANNEL, GUILD_AI).await?;
+        assert!(AiChannelsTable::fetch_all(&pool).await?.contains(&CHANNEL));
+
+        AiChannelsTable::unregister(&pool, CHANNEL).await?;
+        assert!(!AiChannelsTable::fetch_all(&pool).await?.contains(&CHANNEL));
+        Ok(())
+    }
+
+    #[cfg(feature = "ai")]
+    #[tokio::test]
+    async fn ai_review_guilds_register_unregister_fetch() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        AiReviewGuildsTable::unregister(&pool, GUILD_AI).await?;
+
+        AiReviewGuildsTable::register(&pool, GUILD_AI).await?;
+        AiReviewGuildsTable::register(&pool, GUILD_AI).await?;
+        assert!(
+            AiReviewGuildsTable::fetch_all(&pool)
+                .await?
+                .contains(&GUILD_AI)
+        );
+
+        AiReviewGuildsTable::unregister(&pool, GUILD_AI).await?;
+        assert!(
+            !AiReviewGuildsTable::fetch_all(&pool)
+                .await?
+                .contains(&GUILD_AI)
+        );
+        Ok(())
+    }
+}

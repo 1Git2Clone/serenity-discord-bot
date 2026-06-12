@@ -163,3 +163,35 @@ pub async fn chat(messages: &[AiMessage]) -> Result<String, Error> {
 
     Ok(response.text().unwrap_or_else(|| response.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ai_message_new_stores_role_and_content() {
+        let msg = AiMessage::new("user", "hello");
+        assert_eq!(msg.role, "user");
+        assert_eq!(msg.content, "hello");
+    }
+
+    /// One test for the SYSTEM_PROMPT OnceLock — it can only be set once per
+    /// process, so the before/after states have to be asserted in order.
+    #[test]
+    fn system_prompt_composes_persona_and_commands() {
+        assert!(system_prompt().contains("Hu Tao"));
+
+        init_system_prompt(&[
+            ("ping".to_string(), "Pong!".to_string()),
+            ("help".to_string(), String::new()),
+        ]);
+        let prompt = system_prompt();
+        assert!(prompt.contains("Hu Tao"));
+        assert!(prompt.contains("- /ping: Pong!"));
+        assert!(prompt.contains("- /help"));
+
+        // A second init is a no-op.
+        init_system_prompt(&[("other".to_string(), String::new())]);
+        assert!(!system_prompt().contains("- /other"));
+    }
+}

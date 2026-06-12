@@ -294,3 +294,136 @@ pub(super) fn truncate(s: &str) -> String {
     }
     format!("{}[truncated]", &s[..end])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+    /// A local two-commit git repo standing in for a PR checkout: `base`
+    /// branch holds the first commit, HEAD has one commit on top of it.
+    async fn test_workspace() -> Result<Workspace, Box<dyn std::error::Error + Send + Sync>> {
+        let dir = tempfile::tempdir()?;
+        let p = dir.path();
+
+        run_git_checked(p, &["init", "-b", "main"]).await?;
+        run_git_checked(p, &["config", "user.email", "test@test"]).await?;
+        run_git_checked(p, &["config", "user.name", "test"]).await?;
+
+        tokio::fs::write(p.join("a.txt"), "base content\n").await?;
+        run_git_checked(p, &["add", "."]).await?;
+        run_git_checked(p, &["commit", "-m", "base commit"]).await?;
+        run_git_checked(p, &["branch", "base"]).await?;
+
+        tokio::fs::write(p.join("a.txt"), "changed content\n").await?;
+        run_git_checked(p, &["commit", "-am", "pr commit"]).await?;
+
+        Ok(Workspace {
+            dir,
+            base_ref: "base".to_string(),
+        })
+    }
+
+    #[tokio::test]
+    async fn execute_list_files() -> TestResult {
+        let ws = test_workspace().await?;
+        let out = ws.execute("list_files", serde_json::json!({})).await;
+        assert!(out.contains("a.txt"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_read_file() -> TestResult {
+        let ws = test_workspace().await?;
+        let out = ws
+            .execute("read_file", serde_json::json!({"path": "a.txt"}))
+            .await;
+        assert_eq!(out, "changed content\n");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_read_file_missing_path_arg() -> TestResult {
+        let ws = test_workspace().await?;
+        let out = ws.execute("read_file", serde_json::json!({})).await;
+        assert!(out.starts_with("error: missing 'path'"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_read_file_nonexistent() -> TestResult {
+        let ws = test_workspace().await?;
+        let out = ws
+            .execute("read_file", serde_json::json!({"path": "nope.txt"}))
+            .await;
+        assert!(out.starts_with("error: cannot resolve path"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_read_file_rejects_path_traversal() -> TestResult {
+        let ws = test_workspace().await?;
+        // /etc/passwd exists and canonicalizes outside the workspace root.
+        let out = ws
+            .execute(
+                "read_file",
+                serde_json::json!({"path": "../../../../../../etc/passwd"}),
+            )
+            .await;
+        assert!(out.starts_with("error: path traversal rejected"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_git_diff_against_base() -> TestResult {
+        let ws = test_workspace().await?;
+        let out = ws.execute("git_diff", serde_json::json!({})).await;
+        assert!(out.contains("-base content"));
+        assert!(out.contains("+changed content"));
+
+        let scoped = ws
+            .execute("git_diff", serde_json::json!({"path": "a.txt"}))
+            .await;
+        assert!(scoped.contains("+changed content"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_git_log_shows_pr_commits_only() -> TestResult {
+        let ws = test_workspace().await?;
+        let out = ws.execute("git_log", serde_json::json!({})).await;
+        assert!(out.contains("pr commit"));
+        assert!(!out.contains("base commit"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_unknown_tool() -> TestResult {
+        let ws = test_workspace().await?;
+        let out = ws.execute("frobnicate", serde_json::json!({})).await;
+        assert_eq!(out, "unknown tool: frobnicate");
+        Ok(())
+    }
+
+    #[test]
+    fn truncate_short_string_unchanged() {
+        assert_eq!(truncate("hello"), "hello");
+    }
+
+    #[test]
+    fn truncate_long_string_appends_marker() {
+        let long = "a".repeat(TOOL_OUTPUT_LIMIT + 10);
+        let out = truncate(&long);
+        assert!(out.ends_with("[truncated]"));
+        assert_eq!(out.len(), TOOL_OUTPUT_LIMIT + "[truncated]".len());
+    }
+
+    #[test]
+    fn truncate_respects_char_boundaries() {
+        // 'é' is 2 bytes; an odd limit can't fall mid-character.
+        let long = "é".repeat(TOOL_OUTPUT_LIMIT);
+        let out = truncate(&long);
+        assert!(out.ends_with("[truncated]"));
+    }
+}

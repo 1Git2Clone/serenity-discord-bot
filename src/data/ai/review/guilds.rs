@@ -46,7 +46,7 @@ pub async fn set_review_guild(pool: &PgPool, guild_id: u64, enabled: bool) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{data::command_data::Error, enums::schemas::AiReviewGuildsTable};
+    use crate::{data::command_data::Error, enums::schemas::AiReviewGuildsTable, tests::test_pool};
 
     type TestResult = Result<(), Error>;
 
@@ -90,15 +90,6 @@ mod tests {
         let changed = set_review_guild(&pool, ID_NOOP_OFF, false).await?;
         assert!(!changed);
         Ok(())
-    }
-
-    /// Connect to the database. Loads `.env` first (for local dev where the shell
-    /// hasn't exported DATABASE_URL) then skips the test if the var is absent or
-    /// the connection fails.
-    async fn test_pool() -> Option<PgPool> {
-        dotenv::dotenv().ok();
-        let url = std::env::var("DATABASE_URL").ok()?;
-        PgPoolOptions::new().connect(&url).await.ok()
     }
 
     #[tokio::test]

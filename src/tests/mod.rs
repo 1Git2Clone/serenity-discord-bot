@@ -5,6 +5,17 @@ mod emojis;
 #[cfg(feature = "network_test")]
 mod urls;
 
+use sqlx::{PgPool, postgres::PgPoolOptions};
+
+/// Connect to the database. Loads `.env` first (for local dev where the shell
+/// hasn't exported DATABASE_URL) then returns `None` if the var is absent or
+/// the connection fails, so DB tests can skip gracefully.
+pub(crate) async fn test_pool() -> Option<PgPool> {
+    dotenv::dotenv().ok();
+    let url = std::env::var("DATABASE_URL").ok()?;
+    PgPoolOptions::new().connect(&url).await.ok()
+}
+
 fn sized_send_sunc_unpin<T: Sized + Send + Sync + Unpin>() {}
 
 #[test]
