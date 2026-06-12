@@ -161,3 +161,100 @@ impl Drop for RedisLockGuard {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::test_redis;
+
+    type TestResult = Result<(), redis::RedisError>;
+
+    /// Namespaced key so parallel tests (and stale runs) can't collide.
+    fn test_key(name: &str) -> String {
+        format!("test:cache:{name}:{}", rand::random::<u64>())
+    }
+
+    #[tokio::test]
+    async fn lock_acquire_release_roundtrip() {
+        let Some(mut conn) = test_redis().await else {
+            return;
+        };
+        let key = test_key("lock");
+
+        assert!(try_acquire_lock(&mut conn, &key, "a", 30).await);
+        // Held: a second acquire fails, even with another token.
+        assert!(!try_acquire_lock(&mut conn, &key, "b", 30).await);
+
+        // Wrong token doesn't release.
+        release_lock(&mut conn, &key, "b").await;
+        assert!(!try_acquire_lock(&mut conn, &key, "b", 30).await);
+
+        // Matching token does.
+        release_lock(&mut conn, &key, "a").await;
+        assert!(try_acquire_lock(&mut conn, &key, "b", 30).await);
+
+        release_lock(&mut conn, &key, "b").await;
+    }
+
+    #[tokio::test]
+    async fn rate_limit_first_hit_allowed_second_blocked() -> TestResult {
+        let Some(mut conn) = test_redis().await else {
+            return Ok(());
+        };
+        let key = test_key("rl");
+
+        assert!(!check_rate_limit(&mut conn, &key, 30).await?);
+        assert!(check_rate_limit(&mut conn, &key, 30).await?);
+
+        let _: () = redis::cmd("DEL").arg(&key).query_async(&mut conn).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_add_contains_remove_roundtrip() -> TestResult {
+        let Some(mut conn) = test_redis().await else {
+            return Ok(());
+        };
+        let key = test_key("set");
+
+        assert!(!key_exists(&mut conn, &key).await?);
+        assert!(!set_contains(&mut conn, &key, 42).await?);
+
+        set_add(&mut conn, &key, 42).await?;
+        assert!(key_exists(&mut conn, &key).await?);
+        assert!(set_contains(&mut conn, &key, 42).await?);
+        assert!(!set_contains(&mut conn, &key, 43).await?);
+
+        set_remove(&mut conn, &key, 42).await?;
+        assert!(!set_contains(&mut conn, &key, 42).await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn lock_guard_releases_on_drop() {
+        let Some(mut conn) = test_redis().await else {
+            return;
+        };
+        let key = test_key("guard");
+
+        assert!(try_acquire_lock(&mut conn, &key, "tok", 30).await);
+        drop(RedisLockGuard::new(key.clone(), "tok".into()));
+
+        // The drop releases via a spawned task; poll until it lands. Errors
+        // count as "not yet": the shared manager may be mid-reconnect after
+        // another test's runtime shut down.
+        for _ in 0..50 {
+            if matches!(key_exists(&mut conn, &key).await, Ok(false)) {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        panic!("lock {key} not released by drop guard");
+    }
+
+    #[tokio::test]
+    async fn empty_guard_is_noop() {
+        // No Redis required: an empty key skips the spawned release.
+        drop(RedisLockGuard::new(String::new(), String::new()));
+    }
+}

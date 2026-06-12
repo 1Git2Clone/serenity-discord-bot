@@ -103,3 +103,54 @@ pub async fn check_ai_rate_limit(user_id: u64) -> bool {
     .await
     .unwrap_or(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::test_redis;
+
+    // Only the statics with fallback defaults are forced here — the required
+    // ones (model, API key) panic without their env vars. The assertion is
+    // loose because the env may override the default.
+    #[test]
+    fn defaultable_statics_resolve() {
+        assert!(*AI_MAX_MSG_CONTEXT > 0);
+    }
+
+    #[tokio::test]
+    async fn channel_lock_excludes_second_acquire() {
+        // Random ID: the lock key is global, so don't collide across runs.
+        let channel_id = rand::random::<u64>();
+
+        let guard = try_acquire_channel_lock(channel_id).await;
+        assert!(guard.is_some());
+
+        // Without Redis the guard is a no-op and can't exclude anyone.
+        if test_redis().await.is_some() {
+            assert!(try_acquire_channel_lock(channel_id).await.is_none());
+
+            // Dropping releases via a spawned task; poll until reacquirable.
+            drop(guard);
+            for _ in 0..50 {
+                if let Some(reacquired) = try_acquire_channel_lock(channel_id).await {
+                    drop(reacquired);
+                    return;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            panic!("channel lock {channel_id} not released by drop guard");
+        }
+    }
+
+    #[tokio::test]
+    async fn rate_limit_first_hit_allowed_second_blocked() {
+        if test_redis().await.is_none() {
+            // No Redis: never rate-limits.
+            assert!(!check_ai_rate_limit(rand::random::<u64>()).await);
+            return;
+        }
+        let user_id = rand::random::<u64>();
+        assert!(!check_ai_rate_limit(user_id).await);
+        assert!(check_ai_rate_limit(user_id).await);
+    }
+}
