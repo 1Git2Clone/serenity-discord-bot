@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{prelude::*, utils::string_manipulation::levenshtein_core};
 
 #[tracing::instrument(
     skip(ctx),
@@ -49,6 +49,46 @@ pub async fn handle_replies(
         };
         new_message.reply(ctx, reply).await?;
     }
+
+    Ok(())
+}
+
+/// Check for typos in msg commands and suggest the closest match.
+#[tracing::instrument(
+    skip(msg, commands),
+    fields(
+        category = "levenshtein",
+        message = ?msg,
+        commands = ?commands,
+    )
+)]
+pub async fn levenshtein_cmd(
+    ctx: &serenity::Context,
+    msg: &serenity::Message,
+    commands: &[String],
+) -> Result<(), Error> {
+    let levenshtein_results = levenshtein_core(&msg.content, commands);
+    if levenshtein_results.command_matches.is_empty() || levenshtein_results.prefix.is_empty() {
+        return Ok(());
+    }
+
+    let formatted_command_list = {
+        let mut tmp = String::new();
+        for c in levenshtein_results.command_matches {
+            tmp.push_str(format!("- `{c}`\n").as_str());
+        }
+        tmp
+    };
+    let reply = format!(
+        "Message starts with the bot prefix: `{}`",
+        levenshtein_results.prefix
+    ) + " "
+        + &format!(
+            "but it's not a valid command. Perhaps you meant one of the following:\n{}",
+            formatted_command_list
+        );
+
+    msg.reply(ctx, reply).await?;
 
     Ok(())
 }
