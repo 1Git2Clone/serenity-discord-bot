@@ -1,8 +1,4 @@
-use std::{sync::LazyLock, time::Duration};
-
 use crate::prelude::*;
-use dashmap::DashSet;
-use moka::future::Cache;
 
 #[cfg(feature = "ai-ollama")]
 pub static CHAT_ENDPOINT: LazyLock<Option<String>> = LazyLock::new(|| {
@@ -62,66 +58,99 @@ pub const AI_MAX_TOKENS: u32 = 150;
 /// Sampling temperature for AI replies (0.0 = deterministic, higher = more random).
 pub const AI_TEMPERATURE: f32 = 0.7;
 
-pub struct AiChannelCache {
-    inner: DashSet<u64>,
-}
+// ── Channel lock (was DashSet AiChannelCache) ───────────────────────────────
 
-impl AiChannelCache {
-    pub fn new() -> Self {
-        Self::default()
-    }
+const AI_CHANNEL_LOCK_TTL: u64 = 30;
 
-    pub fn try_acquire(&self, key: u64) -> Option<AiCacheGuard<'_>> {
-        if !self.inner.insert(key) {
-            return None;
-        }
-
-        Some(AiCacheGuard { key, cache: self })
-    }
-}
-
-impl Default for AiChannelCache {
-    fn default() -> Self {
-        Self {
-            inner: DashSet::new(),
-        }
-    }
-}
-
-pub struct AiCacheGuard<'a> {
-    key: u64,
-    cache: &'a AiChannelCache,
-}
-
-impl Drop for AiCacheGuard<'_> {
-    fn drop(&mut self) {
-        self.cache.inner.remove(&self.key);
+/// Try to acquire the per-channel processing lock via Redis. Returns a guard
+/// if acquired, or `None` if another request is already processing this
+/// channel. When Redis is unavailable, returns a no-op guard.
+pub async fn try_acquire_channel_lock(
+    channel_id: u64,
+) -> Option<crate::data::cache::RedisLockGuard> {
+    let Some(mut conn) = crate::data::cache::conn().await else {
+        // No Redis: return no-op guard (empty key).
+        return Some(crate::data::cache::RedisLockGuard::new(
+            String::new(),
+            String::new(),
+        ));
+    };
+    let key = format!("ai:ch_lock:{channel_id}");
+    let token = format!("{}-{}", std::process::id(), rand::random::<u64>());
+    if crate::data::cache::try_acquire_lock(&mut conn, &key, &token, AI_CHANNEL_LOCK_TTL).await {
+        Some(crate::data::cache::RedisLockGuard::new(key, token))
+    } else {
+        None
     }
 }
 
-pub static AI_CHANNEL_CACHE: LazyLock<AiChannelCache> = LazyLock::new(AiChannelCache::new);
+// ── Rate limiter (was moka Cache) ───────────────────────────────────────────
+
 pub const AI_RATE_LIMIT_SECS: u64 = 10;
-pub static AI_RATE_LIMIT: LazyLock<Cache<UserId, ()>> = LazyLock::new(|| {
-    Cache::builder()
-        .time_to_live(Duration::from_secs(AI_RATE_LIMIT_SECS))
-        .build()
-});
+
+/// Check whether a user is rate-limited for AI prompts. Returns `true` if
+/// rate-limited (should be blocked), `false` if allowed. When Redis is
+/// unavailable, never rate-limits (single-instance fallback).
+pub async fn check_ai_rate_limit(user_id: u64) -> bool {
+    let Some(mut conn) = crate::data::cache::conn().await else {
+        return false;
+    };
+    crate::data::cache::check_rate_limit(
+        &mut conn,
+        &format!("ai:rl:{user_id}"),
+        AI_RATE_LIMIT_SECS,
+    )
+    .await
+    .unwrap_or(false)
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::test_redis;
 
+    // Only the statics with fallback defaults are forced here — the required
+    // ones (model, API key) panic without their env vars. The assertion is
+    // loose because the env may override the default.
     #[test]
-    fn cache_acquire_is_exclusive_until_guard_drops() {
-        let cache = AiChannelCache::new();
+    fn defaultable_statics_resolve() {
+        assert!(*AI_MAX_MSG_CONTEXT > 0);
+    }
 
-        let guard = cache.try_acquire(1);
+    #[tokio::test]
+    async fn channel_lock_excludes_second_acquire() {
+        // Random ID: the lock key is global, so don't collide across runs.
+        let channel_id = rand::random::<u64>();
+
+        let guard = try_acquire_channel_lock(channel_id).await;
         assert!(guard.is_some());
-        assert!(cache.try_acquire(1).is_none());
-        // A different key is unaffected.
-        assert!(cache.try_acquire(2).is_some());
 
-        drop(guard);
-        assert!(cache.try_acquire(1).is_some());
+        // Without Redis the guard is a no-op and can't exclude anyone.
+        if test_redis().await.is_some() {
+            assert!(try_acquire_channel_lock(channel_id).await.is_none());
+
+            // Dropping releases via a spawned task; poll until reacquirable.
+            drop(guard);
+            for _ in 0..50 {
+                if let Some(reacquired) = try_acquire_channel_lock(channel_id).await {
+                    drop(reacquired);
+                    return;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            panic!("channel lock {channel_id} not released by drop guard");
+        }
+    }
+
+    #[tokio::test]
+    async fn rate_limit_first_hit_allowed_second_blocked() {
+        if test_redis().await.is_none() {
+            // No Redis: never rate-limits.
+            assert!(!check_ai_rate_limit(rand::random::<u64>()).await);
+            return;
+        }
+        let user_id = rand::random::<u64>();
+        assert!(!check_ai_rate_limit(user_id).await);
+        assert!(check_ai_rate_limit(user_id).await);
     }
 }

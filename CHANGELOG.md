@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Multi-instance support: when `TOTAL_SHARDS`, `SHARD_START`, and `SHARD_END` are set, the instance connects only its shard range so several instances can split the shard space; without them the bot starts as before. Over-provision the total (e.g. 16) and scale by redistributing ranges to avoid resharding
+- Redis-backed coordination, replacing in-process state: the per-channel AI processing lock, the per-user AI rate limit, and the global one-review-at-a-time guard now use Redis (with token-checked release and TTL safety nets), so they hold across instances. Registered AI channels are cached in a Redis set seeded from Postgres. Everything degrades gracefully when `REDIS_URL` is unset — locks and rate limits become per-instance and lookups fall back to the database
+
+### Changed
+
+- `/ai-review` per-guild authorization is checked against Postgres directly instead of an in-memory set — a stale cached "enabled" was unsafe, and the command is rare enough that the query doesn't matter
+
+### Fixed
+
+- Reminder delivery is now multi-instance safe: due reminders are claimed atomically (`FOR UPDATE SKIP LOCKED`), so concurrent instances can't DM the same reminder twice
+- Hu Tao mention counting lost increments under concurrency — fetch-then-update replaced with a single atomic `UPDATE ... RETURNING`
+
 ## [0.2.2] - 2026-06-12
 
 ### Added

@@ -8,9 +8,12 @@ use crate::prelude::*;
     )
 )]
 pub async fn add_mentions(db: &PgPool, n: i64) -> Result<i64, sqlx::Error> {
-    let fetched_mentions = MentionsTable::fetch_mentions(db).await?;
+    let row = sqlx::query!(
+        "UPDATE bot_mentions SET mentions = mentions + $1 RETURNING mentions",
+        n
+    )
+    .fetch_one(db)
+    .await?;
 
-    MentionsTable::update_mentions(db, fetched_mentions + n).await?;
-
-    Ok(fetched_mentions + n)
+    Ok(row.mentions)
 }
