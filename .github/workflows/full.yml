@@ -54,34 +54,8 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      # Pure logic: string utilities and XP math must be fully covered.
-      # These modules have no I/O and every branch is reachable from unit tests.
-      - name: Coverage — pure logic (100%)
-        run: |
-          cargo llvm-cov \
-            --all-features \
-            --include-pattern "src/utils/string_manipulation|src/commands/level_logic" \
-            --fail-under-lines 100
-
-      # Authorization gate: guild allow-list logic is security-relevant enough
-      # to warrant near-total coverage despite the async DB paths.
-      - name: Coverage — auth gate (90%)
-        run: |
-          cargo llvm-cov \
-            --all-features \
-            --include-pattern "src/data/ai/review/guilds" \
-            --fail-under-lines 90
-
-      # Global floor. Discord/event-handler/AI-pipeline paths are I/O-bound
-      # and can't be fully exercised without live services, so 70% is the
-      # realistic baseline rather than 80%.
-      - name: Coverage — global floor (70%)
-        run: |
-          cargo llvm-cov \
-            --all-features \
-            --fail-under-lines 70 \
-            --lcov \
-            --output-path lcov.info
+      - name: Coverage
+        run: bash scripts/coverage.sh
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
