@@ -97,3 +97,28 @@ pub const TOOL_OUTPUT_LIMIT: usize = 64 * 1024;
 /// Global guard — one review at a time. Uses a sentinel key (0) since only
 /// one review can run concurrently regardless of target PR.
 pub static AI_REVIEW_GUARD: LazyLock<AiChannelCache> = LazyLock::new(AiChannelCache::new);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Only the statics with fallback defaults are forced here — the required
+    // ones (client ID, app ID, private key) panic without their env vars.
+    // Assertions are loose because the env may override the defaults.
+    #[test]
+    fn defaultable_statics_resolve() {
+        assert!(!GITHUB_OAUTH_SCOPE.is_empty());
+        assert!(*GITHUB_TOKEN_TTL_SECS > 0);
+        assert!(*AI_REVIEW_MAX_ITERATIONS > 0);
+        assert!(*AI_REVIEW_TIMEOUT_SECS > 0);
+    }
+
+    #[test]
+    fn review_guard_is_exclusive() {
+        let guard = AI_REVIEW_GUARD.try_acquire(0);
+        assert!(guard.is_some());
+        assert!(AI_REVIEW_GUARD.try_acquire(0).is_none());
+        drop(guard);
+        assert!(AI_REVIEW_GUARD.try_acquire(0).is_some());
+    }
+}

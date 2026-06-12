@@ -106,3 +106,22 @@ pub static AI_RATE_LIMIT: LazyLock<Cache<UserId, ()>> = LazyLock::new(|| {
         .time_to_live(Duration::from_secs(AI_RATE_LIMIT_SECS))
         .build()
 });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cache_acquire_is_exclusive_until_guard_drops() {
+        let cache = AiChannelCache::new();
+
+        let guard = cache.try_acquire(1);
+        assert!(guard.is_some());
+        assert!(cache.try_acquire(1).is_none());
+        // A different key is unaffected.
+        assert!(cache.try_acquire(2).is_some());
+
+        drop(guard);
+        assert!(cache.try_acquire(1).is_some());
+    }
+}
