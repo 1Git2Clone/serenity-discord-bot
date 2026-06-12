@@ -17,23 +17,33 @@ pub async fn reminder_polling_loop(http: Arc<Http>, pool: Arc<PgPool>) {
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
 
         async {
-            let rows = match sqlx::query!(
-                "SELECT id, user_id, message FROM reminders \
-                 WHERE finished_at IS NULL AND remind_at <= NOW()"
+            // Atomically claim due reminders across instances with FOR UPDATE
+            // SKIP LOCKED — each instance gets a disjoint subset of rows.
+            let claimed = match sqlx::query!(
+                "WITH claimed AS ( \
+                     SELECT id, user_id, message FROM reminders \
+                     WHERE finished_at IS NULL AND remind_at <= NOW() \
+                     ORDER BY remind_at \
+                     FOR UPDATE SKIP LOCKED \
+                 ) \
+                 UPDATE reminders SET finished_at = NOW() \
+                 FROM claimed \
+                 WHERE reminders.id = claimed.id \
+                 RETURNING claimed.id, claimed.user_id, claimed.message"
             )
             .fetch_all(&*pool)
             .await
             {
                 Ok(r) => r,
                 Err(e) => {
-                    tracing::error!(error = %e, "Failed to query due reminders");
+                    tracing::error!(error = %e, "Failed to claim due reminders");
                     return;
                 }
             };
 
             let mut fired_users: HashSet<i64> = HashSet::new();
 
-            for row in rows {
+            for row in &claimed {
                 let user_id = UserId::new(row.user_id as u64);
 
                 match user_id.create_dm_channel(&http).await {
@@ -55,18 +65,9 @@ pub async fn reminder_polling_loop(http: Arc<Http>, pool: Arc<PgPool>) {
                     }
                 }
 
-                // Mark finished regardless — if the DM failed the user has closed
-                // DMs and retrying every minute would be spam. It still becomes
-                // history so the user can see it fired.
-                if let Err(e) =
-                    sqlx::query!("UPDATE reminders SET finished_at = NOW() WHERE id = $1", row.id)
-                        .execute(&*pool)
-                        .await
-                {
-                    tracing::error!(id = row.id, error = %e, "Failed to mark reminder finished");
-                } else {
-                    fired_users.insert(row.user_id);
-                }
+                // Already marked finished by the atomic claim above;
+                // just record the user for history pruning.
+                fired_users.insert(row.user_id);
             }
 
             // Cap each affected user's finished history to the newest entries.

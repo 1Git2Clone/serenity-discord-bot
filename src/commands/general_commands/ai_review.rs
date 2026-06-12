@@ -3,7 +3,7 @@ use tracing::Instrument;
 use crate::{
     data::ai::review::{
         self,
-        config::AI_REVIEW_GUARD,
+        config::try_acquire_review_guard,
         github::{
             fetch_login, get_installation_token, has_push_permission,
             poll_device_flow, start_device_flow, GITHUB_TOKEN_CACHE,
@@ -147,7 +147,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
         }
 
         // Acquire the global review guard.
-        let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
+        let Some(guard) = try_acquire_review_guard().await else {
             ctx.say("A review is already running — please wait for it to finish.")
                 .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await?;
@@ -199,28 +199,21 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                     Ok(t) => t,
                     Err(e) => {
                         let _ = channel_id
-                            .say(
-                                &http,
-                                format!("GitHub authorization wasn't completed: {e}"),
-                            )
+                            .say(&http, format!("GitHub authorization failed: {e}"))
                             .instrument(tracing::info_span!("send_error", category = "discord"))
                             .await;
                         return;
                     }
                 };
 
-                // Store the token in the cache.
+                // Cache the token so the user can re-run without auth.
                 GITHUB_TOKEN_CACHE.insert(user_id, token.clone()).await;
 
                 // Tell the requester which account got linked, so a wrong-account
                 // approval is visible immediately.
                 if let Ok(login) = fetch_login(&token).await {
                     let _ = channel_id
-                        .say(
-                            &http,
-                            format!("<@{user_id}> linked GitHub account `{login}`."),
-                        )
-                        .instrument(tracing::info_span!("send_linked_account", category = "discord"))
+                        .say(&http, format!("<@{user_id}> linked GitHub account `{login}`."))
                         .await;
                 }
 
@@ -231,9 +224,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                         let _ = channel_id
                             .say(
                                 &http,
-                                format!(
-                                    "You need push access to `{owner}/{repo}` to request a review."
-                                ),
+                                format!("You need push access to `{owner}/{repo}` to request a review."),
                             )
                             .instrument(tracing::info_span!("send_error", category = "discord"))
                             .await;
@@ -241,34 +232,35 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                     }
                     Err(e) => {
                         let _ = channel_id
-                            .say(&http, format!("Could not verify your GitHub permissions: {e}"))
+                            .say(
+                                &http,
+                                format!("Could not verify your GitHub permissions: {e}"),
+                            )
                             .instrument(tracing::info_span!("send_error", category = "discord"))
                             .await;
                         return;
                     }
                 }
 
-            // Acquire the global review guard.
-            let Some(guard) = AI_REVIEW_GUARD.try_acquire(0) else {
+                // Acquire the global review guard.
+                let Some(guard) = try_acquire_review_guard().await else {
+                    let _ = channel_id
+                        .say(&http, "A review is already running — please wait for it to finish.")
+                        .instrument(tracing::info_span!("send_error", category = "discord"))
+                        .await;
+                    return;
+                };
+
                 let _ = channel_id
-                    .say(&http, "A review is already running — please wait for it to finish.")
-                    .instrument(tracing::info_span!("send_error", category = "discord"))
+                    .say(
+                        &http,
+                        format!("Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."),
+                    )
+                    .instrument(tracing::info_span!("send_review_started", category = "discord"))
                     .await;
-                return;
-            };
 
-            let _ = channel_id
-                .say(
-                    &http,
-                    format!(
-                        "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
-                    ),
-                )
-                .instrument(tracing::info_span!("send_review_started", category = "discord"))
-                .await;
-
-            let _guard = guard;
-            run_and_report(http, channel_id, owner, repo, pr).await;
+                let _guard = guard;
+                run_and_report(http, channel_id, owner, repo, pr).await;
             }
             .instrument(tracing::Span::current()),
         );
@@ -277,82 +269,43 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
     Ok(())
 }
 
-// ── Shared review runner ─────────────────────────────────────────────────────
-
+/// Shared: run the review and report the result in the channel.
 async fn run_and_report(
-    http: std::sync::Arc<serenity::http::Http>,
-    channel_id: serenity::model::id::ChannelId,
+    http: Arc<serenity::Http>,
+    channel_id: serenity::ChannelId,
     owner: String,
     repo: String,
     pr: u64,
 ) {
-    let owner_span = owner.clone();
-    let repo_span = repo.clone();
-    async move {
-    let bot_token = match get_installation_token(&owner)
-        .instrument(tracing::info_span!(
-            "get_installation_token",
-            category = "ai_review",
-            owner = %owner,
-        ))
-        .await
-    {
+    let bot_token = match get_installation_token(&owner).await {
         Ok(t) => t,
         Err(e) => {
-            tracing::error!(
-                category = "ai_review",
-                owner = %owner,
-                repo = %repo,
-                pr = %pr,
-                error = %e,
-                "Failed to generate installation token"
-            );
             let _ = channel_id
-                .say(
-                    &http,
-                    format!("Review of `{owner}/{repo}#{pr}` failed: {e}"),
-                )
-                .instrument(tracing::info_span!("send_error", category = "discord"))
+                .say(&http, format!("Review of `{owner}/{repo}#{pr}` failed: {e}"))
                 .await;
             return;
         }
     };
-    let result = review::run_review(owner.clone(), repo.clone(), pr, bot_token)
-        .instrument(tracing::info_span!(
-            "run_review",
-            category = "ai_review",
-            owner = %owner,
-            repo = %repo,
-            pr = %pr,
-        ))
-        .await;
+
+    let owner_msg = owner.clone();
+    let repo_msg = repo.clone();
+    let result = tokio::spawn(
+        async move { review::run_review(owner, repo, pr, bot_token).await }
+            .instrument(tracing::info_span!(
+                "spawn_review",
+                category = "ai_review",
+            )),
+    )
+    .await;
 
     match result {
-        Ok(comment_url) => {
-            tracing::info!(
-                category = "ai_review",
-                owner = %owner,
-                repo = %repo,
-                pr = %pr,
-                "Review posted: {comment_url}"
-            );
+        Ok(Ok(comment_url)) => {
             let _ = channel_id
-                .say(
-                    &http,
-                    format!("Review of `{owner}/{repo}#{pr}` posted: {comment_url}"),
-                )
-                .instrument(tracing::info_span!("send_review_result", category = "discord"))
+                .say(&http, format!("Review posted: {comment_url}"))
+                .instrument(tracing::info_span!("send_review_done", category = "discord"))
                 .await;
         }
-        Err(e) => {
-            tracing::error!(
-                category = "ai_review",
-                owner = %owner,
-                repo = %repo,
-                pr = %pr,
-                error = %e,
-                "Review failed"
-            );
+        Ok(Err(e)) => {
             // Keep the message under Discord's 2000-char cap or the send
             // itself fails and the user gets no feedback at all.
             let mut err_text = e.to_string();
@@ -365,42 +318,47 @@ async fn run_and_report(
                 err_text.push('…');
             }
             let _ = channel_id
-                .say(
-                    &http,
-                    format!("Review of `{owner}/{repo}#{pr}` failed:\n```\n{err_text}\n```"),
-                )
-                .instrument(tracing::info_span!("send_review_result", category = "discord"))
+                .say(&http, format!("Review of `{owner_msg}/{repo_msg}#{pr}` failed:\n```\n{err_text}\n```"))
+                .instrument(tracing::info_span!("send_error", category = "discord"))
+                .await;
+        }
+        Err(_) => {
+            let _ = channel_id
+                .say(&http, "Review panicked — check the logs.")
+                .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await;
         }
     }
-    }.instrument(tracing::info_span!(
-        "run_and_report",
-        category = "ai_review",
-        owner = %owner_span,
-        repo = %repo_span,
-        pr = %pr,
-    ))
-    .await;
 }
 
-// ── URL parser ──────────────────────────────────────────────────────────────
+// ── URL parsing ─────────────────────────────────────────────────────────────
 
 fn parse_github_url(url: &str) -> Result<(String, String), String> {
-    let url = url.trim_end_matches('/');
-    let url = url.strip_suffix(".git").unwrap_or(url);
-    let prefix = "https://github.com/";
-    let rest = url
-        .strip_prefix(prefix)
-        .ok_or_else(|| format!("URL must start with {prefix}"))?;
-    let parts: Vec<&str> = rest.split('/').filter(|p| !p.is_empty()).collect();
-    if parts.len() != 2 {
-        return Err(format!(
-            "Expected URL format: https://github.com/<owner>/<repo>, got: {url}"
-        ));
+    let url = url.trim();
+    // Strip protocol prefix.
+    let path = url
+        .strip_prefix("https://github.com/")
+        .ok_or_else(|| "URL must start with `https://github.com/`.".to_string())?;
+    // Strip optional trailing slash and `.git` suffix.
+    let path = path.trim_end_matches('/').trim_end_matches(".git");
+    let mut parts = path.split('/');
+    let owner = parts
+        .next()
+        .ok_or_else(|| "URL must include an owner (e.g. `1Git2Clone`).".to_string())?
+        .to_string();
+    let repo = parts
+        .next()
+        .ok_or_else(|| "URL must include a repo name (e.g. `serenity-discord-bot`).".to_string())?
+        .to_string();
+    if parts.next().is_some() {
+        return Err("URL must be of the form `https://github.com/<owner>/<repo>` with no extra path segments.".to_string());
+    }
+    if owner.is_empty() || repo.is_empty() {
+        return Err("Owner and repo must not be empty.".to_string());
     }
     // Owner/repo end up as subprocess arguments — restrict to GitHub's name
     // charset so they can never be parsed as flags (e.g. a leading `-`).
-    for part in &parts {
+    for part in [&owner, &repo] {
         if part.starts_with('-')
             || !part
                 .chars()
@@ -409,7 +367,7 @@ fn parse_github_url(url: &str) -> Result<(String, String), String> {
             return Err(format!("Invalid owner/repo segment: {part}"));
         }
     }
-    Ok((parts[0].to_string(), parts[1].to_string()))
+    Ok((owner, repo))
 }
 
 // ── Availability check ──────────────────────────────────────────────────────
@@ -417,22 +375,18 @@ fn parse_github_url(url: &str) -> Result<(String, String), String> {
 async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
     // Check all required env vars before touching the panicking LazyLock
     // statics — a missing var would poison the Lock and kill the command
-    // for the whole process lifetime.
-    for var in &[
-        "GITHUB_OAUTH_CLIENT_ID",
-        "GITHUB_APP_ID",
-        "GITHUB_APP_PRIVATE_KEY_PATH",
-    ] {
-        if std::env::var(var).is_err() {
-            let _ = ctx
-                .say(format!(
-                    "AI review is not configured (`{var}` is unset)."
-                ))
-                .instrument(tracing::info_span!("send_error", category = "discord"))
-                .await;
-            return Ok(false);
-        }
+    // for the rest of the process lifetime.
+    if std::env::var("GITHUB_OAUTH_CLIENT_ID").is_err()
+        || std::env::var("GITHUB_APP_ID").is_err()
+        || std::env::var("GITHUB_APP_PRIVATE_KEY_PATH").is_err()
+    {
+        let _ = ctx
+            .say("AI review is not configured — contact the bot owner.")
+            .instrument(tracing::info_span!("send_error", category = "discord"))
+            .await;
+        return Ok(false);
     }
+
     let Some(guild_id) = ctx.guild_id() else {
         let _ = ctx
             .say("This command can only be used in a server.")
@@ -440,12 +394,14 @@ async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
             .await;
         return Ok(false);
     };
-    if !review::is_review_guild(guild_id.get()) {
+
+    if !review::is_review_guild(&ctx.data().pool, guild_id.get()).await {
         let _ = ctx
             .say("AI review isn't enabled in this server — an administrator can turn it on with `/ai-review enable`.")
             .instrument(tracing::info_span!("send_error", category = "discord"))
             .await;
         return Ok(false);
-    }
+    };
+
     Ok(true)
 }

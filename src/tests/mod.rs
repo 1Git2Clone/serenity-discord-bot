@@ -16,6 +16,15 @@ pub(crate) async fn test_pool() -> Option<PgPool> {
     PgPoolOptions::new().connect(&url).await.ok()
 }
 
+/// Connect to Redis through the cache handle (a fresh per-call manager in
+/// test builds). Loads `.env` first, then returns `None` when `REDIS_URL` is
+/// absent or unreachable, so Redis tests can skip gracefully.
+#[cfg(feature = "redis")]
+pub(crate) async fn test_redis() -> Option<redis::aio::ConnectionManager> {
+    dotenv::dotenv().ok();
+    crate::data::cache::conn().await
+}
+
 fn sized_send_sunc_unpin<T: Sized + Send + Sync + Unpin>() {}
 
 #[test]

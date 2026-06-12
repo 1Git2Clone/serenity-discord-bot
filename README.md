@@ -69,7 +69,7 @@ Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.examp
 - `/ai` — one-off prompt in any channel or DM
 - `/aichannel` — toggle a channel where the bot auto-replies to every message (requires Manage Channels)
 - `/ai-review` — AI code review of a GitHub PR (see below)
-- Set `REDIS_URL` to keep conversation context in Redis; without it the bot re-fetches recent messages from Discord on every reply
+- Set `REDIS_URL` to keep conversation context in Redis and to share AI locks and rate limits across bot instances; without it the bot re-fetches recent messages from Discord on every reply and coordination is per-instance
 
 ![AI channel demo](./assets/ai-channel-demo.png)
 
