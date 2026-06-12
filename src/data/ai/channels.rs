@@ -58,3 +58,42 @@ pub async fn toggle_ai_channel(pool: &PgPool, channel_id: u64, guild_id: u64) ->
 
     Ok(registered)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::test_pool;
+
+    type TestResult = Result<(), Error>;
+
+    // Sentinel IDs in their own namespace, distinct from the schemas.rs tests.
+    const CHANNEL: u64 = 0x5AFE_0003_0000_0001;
+    const GUILD: u64 = 0x5AFE_0003_0000_0002;
+
+    /// One test for the whole toggle/check/init flow so parallel tests can't
+    /// interleave on the shared sentinel channel.
+    #[tokio::test]
+    async fn toggle_check_init_roundtrip() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+
+        // Idempotent cleanup in case a previous run died mid-test.
+        if is_ai_channel(&pool, CHANNEL).await {
+            toggle_ai_channel(&pool, CHANNEL, GUILD).await?;
+        }
+        assert!(!is_ai_channel(&pool, CHANNEL).await);
+
+        assert!(toggle_ai_channel(&pool, CHANNEL, GUILD).await?);
+        assert!(is_ai_channel(&pool, CHANNEL).await);
+
+        // Seeding is a no-op when already initialized, an actual seed
+        // otherwise; either way it must succeed and keep the channel visible.
+        init_registered_channels(&pool).await?;
+        assert!(is_ai_channel(&pool, CHANNEL).await);
+
+        assert!(!toggle_ai_channel(&pool, CHANNEL, GUILD).await?);
+        assert!(!is_ai_channel(&pool, CHANNEL).await);
+        Ok(())
+    }
+}
