@@ -9,8 +9,8 @@ use serde::Deserialize;
 use crate::prelude::Error;
 
 use super::config::{
-    GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY,
-    GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_SCOPE, GITHUB_TOKEN_TTL_SECS,
+    GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_SCOPE,
+    GITHUB_TOKEN_TTL_SECS,
 };
 
 static HTTP: LazyLock<reqwest::Client> = LazyLock::new(|| {
@@ -90,10 +90,7 @@ pub async fn start_device_flow() -> Result<DeviceCode, Error> {
 }
 
 /// Poll GitHub until the user authorizes or the code expires. Returns the access token.
-#[tracing::instrument(
-    skip(dc),
-    fields(category = "github_api")
-)]
+#[tracing::instrument(skip(dc), fields(category = "github_api"))]
 pub async fn poll_device_flow(dc: &DeviceCode) -> Result<String, Error> {
     let mut interval = dc.interval;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(dc.expires_in);
@@ -145,10 +142,7 @@ pub async fn poll_device_flow(dc: &DeviceCode) -> Result<String, Error> {
 }
 
 /// Fetch the GitHub login name for the given token.
-#[tracing::instrument(
-    skip(token),
-    fields(category = "github_api")
-)]
+#[tracing::instrument(skip(token), fields(category = "github_api"))]
 pub async fn fetch_login(token: &str) -> Result<String, Error> {
     #[derive(Deserialize)]
     struct UserResponse {
@@ -222,7 +216,9 @@ pub async fn get_installation_token(owner: &str) -> Result<String, Error> {
     let private_key_pem = GITHUB_APP_PRIVATE_KEY.as_str();
 
     // Sign a JWT for the app.
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?;
     let claims = serde_json::json!({
         "iat": now.as_secs(),
         "exp": now.as_secs() + 600,
@@ -250,10 +246,7 @@ pub async fn get_installation_token(owner: &str) -> Result<String, Error> {
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!(
-            "installation token error ({status}): {body}"
-        )
-        .into());
+        return Err(format!("installation token error ({status}): {body}").into());
     }
 
     #[derive(Deserialize)]

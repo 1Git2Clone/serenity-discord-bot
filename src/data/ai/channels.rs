@@ -36,7 +36,11 @@ pub async fn is_ai_channel(pool: &PgPool, channel_id: u64) -> bool {
 /// Toggle a channel's AI registration. The DB decides the new state; the
 /// Redis set is a best-effort cache update on top.
 /// Returns `true` if it's now registered, `false` if it was removed.
-pub async fn toggle_ai_channel(pool: &PgPool, channel_id: u64, guild_id: u64) -> Result<bool, Error> {
+pub async fn toggle_ai_channel(
+    pool: &PgPool,
+    channel_id: u64,
+    guild_id: u64,
+) -> Result<bool, Error> {
     // A no-op register means the channel was already there: toggle off.
     let registered = if AiChannelsTable::register(pool, channel_id as i64, guild_id as i64).await? {
         true

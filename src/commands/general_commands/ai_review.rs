@@ -5,8 +5,8 @@ use crate::{
         self,
         config::try_acquire_review_guard,
         github::{
-            fetch_login, get_installation_token, has_push_permission,
-            poll_device_flow, start_device_flow, GITHUB_TOKEN_CACHE,
+            GITHUB_TOKEN_CACHE, fetch_login, get_installation_token, has_push_permission,
+            poll_device_flow, start_device_flow,
         },
     },
     prelude::*,
@@ -157,7 +157,10 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
         ctx.say(format!(
             "Review of `{owner}/{repo}#{pr}` started — I'll post in this channel when it's done."
         ))
-        .instrument(tracing::info_span!("send_review_started", category = "discord"))
+        .instrument(tracing::info_span!(
+            "send_review_started",
+            category = "discord"
+        ))
         .await?;
 
         tokio::spawn(
@@ -281,7 +284,10 @@ async fn run_and_report(
         Ok(t) => t,
         Err(e) => {
             let _ = channel_id
-                .say(&http, format!("Review of `{owner}/{repo}#{pr}` failed: {e}"))
+                .say(
+                    &http,
+                    format!("Review of `{owner}/{repo}#{pr}` failed: {e}"),
+                )
                 .await;
             return;
         }
@@ -291,10 +297,7 @@ async fn run_and_report(
     let repo_msg = repo.clone();
     let result = tokio::spawn(
         async move { review::run_review(owner, repo, pr, bot_token).await }
-            .instrument(tracing::info_span!(
-                "spawn_review",
-                category = "ai_review",
-            )),
+            .instrument(tracing::info_span!("spawn_review", category = "ai_review",)),
     )
     .await;
 
@@ -302,7 +305,10 @@ async fn run_and_report(
         Ok(Ok(comment_url)) => {
             let _ = channel_id
                 .say(&http, format!("Review posted: {comment_url}"))
-                .instrument(tracing::info_span!("send_review_done", category = "discord"))
+                .instrument(tracing::info_span!(
+                    "send_review_done",
+                    category = "discord"
+                ))
                 .await;
         }
         Ok(Err(e)) => {
@@ -318,7 +324,12 @@ async fn run_and_report(
                 err_text.push('…');
             }
             let _ = channel_id
-                .say(&http, format!("Review of `{owner_msg}/{repo_msg}#{pr}` failed:\n```\n{err_text}\n```"))
+                .say(
+                    &http,
+                    format!(
+                        "Review of `{owner_msg}/{repo_msg}#{pr}` failed:\n```\n{err_text}\n```"
+                    ),
+                )
                 .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await;
         }

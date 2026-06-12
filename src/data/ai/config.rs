@@ -95,13 +95,9 @@ pub async fn check_ai_rate_limit(user_id: u64) -> bool {
     let Some(mut conn) = crate::data::cache::conn().await else {
         return false;
     };
-    crate::data::cache::check_rate_limit(
-        &mut conn,
-        &format!("ai:rl:{user_id}"),
-        AI_RATE_LIMIT_SECS,
-    )
-    .await
-    .unwrap_or(false)
+    crate::data::cache::check_rate_limit(&mut conn, &format!("ai:rl:{user_id}"), AI_RATE_LIMIT_SECS)
+        .await
+        .unwrap_or(false)
 }
 
 #[cfg(test)]

@@ -1,7 +1,4 @@
-use std::{
-    path::Path,
-    process::Stdio,
-};
+use std::{path::Path, process::Stdio};
 
 use serde_json::Value;
 use tokio::process::Command as TokioCommand;
@@ -54,11 +51,7 @@ impl Workspace {
         // Fetch the PR head and check it out.
         // We avoid `gh pr checkout` because its internal `git checkout -b
         // --track` fails on shallow clones (Git 2.54+).
-        run_git_checked(
-            dir.path(),
-            &["fetch", "origin", &format!("pull/{pr}/head")],
-        )
-        .await?;
+        run_git_checked(dir.path(), &["fetch", "origin", &format!("pull/{pr}/head")]).await?;
         run_git_checked(dir.path(), &["checkout", "FETCH_HEAD"]).await?;
 
         // Resolve base ref name.
@@ -93,10 +86,7 @@ impl Workspace {
     pub async fn execute(&self, name: &str, args: Value) -> String {
         match name {
             "list_files" => {
-                let path = args
-                    .get("path")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(".");
+                let path = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
                 run_git(self.dir.path(), &["ls-files", path]).await
             }
             "read_file" => {
@@ -151,8 +141,7 @@ impl Workspace {
             move || p.canonicalize()
         })
         .await
-        .unwrap_or(Err(std::io::Error::other("spawn_blocking failed")))
-        else {
+        .unwrap_or(Err(std::io::Error::other("spawn_blocking failed"))) else {
             return format!("error: cannot resolve path: {path_str}");
         };
         let Ok(root) = tokio::task::spawn_blocking({
@@ -160,8 +149,7 @@ impl Workspace {
             move || p.canonicalize()
         })
         .await
-        .unwrap_or(Err(std::io::Error::other("spawn_blocking failed")))
-        else {
+        .unwrap_or(Err(std::io::Error::other("spawn_blocking failed"))) else {
             return "error: internal workspace error".to_string();
         };
         if !canon.starts_with(&root) {
@@ -178,10 +166,7 @@ impl Workspace {
 
 /// Run `git` in `dir` without exposing any GitHub token. Returns combined
 /// stdout + stderr, truncated.
-#[tracing::instrument(
-    skip(dir, args),
-    fields(category = "ai_review_tool", binary = "git")
-)]
+#[tracing::instrument(skip(dir, args), fields(category = "ai_review_tool", binary = "git"))]
 async fn run_git(dir: &Path, args: &[&str]) -> String {
     let mut cmd = TokioCommand::new("git");
     cmd.args(args)
@@ -203,10 +188,7 @@ async fn run_git(dir: &Path, args: &[&str]) -> String {
 }
 
 /// Run `gh` with `GH_TOKEN` set, returning stdout on success.
-#[tracing::instrument(
-    skip(token, args),
-    fields(category = "ai_review_tool", binary = "gh")
-)]
+#[tracing::instrument(skip(token, args), fields(category = "ai_review_tool", binary = "gh"))]
 async fn run_gh_stdout(
     dir: &Path,
     token: &str,
@@ -221,10 +203,7 @@ async fn run_gh_stdout(
 }
 
 /// Run `gh` with `GH_TOKEN`, returning `Err` on non-zero exit.
-#[tracing::instrument(
-    skip(token, args),
-    fields(category = "ai_review_tool", binary = "gh")
-)]
+#[tracing::instrument(skip(token, args), fields(category = "ai_review_tool", binary = "gh"))]
 async fn run_gh_checked(
     dir: &Path,
     token: &str,
@@ -239,10 +218,7 @@ async fn run_gh_checked(
 }
 
 /// Run `git` with error-on-failure semantics (used during checkout).
-#[tracing::instrument(
-    skip(dir, args),
-    fields(category = "ai_review_tool", binary = "git")
-)]
+#[tracing::instrument(skip(dir, args), fields(category = "ai_review_tool", binary = "git"))]
 async fn run_git_checked(
     dir: &Path,
     args: &[&str],
@@ -262,10 +238,7 @@ async fn run_git_checked(
 
 /// Raw `gh` subprocess — the requester's token is set as `GH_TOKEN` only
 /// when `token` is `Some`.
-#[tracing::instrument(
-    skip(token, args),
-    fields(category = "ai_review_tool", binary = "gh")
-)]
+#[tracing::instrument(skip(token, args), fields(category = "ai_review_tool", binary = "gh"))]
 async fn run_gh_raw(
     dir: &Path,
     token: Option<&str>,

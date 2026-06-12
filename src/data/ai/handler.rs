@@ -45,7 +45,10 @@ pub async fn handle_ai_channel_message(
     new_message
         .channel_id
         .broadcast_typing(ctx)
-        .instrument(tracing::info_span!("broadcast_typing", category = "discord"))
+        .instrument(tracing::info_span!(
+            "broadcast_typing",
+            category = "discord"
+        ))
         .await
         .ok();
 

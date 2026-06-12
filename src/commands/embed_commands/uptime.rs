@@ -1,7 +1,12 @@
 use crate::prelude::*;
 
 /// Displays the bot's current uptime
-#[poise::command(discard_spare_arguments, slash_command, prefix_command, rename = "uptime")]
+#[poise::command(
+    discard_spare_arguments,
+    slash_command,
+    prefix_command,
+    rename = "uptime"
+)]
 #[tracing::instrument(
     skip(ctx),
     fields(

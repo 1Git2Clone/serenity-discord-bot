@@ -23,13 +23,12 @@ pub mod review;
 
 pub use channels::{init_registered_channels, toggle_ai_channel};
 pub use config::{
-    check_ai_rate_limit, try_acquire_channel_lock,
-    AI_RATE_LIMIT_SECS, DEFAULT_MODEL,
-    AI_MAX_MSG_CONTEXT,
+    AI_MAX_MSG_CONTEXT, AI_RATE_LIMIT_SECS, DEFAULT_MODEL, check_ai_rate_limit,
+    try_acquire_channel_lock,
 };
 pub use context::{author_name, channel_context, record_message};
 pub use handler::handle_ai_channel_message;
-pub use provider::{AiMessage, AI_PROVIDER, chat, init_system_prompt};
+pub use provider::{AI_PROVIDER, AiMessage, chat, init_system_prompt};
 
 #[cfg(feature = "ai-ollama")]
 pub use config::CHAT_ENDPOINT;

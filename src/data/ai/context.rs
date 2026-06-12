@@ -1,10 +1,7 @@
 use ::serenity::all::GetMessages;
 use redis::AsyncCommands;
 
-use super::{
-    config::AI_MAX_MSG_CONTEXT,
-    provider::AiMessage,
-};
+use super::{config::AI_MAX_MSG_CONTEXT, provider::AiMessage};
 use crate::prelude::*;
 
 /// How long an idle context window lives in Redis before eviction.

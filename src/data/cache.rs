@@ -119,7 +119,11 @@ pub async fn set_add(
     key: &str,
     member: u64,
 ) -> Result<(), redis::RedisError> {
-    let _: () = redis::cmd("SADD").arg(key).arg(member).query_async(conn).await?;
+    let _: () = redis::cmd("SADD")
+        .arg(key)
+        .arg(member)
+        .query_async(conn)
+        .await?;
     Ok(())
 }
 
@@ -129,7 +133,11 @@ pub async fn set_remove(
     key: &str,
     member: u64,
 ) -> Result<(), redis::RedisError> {
-    let _: () = redis::cmd("SREM").arg(key).arg(member).query_async(conn).await?;
+    let _: () = redis::cmd("SREM")
+        .arg(key)
+        .arg(member)
+        .query_async(conn)
+        .await?;
     Ok(())
 }
 
@@ -139,7 +147,11 @@ pub async fn set_contains(
     key: &str,
     member: u64,
 ) -> Result<bool, redis::RedisError> {
-    redis::cmd("SISMEMBER").arg(key).arg(member).query_async(conn).await
+    redis::cmd("SISMEMBER")
+        .arg(key)
+        .arg(member)
+        .query_async(conn)
+        .await
 }
 
 /// Check whether a key exists.

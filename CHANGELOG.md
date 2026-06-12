@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reminder delivery is now multi-instance safe: due reminders are claimed atomically (`FOR UPDATE SKIP LOCKED`), so concurrent instances can't DM the same reminder twice
 - Hu Tao mention counting lost increments under concurrency — fetch-then-update replaced with a single atomic `UPDATE ... RETURNING`
+- `SHARD_END` was documented as exclusive, but serenity's `start_shard_range` treats the range end as inclusive — adjacent instances both started the boundary shard (their sessions kept invalidating each other) and the last instance tried to start a nonexistent shard, looping on `Gateway(InvalidShardData)`. `SHARD_END` is now inclusive, and the range is validated at startup (`SHARD_START <= SHARD_END < TOTAL_SHARDS`) so a bad range fails fast instead of retrying forever
 
 ## [0.2.2] - 2026-06-12
 

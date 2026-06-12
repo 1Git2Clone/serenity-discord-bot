@@ -128,10 +128,11 @@ async fn run_interaction(
         target
     };
 
-    let response: String = user_interaction(&ctx, ctx.guild_id(), ctx.author(), target, |u1, u2| {
-        format!("**{u1}** *{}* **{u2}**", spec.verb)
-    })
-    .await;
+    let response: String =
+        user_interaction(&ctx, ctx.guild_id(), ctx.author(), target, |u1, u2| {
+            format!("**{u1}** *{}* **{u2}**", spec.verb)
+        })
+        .await;
 
     let embed = footer_embed(&ctx, embed_item.to_string()).title(response);
     let full_response = make_full_response(&ctx, target, Some(embed)).await;

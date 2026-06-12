@@ -96,8 +96,8 @@ fn system_prompt() -> &'static str {
 
 /// Built once so the backend's connection pool is reused instead of
 /// re-handshaking TLS on every call.
-pub static AI_PROVIDER: std::sync::LazyLock<Box<dyn LLMProvider>> =
-    std::sync::LazyLock::new(|| {
+pub static AI_PROVIDER: std::sync::LazyLock<Box<dyn LLMProvider>> = std::sync::LazyLock::new(
+    || {
         let mut builder = LLMBuilder::new()
             .backend(ai_backend())
             .model(DEFAULT_MODEL.as_str())
@@ -128,7 +128,8 @@ pub static AI_PROVIDER: std::sync::LazyLock<Box<dyn LLMProvider>> =
             reason = "A misconfigured AI provider is fatal; fail fast at startup like the other AI statics."
         )]
         builder.build().expect("Failed to build the AI provider.")
-    });
+    },
+);
 
 /// `system` turns are dropped — the persona is baked into [`AI_PROVIDER`].
 #[tracing::instrument(

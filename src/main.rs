@@ -171,7 +171,12 @@ async fn main() -> Result<(), Error> {
                         .options()
                         .commands
                         .iter()
-                        .map(|cmd| (cmd.name.clone(), cmd.description.clone().unwrap_or_default()))
+                        .map(|cmd| {
+                            (
+                                cmd.name.clone(),
+                                cmd.description.clone().unwrap_or_default(),
+                            )
+                        })
                         .collect();
                     ai::init_system_prompt(&commands);
 
@@ -216,8 +221,8 @@ async fn main() -> Result<(), Error> {
         .await?;
 
     // Multi-instance: when TOTAL_SHARDS / SHARD_START / SHARD_END are set,
-    // each instance owns a disjoint range. Over-provision the total (e.g. 16)
-    // and redistribute ranges to scale without resharding.
+    // each instance owns a disjoint range (both ends inclusive). Over-provision
+    // the total (e.g. 16) and redistribute ranges to scale without resharding.
     if let (Ok(total), Ok(start), Ok(end)) = (
         std::env::var("TOTAL_SHARDS"),
         std::env::var("SHARD_START"),
@@ -232,7 +237,16 @@ async fn main() -> Result<(), Error> {
         let end: u32 = end
             .parse()
             .expect("SHARD_END must be a non-negative integer");
-        tracing::info!("Starting shard range {start}..{end} of {total}");
+        assert!(
+            start <= end,
+            "SHARD_START ({start}) must be <= SHARD_END ({end})"
+        );
+        assert!(
+            end < total,
+            "SHARD_END ({end}) is inclusive and must be < TOTAL_SHARDS ({total})"
+        );
+        tracing::info!("Starting shards {start}..={end} of {total}");
+        // serenity's start_shard_range treats range.end as inclusive.
         client.start_shard_range(start..end, total).await?;
     } else {
         client.start().await?;

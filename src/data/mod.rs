@@ -1,11 +1,11 @@
 #[cfg(feature = "ai")]
 pub mod ai;
 pub mod bot_data;
-pub mod reminders;
 #[cfg(feature = "redis")]
 pub mod cache;
 pub mod command_data;
 pub mod database;
 pub mod embed_media;
+pub mod reminders;
 pub mod user_data;
 pub mod voicelines;
