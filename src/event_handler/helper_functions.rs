@@ -1,8 +1,8 @@
 use crate::{
     prelude::*,
     utils::{
-        replies::handle_replies,
-        string_manipulation::{levenshtein_cmd, remove_emojis_and_embeds_from_str},
+        replies::{handle_replies, levenshtein_cmd},
+        string_manipulation::remove_emojis_and_embeds_from_str,
     },
 };
 

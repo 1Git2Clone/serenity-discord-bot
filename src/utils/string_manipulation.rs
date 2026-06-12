@@ -72,42 +72,89 @@ pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> Levenshtein
     data
 }
 
-/// Check for typos in msg commands.
-#[tracing::instrument(
-    skip(msg, commands),
-    fields(
-        category = "levenshtein",
-        message = ?msg,
-        commands = ?commands,
-    )
-)]
-pub async fn levenshtein_cmd(
-    ctx: &serenity::Context,
-    msg: &serenity::Message,
-    commands: &[String],
-) -> Result<(), Error> {
-    let levenshtein_results = levenshtein_core(&msg.content, commands);
-    if levenshtein_results.command_matches.is_empty() || levenshtein_results.prefix.is_empty() {
-        return Ok(());
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn remove_emojis_strips_colon_wrapped_word() {
+        assert_eq!(remove_emojis_and_embeds_from_str(":hutao:"), "");
     }
 
-    let formatted_command_list = {
-        let mut tmp = String::new();
-        for c in levenshtein_results.command_matches {
-            tmp.push_str(format!("- `{c}`\n").as_str());
-        }
-        tmp
-    };
-    let reply = format!(
-        "Message starts with the bot prefix: `{}`",
-        levenshtein_results.prefix
-    ) + " "
-        + &format!(
-            "but it's not a valid command. Perhaps you meant one of the following:\n{}",
-            formatted_command_list
+    #[test]
+    fn remove_emojis_preserves_unclosed_colon() {
+        assert_eq!(remove_emojis_and_embeds_from_str(":hutao"), ":hutao");
+    }
+
+    #[test]
+    fn remove_emojis_strips_only_emoji_portion() {
+        assert_eq!(
+            remove_emojis_and_embeds_from_str("Some longer example : messsage hutao: :hutao:"),
+            "Some longer example : messsage hutao: "
         );
+    }
 
-    msg.reply(ctx, reply).await?;
+    #[test]
+    fn remove_emojis_strips_markdown_link() {
+        assert_eq!(remove_emojis_and_embeds_from_str("[text](url)"), "");
+        assert_eq!(
+            remove_emojis_and_embeds_from_str("hello [text](url) world"),
+            "hello  world"
+        );
+    }
 
-    Ok(())
+    #[test]
+    fn levenshtein_command_data_new_is_default() {
+        let data = LevenshteinCommandData::new();
+        assert_eq!(data.prefix, "");
+        assert!(data.command_matches.is_empty());
+    }
+
+    #[test]
+    fn levenshtein_core_no_prefix_returns_empty() {
+        let cmds = vec!["hello".to_string()];
+        let result = levenshtein_core("world", &cmds);
+        assert!(result.prefix.is_empty());
+        assert!(result.command_matches.is_empty());
+    }
+
+    #[test]
+    fn levenshtein_core_exact_match_no_suggestions() {
+        let cmds = vec!["hello".to_string()];
+        let result = levenshtein_core("huhello", &cmds);
+        assert_eq!(result.prefix, "hu");
+        assert!(result.command_matches.is_empty());
+    }
+
+    #[test]
+    fn levenshtein_core_one_edit_away_returns_suggestion() {
+        // "huhelln" vs command "huhello" — differ only in last character (o→n)
+        let cmds = vec!["hello".to_string()];
+        let result = levenshtein_core("huhelln", &cmds);
+        assert_eq!(result.prefix, "hu");
+        assert_eq!(result.command_matches, vec!["huhello".to_string()]);
+    }
+
+    #[test]
+    fn levenshtein_core_far_from_any_command_no_suggestions() {
+        let cmds = vec!["hello".to_string()];
+        let result = levenshtein_core("huxyz", &cmds);
+        assert_eq!(result.prefix, "hu");
+        assert!(result.command_matches.is_empty());
+    }
+
+    #[test]
+    fn levenshtein_core_ht_prefix_recognized() {
+        let cmds = vec!["ping".to_string()];
+        let result = levenshtein_core("htping", &cmds);
+        assert_eq!(result.prefix, "ht");
+        assert!(result.command_matches.is_empty());
+    }
+
+    #[test]
+    fn levenshtein_core_empty_commands_slice() {
+        let result = levenshtein_core("huhello", &[]);
+        assert_eq!(result.prefix, "hu");
+        assert!(result.command_matches.is_empty());
+    }
 }

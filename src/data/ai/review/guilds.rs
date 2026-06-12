@@ -42,3 +42,109 @@ pub async fn set_review_guild(pool: &PgPool, guild_id: u64, enabled: bool) -> Re
     }
     Ok(true)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{data::command_data::Error, enums::schemas::AiReviewGuildsTable};
+
+    type TestResult = Result<(), Error>;
+
+    // Use large sentinel IDs to avoid colliding with production data or other tests.
+    const ID_IS_REVIEW: u64 = 0x5AFE_0001_0000_0001;
+    const ID_INIT: u64 = 0x5AFE_0001_0000_0002;
+    const ID_ENABLE: u64 = 0x5AFE_0001_0000_0003;
+    const ID_DISABLE: u64 = 0x5AFE_0001_0000_0004;
+    const ID_NOOP_ON: u64 = 0x5AFE_0001_0000_0005;
+    const ID_NOOP_OFF: u64 = 0x5AFE_0001_0000_0006;
+
+    #[test]
+    fn is_review_guild_unknown_returns_false() {
+        assert!(!is_review_guild(ID_IS_REVIEW));
+    }
+
+    #[test]
+    fn is_review_guild_after_manual_insert_returns_true() {
+        AI_REVIEW_GUILDS.insert(ID_IS_REVIEW);
+        assert!(is_review_guild(ID_IS_REVIEW));
+        AI_REVIEW_GUILDS.remove(&ID_IS_REVIEW);
+    }
+
+    // These two tests return before touching the DB, so a lazy (never-connects) pool suffices.
+    #[tokio::test]
+    async fn set_review_guild_noop_when_already_enabled() -> TestResult {
+        let pool = PgPoolOptions::new().connect_lazy("postgres://localhost/unused")?;
+        AI_REVIEW_GUILDS.insert(ID_NOOP_ON);
+        let changed = set_review_guild(&pool, ID_NOOP_ON, true).await?;
+        assert!(!changed);
+        AI_REVIEW_GUILDS.remove(&ID_NOOP_ON);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_review_guild_noop_when_already_disabled() -> TestResult {
+        let pool = PgPoolOptions::new().connect_lazy("postgres://localhost/unused")?;
+        let changed = set_review_guild(&pool, ID_NOOP_OFF, false).await?;
+        assert!(!changed);
+        Ok(())
+    }
+
+    /// Connect to the database. Loads `.env` first (for local dev where the shell
+    /// hasn't exported DATABASE_URL) then skips the test if the var is absent or
+    /// the connection fails.
+    async fn test_pool() -> Option<PgPool> {
+        dotenv::dotenv().ok();
+        let url = std::env::var("DATABASE_URL").ok()?;
+        PgPoolOptions::new().connect(&url).await.ok()
+    }
+
+    #[tokio::test]
+    async fn set_review_guild_enables_in_memory_and_db() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        // Ensure clean slate in case a previous run left debris.
+        AI_REVIEW_GUILDS.remove(&ID_ENABLE);
+        AiReviewGuildsTable::unregister(&pool, ID_ENABLE as i64).await?;
+
+        let changed = set_review_guild(&pool, ID_ENABLE, true).await?;
+        assert!(changed);
+        assert!(is_review_guild(ID_ENABLE));
+
+        // cleanup
+        set_review_guild(&pool, ID_ENABLE, false).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_review_guild_disables_in_memory_and_db() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        AI_REVIEW_GUILDS.remove(&ID_DISABLE);
+        AiReviewGuildsTable::unregister(&pool, ID_DISABLE as i64).await?;
+
+        set_review_guild(&pool, ID_DISABLE, true).await?;
+        let changed = set_review_guild(&pool, ID_DISABLE, false).await?;
+        assert!(changed);
+        assert!(!is_review_guild(ID_DISABLE));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn init_review_guilds_populates_from_db() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        AI_REVIEW_GUILDS.remove(&ID_INIT);
+        AiReviewGuildsTable::unregister(&pool, ID_INIT as i64).await?;
+
+        AiReviewGuildsTable::register(&pool, ID_INIT as i64).await?;
+        init_review_guilds(&pool).await?;
+        assert!(is_review_guild(ID_INIT));
+
+        // cleanup
+        set_review_guild(&pool, ID_INIT, false).await?;
+        Ok(())
+    }
+}
