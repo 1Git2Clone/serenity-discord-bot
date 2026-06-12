@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, message FROM reminders WHERE finished_at IS NULL AND remind_at <= NOW()",
+  "query": "WITH claimed AS ( SELECT id, user_id, message FROM reminders WHERE finished_at IS NULL AND remind_at <= NOW() ORDER BY remind_at FOR UPDATE SKIP LOCKED ) UPDATE reminders SET finished_at = NOW() FROM claimed WHERE reminders.id = claimed.id RETURNING claimed.id, claimed.user_id, claimed.message",
   "describe": {
     "columns": [
       {
@@ -46,5 +46,5 @@
       false
     ]
   },
-  "hash": "1f0ff420b3bf69bb110edfd1d91bed024835fdf2a165959dd4c0ad06e6671bc9"
+  "hash": "fb8505b2fa0ae3c8021b897e991b8b4e9556ea834f8350384179fce58824eccd"
 }

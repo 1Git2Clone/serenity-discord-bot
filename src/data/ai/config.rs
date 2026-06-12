@@ -62,27 +62,25 @@ pub const AI_TEMPERATURE: f32 = 0.7;
 
 const AI_CHANNEL_LOCK_TTL: u64 = 30;
 
-/// Try to acquire the per-channel processing lock via Redis.
-/// Returns `true` if acquired, `false` if another request is already
-/// processing this channel. When Redis is unavailable, always succeeds
-/// (single-instance fallback).
-pub async fn try_acquire_channel_lock(channel_id: u64) -> bool {
+/// Try to acquire the per-channel processing lock via Redis. Returns a guard
+/// if acquired, or `None` if another request is already processing this
+/// channel. When Redis is unavailable, returns a no-op guard.
+pub async fn try_acquire_channel_lock(
+    channel_id: u64,
+) -> Option<crate::data::cache::RedisLockGuard> {
     let Some(mut conn) = crate::data::cache::conn().await else {
-        return true;
+        // No Redis: return no-op guard (empty key).
+        return Some(crate::data::cache::RedisLockGuard::new(
+            String::new(),
+            String::new(),
+        ));
     };
-    crate::data::cache::try_acquire_lock(
-        &mut conn,
-        &format!("ai:ch_lock:{channel_id}"),
-        AI_CHANNEL_LOCK_TTL,
-    )
-    .await
-}
-
-/// Release the per-channel processing lock. Best-effort; the TTL is the
-/// real safety net.
-pub async fn release_channel_lock(channel_id: u64) {
-    if let Some(mut conn) = crate::data::cache::conn().await {
-        crate::data::cache::release_lock(&mut conn, &format!("ai:ch_lock:{channel_id}")).await;
+    let key = format!("ai:ch_lock:{channel_id}");
+    let token = format!("{}-{}", std::process::id(), rand::random::<u64>());
+    if crate::data::cache::try_acquire_lock(&mut conn, &key, &token, AI_CHANNEL_LOCK_TTL).await {
+        Some(crate::data::cache::RedisLockGuard::new(key, token))
+    } else {
+        None
     }
 }
 

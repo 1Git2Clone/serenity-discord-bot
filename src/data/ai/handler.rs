@@ -2,7 +2,7 @@ use tracing::Instrument;
 
 use super::{
     channels::is_ai_channel,
-    config::{check_ai_rate_limit, release_channel_lock, try_acquire_channel_lock},
+    config::{check_ai_rate_limit, try_acquire_channel_lock},
     context::channel_context,
     provider::chat,
 };
@@ -29,7 +29,7 @@ pub async fn handle_ai_channel_message(
         .mentions
         .iter()
         .any(|u| u.id == data.bot_user.id);
-    if !is_dm && !is_ai_channel(new_message.channel_id.get()).await && !is_mentioned {
+    if !is_dm && !is_ai_channel(&data.pool, new_message.channel_id.get()).await && !is_mentioned {
         return Ok(());
     }
 
@@ -38,9 +38,9 @@ pub async fn handle_ai_channel_message(
     }
 
     let channel_id = new_message.channel_id.get();
-    if !try_acquire_channel_lock(channel_id).await {
+    let Some(_lock) = try_acquire_channel_lock(channel_id).await else {
         return Ok(());
-    }
+    };
 
     new_message
         .channel_id
@@ -58,8 +58,6 @@ pub async fn handle_ai_channel_message(
         .reply(ctx, response)
         .instrument(tracing::info_span!("discord_reply", category = "discord"))
         .await?;
-
-    release_channel_lock(channel_id).await;
 
     Ok(())
 }

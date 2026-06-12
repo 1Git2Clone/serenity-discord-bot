@@ -181,7 +181,6 @@ async fn main() -> Result<(), Error> {
                     LazyLock::force(&ai::AI_MAX_MSG_CONTEXT);
 
                     ai::init_registered_channels(&pool).await?;
-                    ai::review::init_review_guilds(&pool).await?;
                     cache::init().await;
                 }
 

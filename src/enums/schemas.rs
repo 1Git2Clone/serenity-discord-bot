@@ -16,12 +16,6 @@ pub struct UserRank {
     pub level: i32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum MentionsTable {}
-
-pub type Mentions = i64;
-
 impl LevelsTable {
     #[tracing::instrument(
         fields(
@@ -171,35 +165,6 @@ impl LevelsTable {
     }
 }
 
-impl MentionsTable {
-    #[tracing::instrument(
-        fields(
-            category = "sql",
-            db_pool = ?pool,
-        )
-    )]
-    pub async fn fetch_mentions(pool: &PgPool) -> sqlx::Result<Mentions> {
-        let row = sqlx::query!("SELECT mentions FROM bot_mentions LIMIT 1")
-            .fetch_one(pool)
-            .await?;
-
-        Ok(row.mentions)
-    }
-
-    #[tracing::instrument(
-        fields(
-            category = "sql",
-            db_pool = ?pool,
-        )
-    )]
-    pub async fn update_mentions(pool: &PgPool, mentions: Mentions) -> sqlx::Result<()> {
-        sqlx::query!("UPDATE bot_mentions SET mentions = $1", mentions)
-            .execute(pool)
-            .await?;
-        Ok(())
-    }
-}
-
 #[cfg(feature = "ai")]
 pub enum AiChannelsTable {}
 
@@ -213,8 +178,9 @@ impl AiChannelsTable {
             guild_id = %guild_id
         )
     )]
-    pub async fn register(pool: &PgPool, channel_id: i64, guild_id: i64) -> sqlx::Result<()> {
-        sqlx::query!(
+    /// Returns `true` if the channel was newly registered.
+    pub async fn register(pool: &PgPool, channel_id: i64, guild_id: i64) -> sqlx::Result<bool> {
+        let res = sqlx::query!(
             "INSERT INTO ai_channels (channel_id, guild_id)
              VALUES ($1, $2)
              ON CONFLICT (channel_id) DO NOTHING",
@@ -223,7 +189,7 @@ impl AiChannelsTable {
         )
         .execute(pool)
         .await?;
-        Ok(())
+        Ok(res.rows_affected() > 0)
     }
 
     #[tracing::instrument(
@@ -233,11 +199,12 @@ impl AiChannelsTable {
             channel_id = %channel_id
         )
     )]
-    pub async fn unregister(pool: &PgPool, channel_id: i64) -> sqlx::Result<()> {
-        sqlx::query!("DELETE FROM ai_channels WHERE channel_id = $1", channel_id)
+    /// Returns `true` if the channel was registered before.
+    pub async fn unregister(pool: &PgPool, channel_id: i64) -> sqlx::Result<bool> {
+        let res = sqlx::query!("DELETE FROM ai_channels WHERE channel_id = $1", channel_id)
             .execute(pool)
             .await?;
-        Ok(())
+        Ok(res.rows_affected() > 0)
     }
 
     #[tracing::instrument(
@@ -267,8 +234,9 @@ impl AiReviewGuildsTable {
             guild_id = %guild_id
         )
     )]
-    pub async fn register(pool: &PgPool, guild_id: i64) -> sqlx::Result<()> {
-        sqlx::query!(
+    /// Returns `true` if the guild was newly registered.
+    pub async fn register(pool: &PgPool, guild_id: i64) -> sqlx::Result<bool> {
+        let res = sqlx::query!(
             "INSERT INTO ai_review_guilds (guild_id)
              VALUES ($1)
              ON CONFLICT (guild_id) DO NOTHING",
@@ -276,7 +244,7 @@ impl AiReviewGuildsTable {
         )
         .execute(pool)
         .await?;
-        Ok(())
+        Ok(res.rows_affected() > 0)
     }
 
     #[tracing::instrument(
@@ -286,11 +254,12 @@ impl AiReviewGuildsTable {
             guild_id = %guild_id
         )
     )]
-    pub async fn unregister(pool: &PgPool, guild_id: i64) -> sqlx::Result<()> {
-        sqlx::query!("DELETE FROM ai_review_guilds WHERE guild_id = $1", guild_id)
+    /// Returns `true` if the guild was registered before.
+    pub async fn unregister(pool: &PgPool, guild_id: i64) -> sqlx::Result<bool> {
+        let res = sqlx::query!("DELETE FROM ai_review_guilds WHERE guild_id = $1", guild_id)
             .execute(pool)
             .await?;
-        Ok(())
+        Ok(res.rows_affected() > 0)
     }
 
     #[tracing::instrument(
@@ -387,18 +356,18 @@ mod tests {
     /// parallel tests can't interleave writes to it. The row's value is
     /// restored at the end.
     #[tokio::test]
-    async fn mentions_fetch_update_and_add_roundtrip() -> TestResult {
+    /// One test for everything touching the bot_mentions singleton row, so
+    /// parallel tests can't interleave writes to it. The row's value is
+    /// restored at the end.
+    async fn mentions_add_roundtrip() -> TestResult {
         use crate::database::bot_mentions::add_mentions;
 
         let Some(pool) = test_pool().await else {
             return Ok(());
         };
-        let mentions = MentionsTable::fetch_mentions(&pool).await?;
-        MentionsTable::update_mentions(&pool, mentions).await?;
-        assert_eq!(MentionsTable::fetch_mentions(&pool).await?, mentions);
-
-        assert_eq!(add_mentions(&pool, 5).await?, mentions + 5);
-        assert_eq!(add_mentions(&pool, -5).await?, mentions);
+        let before = add_mentions(&pool, 0).await?;
+        assert_eq!(add_mentions(&pool, 5).await?, before + 5);
+        assert_eq!(add_mentions(&pool, -5).await?, before);
         Ok(())
     }
 

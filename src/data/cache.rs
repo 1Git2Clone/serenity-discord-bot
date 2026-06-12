@@ -46,11 +46,12 @@ pub async fn init() {
 pub async fn try_acquire_lock(
     conn: &mut ConnectionManager,
     key: &str,
+    token: &str,
     ttl_secs: u64,
 ) -> bool {
     let result: Option<String> = redis::cmd("SET")
         .arg(key)
-        .arg("1")
+        .arg(token)
         .arg("NX")
         .arg("EX")
         .arg(ttl_secs)
@@ -61,26 +62,34 @@ pub async fn try_acquire_lock(
     result.is_some()
 }
 
-/// Release a Redis-backed lock. Best-effort; the TTL is the real safety net.
-pub async fn release_lock(conn: &mut ConnectionManager, key: &str) {
-    let _: Result<(), _> = redis::cmd("DEL").arg(key).query_async(conn).await;
+/// Release a Redis-backed lock only if the token matches. Best-effort; the
+/// TTL is the real safety net.
+pub async fn release_lock(conn: &mut ConnectionManager, key: &str, token: &str) {
+    let script = redis::Script::new(
+        r#"if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end"#,
+    );
+    let _: Result<i64, _> = script.key(key).arg(token).invoke_async(conn).await;
 }
 
 // ── Rate limit helpers ──────────────────────────────────────────────────────
 
 /// Check and increment a Redis-backed rate limiter. Returns `true` if the
-/// caller is rate-limited (count > 1), `false` if this is the first hit in
-/// the window. On first hit, sets the key's TTL.
+/// caller is rate-limited (key already exists), `false` if this is the first
+/// hit in the window. Atomically sets the key with TTL on first call.
 pub async fn check_rate_limit(
     conn: &mut ConnectionManager,
     key: &str,
     ttl_secs: u64,
 ) -> Result<bool, redis::RedisError> {
-    let count: i64 = redis::cmd("INCR").arg(key).query_async(conn).await?;
-    if count == 1 {
-        let _: () = redis::cmd("EXPIRE").arg(key).arg(ttl_secs).query_async(conn).await?;
-    }
-    Ok(count > 1)
+    let result: Option<String> = redis::cmd("SET")
+        .arg(key)
+        .arg("1")
+        .arg("NX")
+        .arg("EX")
+        .arg(ttl_secs)
+        .query_async(conn)
+        .await?;
+    Ok(result.is_none())
 }
 
 // ── Set helpers (for channels / guilds) ─────────────────────────────────────
@@ -114,10 +123,41 @@ pub async fn set_contains(
     redis::cmd("SISMEMBER").arg(key).arg(member).query_async(conn).await
 }
 
-/// Return all members of a Redis set.
-pub async fn set_members(
+/// Check whether a key exists.
+pub async fn key_exists(
     conn: &mut ConnectionManager,
     key: &str,
-) -> Result<Vec<u64>, redis::RedisError> {
-    redis::cmd("SMEMBERS").arg(key).query_async(conn).await
+) -> Result<bool, redis::RedisError> {
+    redis::cmd("EXISTS").arg(key).query_async(conn).await
+}
+
+// ── RAII drop-guard for Redis locks ─────────────────────────────────────────
+
+/// Releases a Redis lock on drop. The DEL is spawned because Drop can't be
+/// async; the TTL remains the safety net if the spawn or DEL fails.
+pub struct RedisLockGuard {
+    key: String,
+    token: String,
+}
+
+impl RedisLockGuard {
+    pub fn new(key: String, token: String) -> Self {
+        Self { key, token }
+    }
+}
+
+impl Drop for RedisLockGuard {
+    fn drop(&mut self) {
+        let key = std::mem::take(&mut self.key);
+        let token = std::mem::take(&mut self.token);
+        // Skip no-op (empty) keys.
+        if key.is_empty() {
+            return;
+        }
+        tokio::spawn(async move {
+            if let Some(mut conn) = conn().await {
+                release_lock(&mut conn, &key, &token).await;
+            }
+        });
+    }
 }

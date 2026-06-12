@@ -35,7 +35,7 @@ pub use crate::{
     database::{bot_mentions::*, connect_to_db, level_system::*},
     enums::{
         command_enums::EmbedType,
-        schemas::{LevelsTable, MentionsTable},
+        schemas::LevelsTable,
     },
     media_url,
 };
