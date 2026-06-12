@@ -1,8 +1,4 @@
-use std::{sync::LazyLock, time::Duration};
-
 use crate::prelude::*;
-use dashmap::DashSet;
-use moka::future::Cache;
 
 #[cfg(feature = "ai-ollama")]
 pub static CHAT_ENDPOINT: LazyLock<Option<String>> = LazyLock::new(|| {
@@ -62,66 +58,50 @@ pub const AI_MAX_TOKENS: u32 = 150;
 /// Sampling temperature for AI replies (0.0 = deterministic, higher = more random).
 pub const AI_TEMPERATURE: f32 = 0.7;
 
-pub struct AiChannelCache {
-    inner: DashSet<u64>,
+// ── Channel lock (was DashSet AiChannelCache) ───────────────────────────────
+
+const AI_CHANNEL_LOCK_TTL: u64 = 30;
+
+/// Try to acquire the per-channel processing lock via Redis.
+/// Returns `true` if acquired, `false` if another request is already
+/// processing this channel. When Redis is unavailable, always succeeds
+/// (single-instance fallback).
+pub async fn try_acquire_channel_lock(channel_id: u64) -> bool {
+    let Some(mut conn) = crate::data::cache::conn().await else {
+        return true;
+    };
+    crate::data::cache::try_acquire_lock(
+        &mut conn,
+        &format!("ai:ch_lock:{channel_id}"),
+        AI_CHANNEL_LOCK_TTL,
+    )
+    .await
 }
 
-impl AiChannelCache {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn try_acquire(&self, key: u64) -> Option<AiCacheGuard<'_>> {
-        if !self.inner.insert(key) {
-            return None;
-        }
-
-        Some(AiCacheGuard { key, cache: self })
-    }
-}
-
-impl Default for AiChannelCache {
-    fn default() -> Self {
-        Self {
-            inner: DashSet::new(),
-        }
-    }
-}
-
-pub struct AiCacheGuard<'a> {
-    key: u64,
-    cache: &'a AiChannelCache,
-}
-
-impl Drop for AiCacheGuard<'_> {
-    fn drop(&mut self) {
-        self.cache.inner.remove(&self.key);
+/// Release the per-channel processing lock. Best-effort; the TTL is the
+/// real safety net.
+pub async fn release_channel_lock(channel_id: u64) {
+    if let Some(mut conn) = crate::data::cache::conn().await {
+        crate::data::cache::release_lock(&mut conn, &format!("ai:ch_lock:{channel_id}")).await;
     }
 }
 
-pub static AI_CHANNEL_CACHE: LazyLock<AiChannelCache> = LazyLock::new(AiChannelCache::new);
+// ── Rate limiter (was moka Cache) ───────────────────────────────────────────
+
 pub const AI_RATE_LIMIT_SECS: u64 = 10;
-pub static AI_RATE_LIMIT: LazyLock<Cache<UserId, ()>> = LazyLock::new(|| {
-    Cache::builder()
-        .time_to_live(Duration::from_secs(AI_RATE_LIMIT_SECS))
-        .build()
-});
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cache_acquire_is_exclusive_until_guard_drops() {
-        let cache = AiChannelCache::new();
-
-        let guard = cache.try_acquire(1);
-        assert!(guard.is_some());
-        assert!(cache.try_acquire(1).is_none());
-        // A different key is unaffected.
-        assert!(cache.try_acquire(2).is_some());
-
-        drop(guard);
-        assert!(cache.try_acquire(1).is_some());
-    }
+/// Check whether a user is rate-limited for AI prompts. Returns `true` if
+/// rate-limited (should be blocked), `false` if allowed. When Redis is
+/// unavailable, never rate-limits (single-instance fallback).
+pub async fn check_ai_rate_limit(user_id: u64) -> bool {
+    let Some(mut conn) = crate::data::cache::conn().await else {
+        return false;
+    };
+    crate::data::cache::check_rate_limit(
+        &mut conn,
+        &format!("ai:rl:{user_id}"),
+        AI_RATE_LIMIT_SECS,
+    )
+    .await
+    .unwrap_or(false)
 }

@@ -1,7 +1,5 @@
 use std::sync::LazyLock;
 
-use crate::data::ai::config::AiChannelCache;
-
 #[allow(
     clippy::expect_used,
     reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
@@ -94,9 +92,27 @@ pub const AI_REVIEW_TEMPERATURE: f32 = 0.3;
 /// Maximum bytes per tool result before truncation.
 pub const TOOL_OUTPUT_LIMIT: usize = 64 * 1024;
 
-/// Global guard — one review at a time. Uses a sentinel key (0) since only
-/// one review can run concurrently regardless of target PR.
-pub static AI_REVIEW_GUARD: LazyLock<AiChannelCache> = LazyLock::new(AiChannelCache::new);
+// ── Global review guard (was DashSet AiChannelCache) ────────────────────────
+
+const AI_REVIEW_GUARD_TTL: u64 = 600;
+
+/// Try to acquire the global AI review guard via Redis. Returns `true` if
+/// acquired, `false` if a review is already running. When Redis is
+/// unavailable, always succeeds (single-instance fallback).
+pub async fn try_acquire_review_guard() -> bool {
+    let Some(mut conn) = crate::data::cache::conn().await else {
+        return true;
+    };
+    crate::data::cache::try_acquire_lock(&mut conn, "ai:review_guard", AI_REVIEW_GUARD_TTL).await
+}
+
+/// Release the global AI review guard. Best-effort; the TTL is the real
+/// safety net.
+pub async fn release_review_guard() {
+    if let Some(mut conn) = crate::data::cache::conn().await {
+        crate::data::cache::release_lock(&mut conn, "ai:review_guard").await;
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -111,14 +127,5 @@ mod tests {
         assert!(*GITHUB_TOKEN_TTL_SECS > 0);
         assert!(*AI_REVIEW_MAX_ITERATIONS > 0);
         assert!(*AI_REVIEW_TIMEOUT_SECS > 0);
-    }
-
-    #[test]
-    fn review_guard_is_exclusive() {
-        let guard = AI_REVIEW_GUARD.try_acquire(0);
-        assert!(guard.is_some());
-        assert!(AI_REVIEW_GUARD.try_acquire(0).is_none());
-        drop(guard);
-        assert!(AI_REVIEW_GUARD.try_acquire(0).is_some());
     }
 }
