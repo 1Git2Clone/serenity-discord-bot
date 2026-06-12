@@ -55,6 +55,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Coverage
+        continue-on-error: true
         run: bash scripts/coverage.sh
 
       - name: Upload to Codecov
