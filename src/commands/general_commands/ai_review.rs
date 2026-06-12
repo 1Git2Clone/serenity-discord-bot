@@ -3,9 +3,9 @@ use tracing::Instrument;
 use crate::{
     data::ai::review::{
         self,
-        config::{release_review_guard, try_acquire_review_guard},
+        config::try_acquire_review_guard,
         github::{
-            has_push_permission,
+            fetch_login, get_installation_token, has_push_permission,
             poll_device_flow, start_device_flow, GITHUB_TOKEN_CACHE,
         },
     },
@@ -147,7 +147,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
         }
 
         // Acquire the global review guard.
-        if !try_acquire_review_guard().await {
+        let Some(guard) = try_acquire_review_guard().await else {
             ctx.say("A review is already running — please wait for it to finish.")
                 .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await?;
@@ -162,6 +162,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
 
         tokio::spawn(
             async move {
+                let _guard = guard;
                 run_and_report(http, channel_id, owner, repo, pr).await;
             }
             .instrument(tracing::Span::current()),
@@ -208,6 +209,14 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                 // Cache the token so the user can re-run without auth.
                 GITHUB_TOKEN_CACHE.insert(user_id, token.clone()).await;
 
+                // Tell the requester which account got linked, so a wrong-account
+                // approval is visible immediately.
+                if let Ok(login) = fetch_login(&token).await {
+                    let _ = channel_id
+                        .say(&http, format!("<@{user_id}> linked GitHub account `{login}`."))
+                        .await;
+                }
+
                 // Verify push permission.
                 match has_push_permission(&token, &owner, &repo).await {
                     Ok(true) => {}
@@ -234,13 +243,13 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                 }
 
                 // Acquire the global review guard.
-                if !try_acquire_review_guard().await {
+                let Some(guard) = try_acquire_review_guard().await else {
                     let _ = channel_id
                         .say(&http, "A review is already running — please wait for it to finish.")
                         .instrument(tracing::info_span!("send_error", category = "discord"))
                         .await;
                     return;
-                }
+                };
 
                 let _ = channel_id
                     .say(
@@ -250,6 +259,7 @@ pub async fn run(ctx: Context<'_>, url: String, pr: u64) -> Result<(), Error> {
                     .instrument(tracing::info_span!("send_review_started", category = "discord"))
                     .await;
 
+                let _guard = guard;
                 run_and_report(http, channel_id, owner, repo, pr).await;
             }
             .instrument(tracing::Span::current()),
@@ -267,17 +277,26 @@ async fn run_and_report(
     repo: String,
     pr: u64,
 ) {
+    let bot_token = match get_installation_token(&owner).await {
+        Ok(t) => t,
+        Err(e) => {
+            let _ = channel_id
+                .say(&http, format!("Review of `{owner}/{repo}#{pr}` failed: {e}"))
+                .await;
+            return;
+        }
+    };
+
+    let owner_msg = owner.clone();
+    let repo_msg = repo.clone();
     let result = tokio::spawn(
-        async move { review::run_review(owner, repo, pr, String::new()).await }
+        async move { review::run_review(owner, repo, pr, bot_token).await }
             .instrument(tracing::info_span!(
                 "spawn_review",
                 category = "ai_review",
             )),
     )
     .await;
-
-    // Always release the guard, even on panic.
-    release_review_guard().await;
 
     match result {
         Ok(Ok(comment_url)) => {
@@ -287,8 +306,19 @@ async fn run_and_report(
                 .await;
         }
         Ok(Err(e)) => {
+            // Keep the message under Discord's 2000-char cap or the send
+            // itself fails and the user gets no feedback at all.
+            let mut err_text = e.to_string();
+            if err_text.len() > 1600 {
+                let mut end = 1600;
+                while end > 0 && !err_text.is_char_boundary(end) {
+                    end -= 1;
+                }
+                err_text.truncate(end);
+                err_text.push('…');
+            }
             let _ = channel_id
-                .say(&http, format!("Review failed: {e}"))
+                .say(&http, format!("Review of `{owner_msg}/{repo_msg}#{pr}` failed:\n```\n{err_text}\n```"))
                 .instrument(tracing::info_span!("send_error", category = "discord"))
                 .await;
         }
@@ -326,6 +356,17 @@ fn parse_github_url(url: &str) -> Result<(String, String), String> {
     if owner.is_empty() || repo.is_empty() {
         return Err("Owner and repo must not be empty.".to_string());
     }
+    // Owner/repo end up as subprocess arguments — restrict to GitHub's name
+    // charset so they can never be parsed as flags (e.g. a leading `-`).
+    for part in [&owner, &repo] {
+        if part.starts_with('-')
+            || !part
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+        {
+            return Err(format!("Invalid owner/repo segment: {part}"));
+        }
+    }
     Ok((owner, repo))
 }
 
@@ -354,7 +395,7 @@ async fn review_available(ctx: Context<'_>) -> Result<bool, Error> {
         return Ok(false);
     };
 
-    if !review::is_review_guild(guild_id.get()).await {
+    if !review::is_review_guild(&ctx.data().pool, guild_id.get()).await {
         let _ = ctx
             .say("AI review isn't enabled in this server — an administrator can turn it on with `/ai-review enable`.")
             .instrument(tracing::info_span!("send_error", category = "discord"))

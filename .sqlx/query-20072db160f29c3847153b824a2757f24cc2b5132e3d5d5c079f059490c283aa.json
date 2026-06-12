@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE bot_mentions SET mentions = mentions + $1 RETURNING mentions",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "mentions",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "bot_mentions",
+            "name": "mentions"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "20072db160f29c3847153b824a2757f24cc2b5132e3d5d5c079f059490c283aa"
+}

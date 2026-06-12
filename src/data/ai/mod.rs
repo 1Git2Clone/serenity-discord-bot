@@ -21,9 +21,9 @@ mod handler;
 mod provider;
 pub mod review;
 
-pub use channels::{init_registered_channels, is_ai_channel, toggle_ai_channel};
+pub use channels::{init_registered_channels, toggle_ai_channel};
 pub use config::{
-    check_ai_rate_limit, release_channel_lock, try_acquire_channel_lock,
+    check_ai_rate_limit, try_acquire_channel_lock,
     AI_RATE_LIMIT_SECS, DEFAULT_MODEL,
     AI_MAX_MSG_CONTEXT,
 };

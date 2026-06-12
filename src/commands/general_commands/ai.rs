@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{self, check_ai_rate_limit, release_channel_lock, try_acquire_channel_lock, AI_RATE_LIMIT_SECS},
+    data::ai::{self, check_ai_rate_limit, try_acquire_channel_lock, AI_RATE_LIMIT_SECS},
     prelude::*,
 };
 
@@ -23,7 +23,7 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
     let cid = channel_id.get();
 
-    if !try_acquire_channel_lock(cid).await {
+    let Some(_lock) = try_acquire_channel_lock(cid).await else {
         tracing::info!(
             "User tried to call the AI in {channel_id} while it's still processing content from within it."
         );
@@ -52,7 +52,6 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
         sleep(Duration::from_secs(5)).await;
         rate_limit_msg.delete(ctx).await?;
 
-        release_channel_lock(cid).await;
         return Ok(());
     }
 
@@ -69,8 +68,6 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     let response = ai::chat(&prompt).await?;
 
     ctx.say(response).await?;
-
-    release_channel_lock(cid).await;
 
     Ok(())
 }

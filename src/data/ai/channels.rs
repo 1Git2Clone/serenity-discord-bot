@@ -10,7 +10,7 @@ pub async fn init_registered_channels(pool: &PgPool) -> Result<(), Error> {
     };
 
     // Seed Redis from the DB if the set is empty.
-    if cache::set_members(&mut conn, AI_CHANNELS_KEY).await?.is_empty() {
+    if !cache::key_exists(&mut conn, AI_CHANNELS_KEY).await? {
         for channel_id in AiChannelsTable::fetch_all(pool).await? {
             cache::set_add(&mut conn, AI_CHANNELS_KEY, channel_id as u64).await?;
         }
@@ -18,63 +18,43 @@ pub async fn init_registered_channels(pool: &PgPool) -> Result<(), Error> {
     Ok(())
 }
 
-/// Check whether a channel has AI auto-replies enabled. Falls back to `false`
-/// when Redis is unavailable (graceful degradation).
-pub async fn is_ai_channel(channel_id: u64) -> bool {
-    let Some(mut conn) = cache::conn().await else {
-        return false;
-    };
-    cache::set_contains(&mut conn, AI_CHANNELS_KEY, channel_id)
+/// Check whether a channel has AI auto-replies enabled. This runs per
+/// message, so a Redis answer (hit or miss) is trusted; the DB is only
+/// queried when Redis is unavailable or the call errors.
+pub async fn is_ai_channel(pool: &PgPool, channel_id: u64) -> bool {
+    if let Some(mut conn) = cache::conn().await
+        && let Ok(contains) = cache::set_contains(&mut conn, AI_CHANNELS_KEY, channel_id).await
+    {
+        return contains;
+    }
+    AiChannelsTable::fetch_all(pool)
         .await
+        .map(|v| v.contains(&(channel_id as i64)))
         .unwrap_or(false)
 }
 
-/// Toggle a channel's AI registration in both the DB and Redis.
+/// Toggle a channel's AI registration. The DB decides the new state; the
+/// Redis set is a best-effort cache update on top.
 /// Returns `true` if it's now registered, `false` if it was removed.
 pub async fn toggle_ai_channel(pool: &PgPool, channel_id: u64, guild_id: u64) -> Result<bool, Error> {
-    let mut conn = match cache::conn().await {
-        Some(c) => c,
-        None => {
-            return toggle_ai_channel_db_only(pool, channel_id, guild_id).await;
-        }
+    // A no-op register means the channel was already there: toggle off.
+    let registered = if AiChannelsTable::register(pool, channel_id as i64, guild_id as i64).await? {
+        true
+    } else {
+        AiChannelsTable::unregister(pool, channel_id as i64).await?;
+        false
     };
 
-    // Try Redis-aware path; fall back to DB-only on transient errors.
-    match toggle_ai_channel_redis(pool, channel_id, guild_id, &mut conn).await {
-        Ok(changed) => Ok(changed),
-        Err(e) => {
-            tracing::warn!(error = %e, channel_id, guild_id, "Redis error in toggle_ai_channel; falling back to DB-only");
-            toggle_ai_channel_db_only(pool, channel_id, guild_id).await
+    if let Some(mut conn) = cache::conn().await {
+        let res = if registered {
+            cache::set_add(&mut conn, AI_CHANNELS_KEY, channel_id).await
+        } else {
+            cache::set_remove(&mut conn, AI_CHANNELS_KEY, channel_id).await
+        };
+        if let Err(e) = res {
+            tracing::warn!(error = %e, channel_id, "Failed to update Redis AI-channel cache");
         }
     }
-}
 
-async fn toggle_ai_channel_db_only(pool: &PgPool, channel_id: u64, guild_id: u64) -> Result<bool, Error> {
-    let is_registered = AiChannelsTable::fetch_all(pool)
-        .await?
-        .contains(&(channel_id as i64));
-    if is_registered {
-        AiChannelsTable::unregister(pool, channel_id as i64).await?;
-        Ok(false)
-    } else {
-        AiChannelsTable::register(pool, channel_id as i64, guild_id as i64).await?;
-        Ok(true)
-    }
-}
-
-async fn toggle_ai_channel_redis(
-    pool: &PgPool,
-    channel_id: u64,
-    guild_id: u64,
-    conn: &mut redis::aio::ConnectionManager,
-) -> Result<bool, Error> {
-    if cache::set_contains(conn, AI_CHANNELS_KEY, channel_id).await? {
-        AiChannelsTable::unregister(pool, channel_id as i64).await?;
-        cache::set_remove(conn, AI_CHANNELS_KEY, channel_id).await?;
-        Ok(false)
-    } else {
-        AiChannelsTable::register(pool, channel_id as i64, guild_id as i64).await?;
-        cache::set_add(conn, AI_CHANNELS_KEY, channel_id).await?;
-        Ok(true)
-    }
+    Ok(registered)
 }
