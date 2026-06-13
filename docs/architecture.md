@@ -76,10 +76,12 @@ gateway message
 ```
 
 XP is awarded per message inside `handle_database_message_processing`, and
-mention-count patterns trigger reply embeds. The top-level `event_handler` is
-deliberately not instrumented with a tracing span: it fires for every gateway
-event, including presence updates, so a span there would be pure noise. Only
-handled events carry spans.
+mention-count patterns trigger reply embeds. Custom reaction matching is gated
+by a Redis `cr:guilds` set so a guild with no reactions short-circuits without a
+lookup — see [custom-reactions.md](./custom-reactions.md). The top-level
+`event_handler` is deliberately not instrumented with a tracing span: it fires
+for every gateway event, including presence updates, so a span there would be
+pure noise. Only handled events carry spans.
 
 Prefix commands are `hu` and `ht`, registered as case-insensitive regex
 prefixes with mention-as-prefix enabled. Unrecognized prefix commands get

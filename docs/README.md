@@ -14,6 +14,8 @@ Project documentation for serenity-discord-bot. Start with the top-level
   production topology.
 - [ai.md](./ai.md) — enabling AI, the persona chat and context window, and a
   full `/ai-review` setup and usage walkthrough.
+- [custom-reactions.md](./custom-reactions.md) — the per-guild numbering model,
+  safe removal, image-URL validation, and the write-through Redis cache.
 - [observability.md](./observability.md) — tracing layers, the `category` span
   field, Tokio Console, and OpenTelemetry with Tempo/Grafana.
 
