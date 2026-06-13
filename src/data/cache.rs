@@ -188,20 +188,6 @@ pub async fn hash_getall(
     redis::cmd("HGETALL").arg(key).query_async(conn).await
 }
 
-/// Delete a field from a Redis hash.
-pub async fn hash_del(
-    conn: &mut ConnectionManager,
-    key: &str,
-    field: &str,
-) -> Result<(), redis::RedisError> {
-    let _: () = redis::cmd("HDEL")
-        .arg(key)
-        .arg(field)
-        .query_async(conn)
-        .await?;
-    Ok(())
-}
-
 // ── RAII drop-guard for Redis locks ─────────────────────────────────────────
 
 /// Releases a Redis lock on drop. The DEL is spawned because Drop can't be
@@ -347,12 +333,6 @@ mod tests {
             .collect();
         assert_eq!(map.get("f1"), Some(&"v1"));
         assert_eq!(map.get("f2"), Some(&"v2"));
-
-        hash_del(&mut conn, &key, "f1").await?;
-        let pairs2 = hash_getall(&mut conn, &key).await?;
-        let fields: Vec<&str> = pairs2.iter().map(|(f, _)| f.as_str()).collect();
-        assert!(!fields.contains(&"f1"));
-        assert!(fields.contains(&"f2"));
 
         let _: () = redis::cmd("DEL").arg(&key).query_async(&mut conn).await?;
         Ok(())
