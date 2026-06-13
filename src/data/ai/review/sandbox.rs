@@ -76,55 +76,72 @@ impl Workspace {
     }
 
     // ── Tool execution ──────────────────────────────────────────────────
+    //
+    // One method per tool, each taking the model's JSON arguments and returning
+    // a textual result. Errors are returned as strings (not `Result`) so the
+    // agent loop can relay them to the model. The tool registry in `agent.rs`
+    // maps tool names to these methods.
 
-    /// Execute a named tool with JSON arguments. Errors are returned as
-    /// strings so the agent loop can relay them to the model.
+    /// `list_files`: git-tracked files under `path` (default repo root).
     #[tracing::instrument(
         skip(self, args),
-        fields(category = "ai_review_tool", tool = %name)
+        fields(category = "ai_review_tool", tool = "list_files")
     )]
-    pub async fn execute(&self, name: &str, args: Value) -> String {
-        match name {
-            "list_files" => {
-                let path = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
-                run_git(self.dir.path(), &["ls-files", path]).await
-            }
-            "read_file" => {
-                let Some(path_str) = args.get("path").and_then(|v| v.as_str()) else {
-                    return "error: missing 'path' argument".to_string();
-                };
-                self.read_file_guarded(path_str).await
-            }
-            "git_diff" => {
-                let base_diff_ref = format!("{}...HEAD", self.base_ref);
-                let mut git_args: Vec<&str> = vec!["diff", &base_diff_ref];
-                if let Some(p) = args.get("path").and_then(|v| v.as_str()) {
-                    git_args.push("--");
-                    git_args.push(p);
-                }
-                run_git(self.dir.path(), &git_args).await
-            }
-            "git_log" => {
-                let max_count = args
-                    .get("max_count")
-                    .and_then(|v: &serde_json::Value| v.as_u64())
-                    .unwrap_or(20);
-                let mc = max_count.to_string();
-                let range = format!("{}..HEAD", self.base_ref);
-                run_git(
-                    self.dir.path(),
-                    &[
-                        "log",
-                        &range,
-                        "--format=commit %H%nAuthor: %an <%ae>%nDate: %ad%n%n%B%n---",
-                        "--max-count",
-                        &mc,
-                    ],
-                )
-                .await
-            }
-            other => format!("unknown tool: {other}"),
+    pub async fn list_files(&self, args: Value) -> String {
+        let path = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+        run_git(self.dir.path(), &["ls-files", path]).await
+    }
+
+    /// `read_file`: file contents, guarded against path traversal.
+    #[tracing::instrument(
+        skip(self, args),
+        fields(category = "ai_review_tool", tool = "read_file")
+    )]
+    pub async fn read_file(&self, args: Value) -> String {
+        let Some(path_str) = args.get("path").and_then(|v| v.as_str()) else {
+            return "error: missing 'path' argument".to_string();
+        };
+        self.read_file_guarded(path_str).await
+    }
+
+    /// `git_diff`: base...HEAD diff, optionally scoped to `path`.
+    #[tracing::instrument(
+        skip(self, args),
+        fields(category = "ai_review_tool", tool = "git_diff")
+    )]
+    pub async fn git_diff(&self, args: Value) -> String {
+        let base_diff_ref = format!("{}...HEAD", self.base_ref);
+        let mut git_args: Vec<&str> = vec!["diff", &base_diff_ref];
+        if let Some(p) = args.get("path").and_then(|v| v.as_str()) {
+            git_args.push("--");
+            git_args.push(p);
         }
+        run_git(self.dir.path(), &git_args).await
+    }
+
+    /// `git_log`: up to `max_count` (default 20) commits on the PR but not base.
+    #[tracing::instrument(
+        skip(self, args),
+        fields(category = "ai_review_tool", tool = "git_log")
+    )]
+    pub async fn git_log(&self, args: Value) -> String {
+        let max_count = args
+            .get("max_count")
+            .and_then(|v: &serde_json::Value| v.as_u64())
+            .unwrap_or(20);
+        let mc = max_count.to_string();
+        let range = format!("{}..HEAD", self.base_ref);
+        run_git(
+            self.dir.path(),
+            &[
+                "log",
+                &range,
+                "--format=commit %H%nAuthor: %an <%ae>%nDate: %ad%n%n%B%n---",
+                "--max-count",
+                &mc,
+            ],
+        )
+        .await
     }
 
     /// Read a file guarded by a path-traversal check.
@@ -255,6 +272,35 @@ async fn run_gh_raw(
     Ok(cmd.output().await?)
 }
 
+// ── Test helpers ────────────────────────────────────────────────────────────
+
+/// A local two-commit git repo standing in for a PR checkout: the `base`
+/// branch holds the first commit, HEAD has one commit on top of it. Shared
+/// between this module's tests and the agent-loop tests in `agent.rs`.
+#[cfg(test)]
+pub(super) async fn test_workspace() -> Result<Workspace, Box<dyn std::error::Error + Send + Sync>>
+{
+    let dir = tempfile::tempdir()?;
+    let p = dir.path();
+
+    run_git_checked(p, &["init", "-b", "main"]).await?;
+    run_git_checked(p, &["config", "user.email", "test@test"]).await?;
+    run_git_checked(p, &["config", "user.name", "test"]).await?;
+
+    tokio::fs::write(p.join("a.txt"), "base content\n").await?;
+    run_git_checked(p, &["add", "."]).await?;
+    run_git_checked(p, &["commit", "-m", "base commit"]).await?;
+    run_git_checked(p, &["branch", "base"]).await?;
+
+    tokio::fs::write(p.join("a.txt"), "changed content\n").await?;
+    run_git_checked(p, &["commit", "-am", "pr commit"]).await?;
+
+    Ok(Workspace {
+        dir,
+        base_ref: "base".to_string(),
+    })
+}
+
 // ── Output truncation ───────────────────────────────────────────────────────
 
 pub(super) fn truncate(s: &str) -> String {
@@ -274,108 +320,67 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-    /// A local two-commit git repo standing in for a PR checkout: `base`
-    /// branch holds the first commit, HEAD has one commit on top of it.
-    async fn test_workspace() -> Result<Workspace, Box<dyn std::error::Error + Send + Sync>> {
-        let dir = tempfile::tempdir()?;
-        let p = dir.path();
-
-        run_git_checked(p, &["init", "-b", "main"]).await?;
-        run_git_checked(p, &["config", "user.email", "test@test"]).await?;
-        run_git_checked(p, &["config", "user.name", "test"]).await?;
-
-        tokio::fs::write(p.join("a.txt"), "base content\n").await?;
-        run_git_checked(p, &["add", "."]).await?;
-        run_git_checked(p, &["commit", "-m", "base commit"]).await?;
-        run_git_checked(p, &["branch", "base"]).await?;
-
-        tokio::fs::write(p.join("a.txt"), "changed content\n").await?;
-        run_git_checked(p, &["commit", "-am", "pr commit"]).await?;
-
-        Ok(Workspace {
-            dir,
-            base_ref: "base".to_string(),
-        })
-    }
-
     #[tokio::test]
-    async fn execute_list_files() -> TestResult {
+    async fn list_files_lists_tracked_files() -> TestResult {
         let ws = test_workspace().await?;
-        let out = ws.execute("list_files", serde_json::json!({})).await;
+        let out = ws.list_files(serde_json::json!({})).await;
         assert!(out.contains("a.txt"));
         Ok(())
     }
 
     #[tokio::test]
-    async fn execute_read_file() -> TestResult {
+    async fn read_file_returns_contents() -> TestResult {
         let ws = test_workspace().await?;
-        let out = ws
-            .execute("read_file", serde_json::json!({"path": "a.txt"}))
-            .await;
+        let out = ws.read_file(serde_json::json!({"path": "a.txt"})).await;
         assert_eq!(out, "changed content\n");
         Ok(())
     }
 
     #[tokio::test]
-    async fn execute_read_file_missing_path_arg() -> TestResult {
+    async fn read_file_missing_path_arg() -> TestResult {
         let ws = test_workspace().await?;
-        let out = ws.execute("read_file", serde_json::json!({})).await;
+        let out = ws.read_file(serde_json::json!({})).await;
         assert!(out.starts_with("error: missing 'path'"));
         Ok(())
     }
 
     #[tokio::test]
-    async fn execute_read_file_nonexistent() -> TestResult {
+    async fn read_file_nonexistent() -> TestResult {
         let ws = test_workspace().await?;
-        let out = ws
-            .execute("read_file", serde_json::json!({"path": "nope.txt"}))
-            .await;
+        let out = ws.read_file(serde_json::json!({"path": "nope.txt"})).await;
         assert!(out.starts_with("error: cannot resolve path"));
         Ok(())
     }
 
     #[tokio::test]
-    async fn execute_read_file_rejects_path_traversal() -> TestResult {
+    async fn read_file_rejects_path_traversal() -> TestResult {
         let ws = test_workspace().await?;
         // /etc/passwd exists and canonicalizes outside the workspace root.
         let out = ws
-            .execute(
-                "read_file",
-                serde_json::json!({"path": "../../../../../../etc/passwd"}),
-            )
+            .read_file(serde_json::json!({"path": "../../../../../../etc/passwd"}))
             .await;
         assert!(out.starts_with("error: path traversal rejected"));
         Ok(())
     }
 
     #[tokio::test]
-    async fn execute_git_diff_against_base() -> TestResult {
+    async fn git_diff_against_base() -> TestResult {
         let ws = test_workspace().await?;
-        let out = ws.execute("git_diff", serde_json::json!({})).await;
+        let out = ws.git_diff(serde_json::json!({})).await;
         assert!(out.contains("-base content"));
         assert!(out.contains("+changed content"));
 
-        let scoped = ws
-            .execute("git_diff", serde_json::json!({"path": "a.txt"}))
-            .await;
+        let scoped = ws.git_diff(serde_json::json!({"path": "a.txt"})).await;
         assert!(scoped.contains("+changed content"));
         Ok(())
     }
 
     #[tokio::test]
-    async fn execute_git_log_shows_pr_commits_only() -> TestResult {
+    async fn git_log_shows_pr_commits_only() -> TestResult {
         let ws = test_workspace().await?;
-        let out = ws.execute("git_log", serde_json::json!({})).await;
+        let out = ws.git_log(serde_json::json!({})).await;
         assert!(out.contains("pr commit"));
         assert!(!out.contains("base commit"));
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn execute_unknown_tool() -> TestResult {
-        let ws = test_workspace().await?;
-        let out = ws.execute("frobnicate", serde_json::json!({})).await;
-        assert_eq!(out, "unknown tool: frobnicate");
         Ok(())
     }
 

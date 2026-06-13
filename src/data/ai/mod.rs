@@ -20,6 +20,7 @@ mod context;
 mod handler;
 mod provider;
 pub mod review;
+pub(crate) mod tools;
 
 pub use channels::{init_registered_channels, toggle_ai_channel};
 pub use config::{
