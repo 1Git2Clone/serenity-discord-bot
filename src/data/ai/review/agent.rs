@@ -498,3 +498,94 @@ pub async fn run_review(
 
     Ok(comment_url)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+    /// The names the model is told it can call. Kept in sync with the specs in
+    /// `review_tools` so a rename without a matching schema/handler update is
+    /// caught here.
+    const TOOL_NAMES: [&str; 5] = [
+        "list_files",
+        "read_file",
+        "git_diff",
+        "git_log",
+        "pr_conversation",
+    ];
+
+    #[test]
+    fn definitions_cover_every_tool_with_object_schemas() {
+        let defs = review_tools().definitions();
+        let names: Vec<&str> = defs.iter().map(|d| d.function.name.as_str()).collect();
+        assert_eq!(names, TOOL_NAMES);
+
+        for def in &defs {
+            assert_eq!(def.tool_type, "function");
+            assert!(
+                !def.function.description.is_empty(),
+                "{} has an empty description",
+                def.function.name
+            );
+            // The wire protocol requires each tool's parameters to be a JSON
+            // object schema.
+            assert_eq!(
+                def.function.parameters["type"], "object",
+                "{} parameters are not an object schema",
+                def.function.name
+            );
+        }
+    }
+
+    /// Dispatch each local tool through the real registry against a real
+    /// workspace, proving the specs are wired to the right handlers (not just
+    /// that the toy registry in `tools` dispatches). `pr_conversation` is
+    /// API-side and excluded — it needs the network.
+    #[tokio::test]
+    async fn registry_dispatches_local_tools_to_their_handlers() -> TestResult {
+        let ws = sandbox::test_workspace().await?;
+        let registry = review_tools();
+        let ctx = ReviewCtx {
+            workspace: &ws,
+            owner: "owner",
+            repo: "repo",
+            pr: 1,
+            token: "",
+        };
+
+        let listed = registry.dispatch(&ctx, "list_files", Value::Null).await;
+        assert!(listed.contains("a.txt"), "list_files: {listed}");
+
+        let read = registry
+            .dispatch(&ctx, "read_file", serde_json::json!({"path": "a.txt"}))
+            .await;
+        assert_eq!(read, "changed content\n");
+
+        let diff = registry.dispatch(&ctx, "git_diff", Value::Null).await;
+        assert!(diff.contains("+changed content"), "git_diff: {diff}");
+
+        let log = registry.dispatch(&ctx, "git_log", Value::Null).await;
+        assert!(log.contains("pr commit"), "git_log: {log}");
+        assert!(!log.contains("base commit"), "git_log leaked base: {log}");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn registry_reports_unknown_tool() -> TestResult {
+        let ws = sandbox::test_workspace().await?;
+        let registry = review_tools();
+        let ctx = ReviewCtx {
+            workspace: &ws,
+            owner: "owner",
+            repo: "repo",
+            pr: 1,
+            token: "",
+        };
+
+        let out = registry.dispatch(&ctx, "summon_qiqi", Value::Null).await;
+        assert_eq!(out, "unknown tool: summon_qiqi");
+        Ok(())
+    }
+}
