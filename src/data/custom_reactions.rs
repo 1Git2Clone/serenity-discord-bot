@@ -385,39 +385,6 @@ pub async fn autocomplete_reactions(pool: &PgPool, guild_id: i64, partial: &str)
         .collect()
 }
 
-// ── Handle a single incoming message ─────────────────────────────────────────
-
-/// Called from the message handler. Sends one embed reply per matching reaction,
-/// ordered by id.
-pub async fn handle_message(
-    ctx: &serenity::Context,
-    data: &Data,
-    msg: &serenity::Message,
-) -> Result<(), Error> {
-    let Some(guild_id) = msg.guild_id else {
-        return Ok(());
-    };
-    let content = msg.content.trim();
-    let matched = matching(&data.pool, guild_id.get() as i64, content).await?;
-    if matched.is_empty() {
-        return Ok(());
-    }
-    for reaction in matched {
-        let embed = serenity::CreateEmbed::new()
-            .color((255, 0, 0))
-            .image(&reaction.image_url)
-            .footer(
-                serenity::CreateEmbedFooter::new(data.bot_user.tag())
-                    .icon_url(data.bot_avatar.to_string()),
-            );
-        let reply = serenity::CreateMessage::new().embed(embed);
-        if let Err(e) = msg.channel_id.send_message(ctx, reply).await {
-            tracing::warn!(error = %e, reaction_id = reaction.id, "Failed to send reaction embed");
-        }
-    }
-    Ok(())
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -431,6 +398,8 @@ mod tests {
     const CR_CAP_GUILD: i64 = 0x5AFE_0005_0000_0002;
     const CR_REDIS_GUILD: i64 = 0x5AFE_0005_0000_0003;
     const CR_MULTI_GUILD: i64 = 0x5AFE_0005_0000_0004;
+    const CR_AC_GUILD: i64 = 0x5AFE_0005_0000_0005;
+    const CR_DB_GUILD: i64 = 0x5AFE_0005_0000_0006;
 
     // ── Regex unit tests (no DB/Redis required) ───────────────────────────────
 
@@ -448,6 +417,14 @@ mod tests {
         assert!(re.is_match("say hello there"));
         assert!(re.is_match("hello"));
         assert!(!re.is_match("world"));
+    }
+
+    #[test]
+    fn invalid_pattern_rejected() {
+        // Unbalanced group and a backwards repetition both fail to compile and
+        // surface the human-readable error.
+        assert!(compile_pattern("(", false).is_err());
+        assert!(compile_pattern("a{2,1}", true).is_err());
     }
 
     #[test]
@@ -556,6 +533,87 @@ mod tests {
         assert!(foo < bar);
 
         reset_guild(&pool, CR_MULTI_GUILD).await?;
+        Ok(())
+    }
+
+    /// `matching_from_db` (the Redis-down fallback) matches anchored against the
+    /// live DB rows, independent of cache state.
+    #[tokio::test]
+    async fn matching_from_db_anchored_fallback() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        reset_guild(&pool, CR_DB_GUILD).await?;
+
+        let id = CustomReactionsTable::insert(
+            &pool,
+            CR_DB_GUILD,
+            "ping",
+            "https://example.com/p.gif",
+            false,
+        )
+        .await?;
+
+        let hits = matching_from_db(&pool, CR_DB_GUILD, "ping").await?;
+        assert_eq!(hits.iter().map(|h| h.id).collect::<Vec<_>>(), vec![id]);
+        // Anchored: a substring must not match.
+        assert!(
+            matching_from_db(&pool, CR_DB_GUILD, "say ping")
+                .await?
+                .is_empty()
+        );
+
+        reset_guild(&pool, CR_DB_GUILD).await?;
+        Ok(())
+    }
+
+    /// Autocomplete lists live reactions as `"{id} — {pattern}"`, ordered by id,
+    /// filtered case-insensitively by the partial input.
+    #[tokio::test]
+    async fn autocomplete_lists_and_filters() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        reset_guild(&pool, CR_AC_GUILD).await?;
+
+        let apple = register(
+            &pool,
+            CR_AC_GUILD,
+            "apple",
+            "https://example.com/a.gif",
+            true,
+        )
+        .await?;
+        let apricot = register(
+            &pool,
+            CR_AC_GUILD,
+            "apricot",
+            "https://example.com/b.gif",
+            true,
+        )
+        .await?;
+        let _banana = register(
+            &pool,
+            CR_AC_GUILD,
+            "banana",
+            "https://example.com/c.gif",
+            true,
+        )
+        .await?;
+
+        // Empty partial lists all three, ordered by id, in the display format.
+        let all = autocomplete_reactions(&pool, CR_AC_GUILD, "").await;
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0], format!("{apple} — apple"));
+
+        // Case-insensitive prefix filter narrows to the two "ap*" patterns.
+        let ap = autocomplete_reactions(&pool, CR_AC_GUILD, "AP").await;
+        assert_eq!(
+            ap,
+            vec![format!("{apple} — apple"), format!("{apricot} — apricot")]
+        );
+
+        reset_guild(&pool, CR_AC_GUILD).await?;
         Ok(())
     }
 

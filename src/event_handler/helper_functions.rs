@@ -74,7 +74,39 @@ pub async fn handle_message(
 
     // Send custom-reaction embeds when the message content matches.
     #[cfg(feature = "redis")]
-    crate::data::custom_reactions::handle_message(ctx, data, new_message).await?;
+    send_custom_reactions(ctx, data, new_message).await?;
 
+    Ok(())
+}
+
+/// Reply with the red bot-tag embed for every custom reaction whose pattern
+/// matches the message, one per match, ordered by id. The matching logic and
+/// cache live in [`crate::data::custom_reactions`]; this only does the Discord
+/// I/O.
+#[cfg(feature = "redis")]
+async fn send_custom_reactions(
+    ctx: &serenity::Context,
+    data: &Data,
+    new_message: &serenity::Message,
+) -> Result<(), Error> {
+    let Some(guild_id) = new_message.guild_id else {
+        return Ok(());
+    };
+    let content = new_message.content.trim();
+    let matched =
+        crate::data::custom_reactions::matching(&data.pool, guild_id.get() as i64, content).await?;
+    for reaction in matched {
+        let embed = serenity::CreateEmbed::new()
+            .color((255, 0, 0))
+            .image(&reaction.image_url)
+            .footer(
+                serenity::CreateEmbedFooter::new(data.bot_user.tag())
+                    .icon_url(data.bot_avatar.to_string()),
+            );
+        let reply = serenity::CreateMessage::new().embed(embed);
+        if let Err(e) = new_message.channel_id.send_message(ctx, reply).await {
+            tracing::warn!(error = %e, reaction_id = reaction.id, "Failed to send reaction embed");
+        }
+    }
     Ok(())
 }
