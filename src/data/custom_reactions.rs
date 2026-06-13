@@ -241,6 +241,55 @@ pub async fn init(pool: &PgPool) -> Result<(), Error> {
     Ok(())
 }
 
+/// Rebuild a guild's Redis cache from the authoritative DB live `rows`, so the
+/// cache can't drift from Postgres after a mutation. Runs as one MULTI/EXEC: the
+/// hash is replaced and `cr:guilds` membership is updated in lockstep, so
+/// `matching` never observes a half-built hash, a soft-deleted reaction left
+/// behind by a missed delete, or a live guild missing from `cr:guilds`.
+/// Best-effort — a Redis error is returned for the caller to log; the DB stays
+/// authoritative and the next mutation (or a restart) reseeds.
+#[cfg(feature = "redis")]
+async fn reseed_guild_cache(
+    conn: &mut redis::aio::ConnectionManager,
+    guild_id: i64,
+    rows: &[crate::enums::schemas::CustomReactionRow],
+) -> Result<(), redis::RedisError> {
+    let mut pipe = redis::pipe();
+    pipe.atomic();
+    pipe.cmd("DEL").arg(meta_key(guild_id)).ignore();
+    if rows.is_empty() {
+        pipe.cmd("SREM")
+            .arg(CR_GUILDS_KEY)
+            .arg(guild_id as u64)
+            .ignore();
+    } else {
+        for row in rows {
+            let entry = CrEntry {
+                pattern: row.pattern.clone(),
+                anywhere: row.anywhere,
+                image_url: row.image_url.clone(),
+            };
+            match serde_json::to_string(&entry) {
+                Ok(json) => {
+                    pipe.cmd("HSET")
+                        .arg(meta_key(guild_id))
+                        .arg(row.id.to_string())
+                        .arg(json)
+                        .ignore();
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, guild_id, id = row.id, "Skipping uncacheable reaction while reseeding");
+                }
+            }
+        }
+        pipe.cmd("SADD")
+            .arg(CR_GUILDS_KEY)
+            .arg(guild_id as u64)
+            .ignore();
+    }
+    pipe.query_async::<()>(conn).await
+}
+
 /// Register a new reaction. Enforces the per-guild cap and writes through to both
 /// Postgres and Redis.
 #[tracing::instrument(
@@ -271,43 +320,23 @@ pub async fn register(
 
     let id = CustomReactionsTable::insert(pool, guild_id, pattern, image_url, anywhere).await?;
 
+    // Read the authoritative live set (now including the new row) once: it gives
+    // both the per-guild number and the exact contents to refresh the cache with,
+    // so the confirmation, `list`, and `remove` always agree on this reaction's
+    // number. Falls back to count+1 only if the just-inserted row isn't read back.
+    let rows = CustomReactionsTable::fetch_live(pool, guild_id).await?;
+    let seq = rows
+        .iter()
+        .position(|r| r.id == id)
+        .map_or(count + 1, |p| p as i64 + 1);
+
     #[cfg(feature = "redis")]
+    if let Some(mut conn) = cache::conn().await
+        && let Err(e) = reseed_guild_cache(&mut conn, guild_id, &rows).await
     {
-        if let Some(mut conn) = cache::conn().await {
-            let entry = CrEntry {
-                pattern: pattern.to_string(),
-                anywhere,
-                image_url: image_url.to_string(),
-            };
-            match serde_json::to_string(&entry) {
-                Ok(json) => {
-                    if let Err(e) =
-                        cache::hash_set(&mut conn, &meta_key(guild_id), &id.to_string(), &json)
-                            .await
-                    {
-                        tracing::warn!(error = %e, guild_id, "Failed to write reaction to Redis hash");
-                    }
-                    if let Err(e) = cache::set_add(&mut conn, CR_GUILDS_KEY, guild_id as u64).await
-                    {
-                        tracing::warn!(error = %e, guild_id, "Failed to add guild to cr:guilds");
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "Failed to serialize cache entry");
-                }
-            }
-        }
+        tracing::warn!(error = %e, guild_id, "Failed to refresh guild cache after register");
     }
 
-    // Number from the same authoritative source the other surfaces use (see
-    // `live_ordered`), so the confirmation, `list`, and `remove` always agree on
-    // this reaction's number — even under cache drift or a concurrent add. Falls
-    // back to count+1 only if the just-inserted row somehow isn't read back.
-    let seq = live_ordered(pool, guild_id)
-        .await
-        .iter()
-        .position(|e| e.id == id)
-        .map_or(count + 1, |p| p as i64 + 1);
     Ok((id, seq))
 }
 
@@ -381,18 +410,20 @@ pub async fn remove(
     }
     evict_compiled(id);
 
+    // Rebuild the guild's cache from the post-delete live set so the removed
+    // reaction can't linger in the hash (and `cr:guilds` is dropped when the
+    // guild's last reaction is gone) — the cache stays in lockstep with the DB.
     #[cfg(feature = "redis")]
     if let Some(mut conn) = cache::conn().await {
-        if let Err(e) = cache::hash_del(&mut conn, &meta_key(guild_id), &id.to_string()).await {
-            tracing::warn!(error = %e, guild_id, id, "Failed to remove reaction from Redis hash");
-        }
-        // `entries` was the full live set before this delete; if it held only the
-        // one we just removed, the guild now has none — drop it from cr:guilds.
-        // (Reuses the count already in hand instead of a second DB round-trip.)
-        if entries.len() == 1
-            && let Err(e) = cache::set_remove(&mut conn, CR_GUILDS_KEY, guild_id as u64).await
-        {
-            tracing::warn!(error = %e, guild_id, "Failed to remove guild from cr:guilds");
+        match CustomReactionsTable::fetch_live(pool, guild_id).await {
+            Ok(rows) => {
+                if let Err(e) = reseed_guild_cache(&mut conn, guild_id, &rows).await {
+                    tracing::warn!(error = %e, guild_id, "Failed to refresh guild cache after remove");
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, guild_id, "Failed to read live rows to refresh cache after remove");
+            }
         }
     }
 
