@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Hu Tao's AI replies are now kept short — a sentence or two (often one line), the way Discord chatter actually reads — with room to go longer only when a question genuinely needs an explanation or steps
 - `/ai-review` per-guild authorization is checked against Postgres directly instead of an in-memory set — a stale cached "enabled" was unsafe, and the command is rare enough that the query doesn't matter
 
 ### Fixed
