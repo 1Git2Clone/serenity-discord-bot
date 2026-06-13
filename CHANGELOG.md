@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Hu Tao's AI replies are now kept short — a sentence or two (often one line), the way Discord chatter actually reads — with room to go longer only when a question genuinely needs an explanation or steps
 - `/ai-review` per-guild authorization is checked against Postgres directly instead of an in-memory set — a stale cached "enabled" was unsafe, and the command is rare enough that the query doesn't matter
+- The AI tool-calling loop is now a reusable registry (`ToolSpec`/`ToolRegistry` in `data::ai::tools`) instead of being hand-wired inside `/ai-review`: each tool's model-facing definition and its handler live together, dispatch is by name instead of scattered `match` arms, and the DeepSeek tool-calling client moved into shared AI code so future tools (e.g. a chat-side search) can reuse the loop; behavior is unchanged
 
 ### Fixed
 
