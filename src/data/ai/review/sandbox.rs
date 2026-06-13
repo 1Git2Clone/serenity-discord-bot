@@ -272,6 +272,35 @@ async fn run_gh_raw(
     Ok(cmd.output().await?)
 }
 
+// ── Test helpers ────────────────────────────────────────────────────────────
+
+/// A local two-commit git repo standing in for a PR checkout: the `base`
+/// branch holds the first commit, HEAD has one commit on top of it. Shared
+/// between this module's tests and the agent-loop tests in `agent.rs`.
+#[cfg(test)]
+pub(super) async fn test_workspace() -> Result<Workspace, Box<dyn std::error::Error + Send + Sync>>
+{
+    let dir = tempfile::tempdir()?;
+    let p = dir.path();
+
+    run_git_checked(p, &["init", "-b", "main"]).await?;
+    run_git_checked(p, &["config", "user.email", "test@test"]).await?;
+    run_git_checked(p, &["config", "user.name", "test"]).await?;
+
+    tokio::fs::write(p.join("a.txt"), "base content\n").await?;
+    run_git_checked(p, &["add", "."]).await?;
+    run_git_checked(p, &["commit", "-m", "base commit"]).await?;
+    run_git_checked(p, &["branch", "base"]).await?;
+
+    tokio::fs::write(p.join("a.txt"), "changed content\n").await?;
+    run_git_checked(p, &["commit", "-am", "pr commit"]).await?;
+
+    Ok(Workspace {
+        dir,
+        base_ref: "base".to_string(),
+    })
+}
+
 // ── Output truncation ───────────────────────────────────────────────────────
 
 pub(super) fn truncate(s: &str) -> String {
@@ -290,30 +319,6 @@ mod tests {
     use super::*;
 
     type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
-    /// A local two-commit git repo standing in for a PR checkout: `base`
-    /// branch holds the first commit, HEAD has one commit on top of it.
-    async fn test_workspace() -> Result<Workspace, Box<dyn std::error::Error + Send + Sync>> {
-        let dir = tempfile::tempdir()?;
-        let p = dir.path();
-
-        run_git_checked(p, &["init", "-b", "main"]).await?;
-        run_git_checked(p, &["config", "user.email", "test@test"]).await?;
-        run_git_checked(p, &["config", "user.name", "test"]).await?;
-
-        tokio::fs::write(p.join("a.txt"), "base content\n").await?;
-        run_git_checked(p, &["add", "."]).await?;
-        run_git_checked(p, &["commit", "-m", "base commit"]).await?;
-        run_git_checked(p, &["branch", "base"]).await?;
-
-        tokio::fs::write(p.join("a.txt"), "changed content\n").await?;
-        run_git_checked(p, &["commit", "-am", "pr commit"]).await?;
-
-        Ok(Workspace {
-            dir,
-            base_ref: "base".to_string(),
-        })
-    }
 
     #[tokio::test]
     async fn list_files_lists_tracked_files() -> TestResult {
