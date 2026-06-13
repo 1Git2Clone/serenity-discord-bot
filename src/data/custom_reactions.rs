@@ -99,6 +99,61 @@ pub fn compile_pattern(pattern: &str, anywhere: bool) -> Result<Regex, String> {
     Ok(re)
 }
 
+/// Reject share/page links that aren't images. A `tenor.com/view/...` or
+/// `giphy.com/gifs/...` URL is an HTML page, not a media file — Discord renders
+/// those natively only when a *user* types them, never in a bot embed's image
+/// field, so they show up as a blank box. Direct media URLs (`media.tenor.com`,
+/// `media.giphy.com`, Discord CDN, anything else) pass through unchanged.
+pub fn validate_image_url(url: &str) -> Result<(), String> {
+    let lower = url.to_lowercase();
+    if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+        return Err("Provide an http(s) image URL, or attach the file directly.".to_string());
+    }
+    let after_scheme = lower
+        .split_once("://")
+        .map_or(lower.as_str(), |(_, rest)| rest);
+    let (host, path) = after_scheme.split_once('/').unwrap_or((after_scheme, ""));
+    let host = host.trim_start_matches("www.");
+    // Drop any `:port` so `tenor.com:443/view/...` is still recognized.
+    let host = host.split_once(':').map_or(host, |(h, _)| h);
+    // Compare the first path segment, so `…/view` (no trailing slash) and
+    // `…//view/x` (double slash) are caught, not just `…/view/x`.
+    let first_seg = path
+        .split(['/', '?', '#'])
+        .find(|s| !s.is_empty())
+        .unwrap_or("");
+
+    if host == "tenor.com" && first_seg == "view" {
+        return Err("That's a Tenor page link, not an image. Open the GIF, \
+                    right-click it, copy the direct media URL (it ends in `.gif` \
+                    on `media.tenor.com`), and use that."
+            .to_string());
+    }
+    if host == "giphy.com" && matches!(first_seg, "gifs" | "clips" | "stickers") {
+        return Err(
+            "That's a Giphy page link, not an image. Open the GIF, copy \
+                    the direct media URL (it ends in `.gif` on `media.giphy.com`), \
+                    and use that."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+/// 80-char preview of a pattern for display in `list` and the `remove`
+/// autocomplete, with a trailing `…` when truncated. Both surfaces share this so
+/// the autocomplete value and the list always show the same text, and `remove`
+/// can match the selected preview against the current row.
+pub fn pattern_preview(pattern: &str) -> String {
+    const MAX: usize = 80;
+    if pattern.chars().count() > MAX {
+        let head: String = pattern.chars().take(MAX).collect();
+        format!("{head}…")
+    } else {
+        pattern.to_string()
+    }
+}
+
 // ── Redis-backed cache ────────────────────────────────────────────────────────
 
 #[cfg(feature = "redis")]
@@ -121,6 +176,27 @@ use cache_entry::CrEntry;
 pub struct MatchedReaction {
     pub id: i64,
     pub image_url: String,
+}
+
+/// One live reaction with its stable internal id. The per-guild display number
+/// is the 1-based position in this list ordered by id — assigned by the caller,
+/// never stored. See [`live_ordered`].
+pub struct ReactionEntry {
+    pub id: i64,
+    pub pattern: String,
+    pub anywhere: bool,
+    pub image_url: String,
+}
+
+/// Outcome of a `remove` keyed by per-guild number.
+pub enum RemoveOutcome {
+    /// Removed; carries the reaction's pattern.
+    Removed(String),
+    /// No reaction holds that number (out of range, or already gone).
+    NotFound,
+    /// A reaction holds that number but no longer matches the selected one — the
+    /// list was renumbered between selection and submit.
+    Changed,
 }
 
 /// Seed the cache from the DB on cold start (gated by `cr:seeded`).
@@ -182,7 +258,7 @@ pub async fn register(
     pattern: &str,
     image_url: &str,
     anywhere: bool,
-) -> Result<i64, Error> {
+) -> Result<(i64, i64), Error> {
     const GUILD_CAP: i64 = 25;
 
     let count = CustomReactionsTable::count_live(pool, guild_id).await?;
@@ -223,46 +299,104 @@ pub async fn register(
         }
     }
 
-    Ok(id)
+    // Number from the same authoritative source the other surfaces use (see
+    // `live_ordered`), so the confirmation, `list`, and `remove` always agree on
+    // this reaction's number — even under cache drift or a concurrent add. Falls
+    // back to count+1 only if the just-inserted row somehow isn't read back.
+    let seq = live_ordered(pool, guild_id)
+        .await
+        .iter()
+        .position(|e| e.id == id)
+        .map_or(count + 1, |p| p as i64 + 1);
+    Ok((id, seq))
 }
 
-/// Soft-delete a reaction by id + guild. Removes from Redis if the guild has no
-/// live reactions remaining.
+/// Live reactions for a guild, ordered by id — the single authoritative source
+/// for per-guild numbering (position 1..N), shared by `list`, `remove`, the
+/// remove autocomplete, and the `register` confirmation so every surface agrees.
+///
+/// Reads Postgres directly. The per-message firing path ([`matching`]) keeps its
+/// Redis cache; these are infrequent staff commands, so the query cost is
+/// irrelevant and reading DB truth avoids any list-vs-remove cache-drift
+/// mismatch (a stale hash could otherwise number a soft-deleted row).
+async fn live_ordered(pool: &PgPool, guild_id: i64) -> Vec<ReactionEntry> {
+    CustomReactionsTable::fetch_live(pool, guild_id)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|r| ReactionEntry {
+            id: r.id,
+            pattern: r.pattern,
+            anywhere: r.anywhere,
+            image_url: r.image_url,
+        })
+        .collect()
+}
+
+/// Live reactions for a guild, ordered by id, for the `list` command. The
+/// caller numbers them 1..N for display.
+pub async fn list_live(pool: &PgPool, guild_id: i64) -> Vec<ReactionEntry> {
+    live_ordered(pool, guild_id).await
+}
+
+/// Soft-delete the reaction at per-guild number `seq` (1-based, ordered by id).
+///
+/// `expected_preview`, when given, is the [`pattern_preview`] the caller showed
+/// the user (carried in the autocomplete value). If the row now at `seq` no
+/// longer matches it — because a concurrent add/remove renumbered the list
+/// between selection and submit — the delete is refused with
+/// [`RemoveOutcome::Changed`] rather than removing the wrong reaction. Also
+/// evicts the compiled regex and updates the Redis cache.
 #[tracing::instrument(
     fields(
         category = "sql",
         db_pool = ?pool,
-        id = %id,
         guild_id = %guild_id,
+        seq = %seq,
     )
 )]
-pub async fn remove(pool: &PgPool, id: i64, guild_id: i64) -> Result<bool, Error> {
-    let deleted = CustomReactionsTable::soft_delete(pool, id, guild_id).await?;
-
-    if deleted {
-        evict_compiled(id);
+pub async fn remove(
+    pool: &PgPool,
+    guild_id: i64,
+    seq: i64,
+    expected_preview: Option<&str>,
+) -> Result<RemoveOutcome, Error> {
+    let Some(index) = seq.checked_sub(1).and_then(|i| usize::try_from(i).ok()) else {
+        return Ok(RemoveOutcome::NotFound);
+    };
+    let entries = live_ordered(pool, guild_id).await;
+    let Some(entry) = entries.get(index) else {
+        return Ok(RemoveOutcome::NotFound);
+    };
+    if let Some(expected) = expected_preview
+        && pattern_preview(&entry.pattern) != expected
+    {
+        return Ok(RemoveOutcome::Changed);
     }
+    let id = entry.id;
+    let pattern = entry.pattern.clone();
+
+    if !CustomReactionsTable::soft_delete(pool, id, guild_id).await? {
+        return Ok(RemoveOutcome::NotFound);
+    }
+    evict_compiled(id);
 
     #[cfg(feature = "redis")]
-    if deleted && let Some(mut conn) = cache::conn().await {
+    if let Some(mut conn) = cache::conn().await {
         if let Err(e) = cache::hash_del(&mut conn, &meta_key(guild_id), &id.to_string()).await {
             tracing::warn!(error = %e, guild_id, id, "Failed to remove reaction from Redis hash");
         }
-        // If no live reactions remain, drop the guild from cr:guilds.
-        match CustomReactionsTable::count_live(pool, guild_id).await {
-            Ok(0) => {
-                if let Err(e) = cache::set_remove(&mut conn, CR_GUILDS_KEY, guild_id as u64).await {
-                    tracing::warn!(error = %e, guild_id, "Failed to remove guild from cr:guilds");
-                }
-            }
-            Ok(_) => {}
-            Err(e) => {
-                tracing::warn!(error = %e, guild_id, "Failed to count live reactions after remove");
-            }
+        // `entries` was the full live set before this delete; if it held only the
+        // one we just removed, the guild now has none — drop it from cr:guilds.
+        // (Reuses the count already in hand instead of a second DB round-trip.)
+        if entries.len() == 1
+            && let Err(e) = cache::set_remove(&mut conn, CR_GUILDS_KEY, guild_id as u64).await
+        {
+            tracing::warn!(error = %e, guild_id, "Failed to remove guild from cr:guilds");
         }
     }
 
-    Ok(deleted)
+    Ok(RemoveOutcome::Removed(pattern))
 }
 
 /// Returns all reactions whose pattern matches `content` (sorted by id).
@@ -341,47 +475,20 @@ async fn matching_from_db(
     Ok(results)
 }
 
-/// Returns autocomplete entries for the `remove` subcommand.
-/// Each entry is `"{id} — {pattern}"` (pattern truncated to 80 chars).
-/// Served from the Redis cache when available.
+/// Returns autocomplete entries for the `remove` subcommand. Each entry is
+/// `"{seq} — {pattern}"`, where `seq` is the per-guild number (1-based position
+/// ordered by id, the same numbering `list` shows). The number is the absolute
+/// position in the full live set, so it still maps back correctly after the
+/// partial filter narrows the visible rows.
 pub async fn autocomplete_reactions(pool: &PgPool, guild_id: i64, partial: &str) -> Vec<String> {
     let needle = partial.to_lowercase();
-
-    #[cfg(feature = "redis")]
-    if let Some(mut conn) = cache::conn().await
-        && let Ok(pairs) = cache::hash_getall(&mut conn, &meta_key(guild_id)).await
-    {
-        let mut entries: Vec<(i64, String)> = pairs
-            .iter()
-            .filter_map(|(field, value)| {
-                let id: i64 = field.parse().ok()?;
-                let entry: CrEntry = serde_json::from_str(value).ok()?;
-                (needle.is_empty() || entry.pattern.to_lowercase().contains(&needle))
-                    .then_some((id, entry.pattern))
-            })
-            .collect();
-        entries.sort_by_key(|(id, _)| *id);
-        return entries
-            .into_iter()
-            .take(MAX_AUTOCOMPLETE)
-            .map(|(id, pat)| {
-                let preview: String = pat.chars().take(80).collect();
-                format!("{id} — {preview}")
-            })
-            .collect();
-    }
-
-    // DB fallback.
-    let rows = CustomReactionsTable::fetch_live(pool, guild_id)
+    live_ordered(pool, guild_id)
         .await
-        .unwrap_or_default();
-    rows.into_iter()
-        .filter(|r| needle.is_empty() || r.pattern.to_lowercase().contains(&needle))
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| needle.is_empty() || e.pattern.to_lowercase().contains(&needle))
         .take(MAX_AUTOCOMPLETE)
-        .map(|r| {
-            let preview: String = r.pattern.chars().take(80).collect();
-            format!("{} — {preview}", r.id)
-        })
+        .map(|(i, e)| format!("{} — {}", i + 1, pattern_preview(&e.pattern)))
         .collect()
 }
 
@@ -448,6 +555,34 @@ mod tests {
         assert!(compile_pattern(&pat, false).is_err());
     }
 
+    #[test]
+    fn url_validation_rejects_page_links_only() {
+        // Tenor/Giphy page links are HTML, not images — rejected.
+        assert!(validate_image_url("https://tenor.com/view/cat-dance-gif-12345").is_err());
+        assert!(validate_image_url("https://www.tenor.com/view/x").is_err());
+        assert!(validate_image_url("https://giphy.com/gifs/funny-abc123").is_err());
+        assert!(validate_image_url("https://www.giphy.com/gifs/x").is_err());
+        // Giphy clip/sticker pages too.
+        assert!(validate_image_url("https://giphy.com/clips/x").is_err());
+        assert!(validate_image_url("https://giphy.com/stickers/x").is_err());
+        // No trailing slash, double slash, and a port must still be caught.
+        assert!(validate_image_url("https://tenor.com/view").is_err());
+        assert!(validate_image_url("https://giphy.com/gifs").is_err());
+        assert!(validate_image_url("https://tenor.com//view/x").is_err());
+        assert!(validate_image_url("https://tenor.com:443/view/x").is_err());
+        // Non-http(s) input is rejected outright.
+        assert!(validate_image_url("ftp://host/a.gif").is_err());
+        assert!(validate_image_url("not a url").is_err());
+
+        // Direct media URLs and anything else pass through.
+        assert!(validate_image_url("https://media1.tenor.com/m/ID/slug.gif").is_ok());
+        assert!(validate_image_url("https://media.giphy.com/media/ID/giphy.gif").is_ok());
+        assert!(validate_image_url("https://cdn.discordapp.com/attachments/1/2/a.png").is_ok());
+        assert!(validate_image_url("https://example.com/whatever").is_ok());
+        // The Tenor search/home page (no /view/) isn't our page-link pattern.
+        assert!(validate_image_url("https://tenor.com/search/cat-gifs").is_ok());
+    }
+
     // ── DB roundtrip (skips when DATABASE_URL absent) ─────────────────────────
 
     use crate::tests::test_pool;
@@ -467,7 +602,7 @@ mod tests {
         };
         cleanup(&pool).await?;
 
-        let id = register(
+        let (id, seq) = register(
             &pool,
             CR_TEST_GUILD,
             "ping",
@@ -475,6 +610,8 @@ mod tests {
             false,
         )
         .await?;
+        // First reaction in a fresh guild is per-guild number 1.
+        assert_eq!(seq, 1);
 
         // Must match the full trimmed content (anchored).
         let hits = matching(&pool, CR_TEST_GUILD, "ping").await?;
@@ -484,8 +621,24 @@ mod tests {
         // Must not match a substring.
         assert!(matching(&pool, CR_TEST_GUILD, "say ping").await?.is_empty());
 
-        assert!(remove(&pool, id, CR_TEST_GUILD).await?);
+        // A stale preview (the row no longer matches) is refused, not deleted.
+        assert!(matches!(
+            remove(&pool, CR_TEST_GUILD, seq, Some("stale")).await?,
+            RemoveOutcome::Changed
+        ));
+        assert!(!matching(&pool, CR_TEST_GUILD, "ping").await?.is_empty());
+
+        // Remove by per-guild number; the removed pattern comes back.
+        assert!(matches!(
+            remove(&pool, CR_TEST_GUILD, seq, Some("ping")).await?,
+            RemoveOutcome::Removed(p) if p == "ping"
+        ));
         assert!(matching(&pool, CR_TEST_GUILD, "ping").await?.is_empty());
+        // A second remove of the same number now finds nothing.
+        assert!(matches!(
+            remove(&pool, CR_TEST_GUILD, seq, None).await?,
+            RemoveOutcome::NotFound
+        ));
 
         cleanup(&pool).await?;
         Ok(())
@@ -500,7 +653,7 @@ mod tests {
         };
         reset_guild(&pool, CR_MULTI_GUILD).await?;
 
-        let foo = register(
+        let (foo, foo_seq) = register(
             &pool,
             CR_MULTI_GUILD,
             "foo",
@@ -508,7 +661,7 @@ mod tests {
             true,
         )
         .await?;
-        let bar = register(
+        let (bar, bar_seq) = register(
             &pool,
             CR_MULTI_GUILD,
             "bar",
@@ -517,7 +670,7 @@ mod tests {
         )
         .await?;
         // Non-matching for the probe message below.
-        let _baz = register(
+        let (_baz, baz_seq) = register(
             &pool,
             CR_MULTI_GUILD,
             "baz",
@@ -525,6 +678,8 @@ mod tests {
             true,
         )
         .await?;
+        // Per-guild numbers increment in registration order.
+        assert_eq!((foo_seq, bar_seq, baz_seq), (1, 2, 3));
 
         let hits = matching(&pool, CR_MULTI_GUILD, "foo and bar").await?;
         let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
@@ -567,8 +722,10 @@ mod tests {
         Ok(())
     }
 
-    /// Autocomplete lists live reactions as `"{id} — {pattern}"`, ordered by id,
-    /// filtered case-insensitively by the partial input.
+    /// Autocomplete lists live reactions as `"{seq} — {pattern}"`, where `seq`
+    /// is the per-guild number (1-based, ordered by id), filtered
+    /// case-insensitively by the partial input. The number is the absolute
+    /// position, so a filtered result keeps the original numbers.
     #[tokio::test]
     async fn autocomplete_lists_and_filters() -> TestResult {
         let Some(pool) = test_pool().await else {
@@ -576,42 +733,26 @@ mod tests {
         };
         reset_guild(&pool, CR_AC_GUILD).await?;
 
-        let apple = register(
-            &pool,
-            CR_AC_GUILD,
-            "apple",
-            "https://example.com/a.gif",
-            true,
-        )
-        .await?;
-        let apricot = register(
-            &pool,
-            CR_AC_GUILD,
-            "apricot",
-            "https://example.com/b.gif",
-            true,
-        )
-        .await?;
-        let _banana = register(
-            &pool,
-            CR_AC_GUILD,
-            "banana",
-            "https://example.com/c.gif",
-            true,
-        )
-        .await?;
+        // Registered in this order, so apple=1, apricot=2, banana=3.
+        for (pat, file) in [("apple", "a"), ("apricot", "b"), ("banana", "c")] {
+            register(
+                &pool,
+                CR_AC_GUILD,
+                pat,
+                &format!("https://example.com/{file}.gif"),
+                true,
+            )
+            .await?;
+        }
 
         // Empty partial lists all three, ordered by id, in the display format.
         let all = autocomplete_reactions(&pool, CR_AC_GUILD, "").await;
-        assert_eq!(all.len(), 3);
-        assert_eq!(all[0], format!("{apple} — apple"));
+        assert_eq!(all, vec!["1 — apple", "2 — apricot", "3 — banana"]);
 
-        // Case-insensitive prefix filter narrows to the two "ap*" patterns.
+        // Case-insensitive prefix filter narrows to the two "ap*" patterns,
+        // keeping their absolute per-guild numbers.
         let ap = autocomplete_reactions(&pool, CR_AC_GUILD, "AP").await;
-        assert_eq!(
-            ap,
-            vec![format!("{apple} — apple"), format!("{apricot} — apricot")]
-        );
+        assert_eq!(ap, vec!["1 — apple", "2 — apricot"]);
 
         reset_guild(&pool, CR_AC_GUILD).await?;
         Ok(())

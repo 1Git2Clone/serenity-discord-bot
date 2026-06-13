@@ -72,13 +72,19 @@ async fn custom_reaction_add(
 
     let anywhere = anywhere.unwrap_or(false);
 
+    // Reject page/share links that render blank in an embed before storing.
+    if let Err(msg) = custom_reactions::validate_image_url(&image_url) {
+        ctx.say(msg).await?;
+        return Ok(());
+    }
+
     // Validate pattern before writing to the DB.
     if let Err(msg) = custom_reactions::compile_pattern(&pattern, anywhere) {
         ctx.say(msg).await?;
         return Ok(());
     }
 
-    let id = custom_reactions::register(
+    let (_id, seq) = custom_reactions::register(
         &ctx.data().pool,
         guild_id.get() as i64,
         &pattern,
@@ -88,7 +94,7 @@ async fn custom_reaction_add(
     .await?;
 
     ctx.say(format!(
-        "Registered reaction #{id} — pattern `{pattern}` (anywhere: {anywhere})."
+        "Registered reaction #{seq} — pattern `{pattern}` (anywhere: {anywhere})."
     ))
     .await?;
 
@@ -123,26 +129,132 @@ async fn custom_reaction_remove(
         return Ok(());
     };
 
-    // Autocomplete value is "{id} — {pattern}"; parse the leading id.
-    let reaction_id: i64 = match name.split_whitespace().next().and_then(|s| s.parse().ok()) {
-        Some(id) => id,
-        None => {
-            ctx.say("Couldn't parse that selection — please pick one from the autocomplete list.")
-                .await?;
-            return Ok(());
-        }
+    // Autocomplete value is "{seq} — {preview}". Parse the leading per-guild
+    // number; keep the preview (if present) so `remove` can confirm the row at
+    // that number still matches the one that was picked — a plain typed number
+    // has no preview and skips that check.
+    let (seq_str, expected_preview) = match name.split_once(" — ") {
+        Some((seq, preview)) => (seq.trim(), Some(preview)),
+        None => (name.trim(), None),
+    };
+    let Some(seq) = seq_str.parse::<i64>().ok() else {
+        ctx.say("Couldn't parse that selection — please pick one from the autocomplete list.")
+            .await?;
+        return Ok(());
     };
 
-    let deleted =
-        custom_reactions::remove(&ctx.data().pool, reaction_id, guild_id.get() as i64).await?;
-
-    if deleted {
-        ctx.say(format!("Removed reaction #{reaction_id}.")).await?;
-    } else {
-        ctx.say("No matching live reaction found — it may have already been removed.")
+    use custom_reactions::RemoveOutcome;
+    match custom_reactions::remove(
+        &ctx.data().pool,
+        guild_id.get() as i64,
+        seq,
+        expected_preview,
+    )
+    .await?
+    {
+        RemoveOutcome::Removed(pattern) => {
+            ctx.say(format!("Removed reaction #{seq} — pattern `{pattern}`."))
+                .await?;
+        }
+        RemoveOutcome::NotFound => {
+            ctx.say(format!(
+                "No reaction #{seq} in this server — run `/custom reaction list` to see current numbers."
+            ))
             .await?;
+        }
+        RemoveOutcome::Changed => {
+            ctx.say(
+                "The reaction list changed since you opened it — run `/custom reaction list` and try again.",
+            )
+            .await?;
+        }
     }
 
+    Ok(())
+}
+
+/// Short, recognizable hint for a stored image URL: host plus the final path
+/// segment, query string dropped — so a listing stays readable instead of
+/// dumping long signed CDN URLs.
+fn url_hint(url: &str) -> String {
+    let after_scheme = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let no_query = after_scheme
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(after_scheme);
+    let (host, path) = no_query.split_once('/').unwrap_or((no_query, ""));
+    let path = path.trim_end_matches('/');
+    let hint = match path.rsplit('/').find(|s| !s.is_empty()) {
+        Some(last) if path.contains('/') => format!("{host}/.../{last}"),
+        Some(last) => format!("{host}/{last}"),
+        None => host.to_string(),
+    };
+    // An empty/scheme-only URL would yield a blank hint and a dangling " — ".
+    if hint.is_empty() {
+        "(no url)".to_string()
+    } else {
+        hint
+    }
+}
+
+/// List every custom reaction in the server with its per-guild number.
+#[poise::command(
+    slash_command,
+    rename = "list",
+    required_permissions = "MANAGE_CHANNELS",
+    guild_only
+)]
+#[tracing::instrument(
+    skip(ctx),
+    fields(
+        category = "discord_command",
+        command.name = %ctx.command().qualified_name,
+        author = %ctx.author().id,
+        guild_id = %ctx.guild_id().map(GuildId::get).unwrap_or(0),
+    )
+)]
+async fn custom_reaction_list(ctx: Context<'_>) -> Result<(), Error> {
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.say("This command can only be used in a server.")
+            .await?;
+        return Ok(());
+    };
+
+    let entries = custom_reactions::list_live(&ctx.data().pool, guild_id.get() as i64).await;
+
+    let body = if entries.is_empty() {
+        "No custom reactions in this server. Add one with `/custom reaction add`.".to_string()
+    } else {
+        // Stay under Discord's 2000-char message limit; with the 25-per-guild
+        // cap this only bites on pathologically long patterns/URLs.
+        const MAX_LEN: usize = 1900;
+        let mut out = format!("Custom reactions ({}):", entries.len());
+        let mut shown = 0;
+        for (i, e) in entries.iter().enumerate() {
+            let line = format!(
+                "\n{}. `{}` (anywhere: {}) — {}",
+                i + 1,
+                custom_reactions::pattern_preview(&e.pattern),
+                e.anywhere,
+                url_hint(&e.image_url)
+            );
+            if out.len() + line.len() > MAX_LEN {
+                out.push_str(&format!(
+                    "\n…and {} more — too long to show.",
+                    entries.len() - shown
+                ));
+                break;
+            }
+            out.push_str(&line);
+            shown += 1;
+        }
+        out
+    };
+
+    // Ephemeral: the listing exposes the stored image URLs, so keep it to the
+    // invoking moderator.
+    ctx.send(poise::CreateReply::default().content(body).ephemeral(true))
+        .await?;
     Ok(())
 }
 
@@ -150,12 +262,16 @@ async fn custom_reaction_remove(
 #[poise::command(
     slash_command,
     rename = "reaction",
-    subcommands("custom_reaction_add", "custom_reaction_remove"),
+    subcommands(
+        "custom_reaction_add",
+        "custom_reaction_remove",
+        "custom_reaction_list"
+    ),
     required_permissions = "MANAGE_CHANNELS",
     guild_only
 )]
 pub async fn custom_reaction(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say("Use `/custom reaction add` or `/custom reaction remove`.")
+    ctx.say("Use `/custom reaction add`, `/custom reaction remove`, or `/custom reaction list`.")
         .await?;
     Ok(())
 }
@@ -168,7 +284,7 @@ pub async fn custom_reaction(ctx: Context<'_>) -> Result<(), Error> {
     guild_only
 )]
 pub async fn custom(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say("Use `/custom reaction add` or `/custom reaction remove`.")
+    ctx.say("Use `/custom reaction add`, `/custom reaction remove`, or `/custom reaction list`.")
         .await?;
     Ok(())
 }

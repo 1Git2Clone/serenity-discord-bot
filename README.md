@@ -56,8 +56,9 @@ A Hu Tao-themed Discord bot built with [Serenity](https://github.com/serenity-rs
 - `/age` — your or another member's account creation date
 - `/cookie` — give someone a cookie
 - `/uptime` — bot uptime
-- `/custom reaction add url:<url> pattern:<regex> [anywhere:<bool>]` — register an image + Rust regex; whenever a guild message matches, the bot replies with the image in an embed. `anywhere: false` (default) anchors to the full message; `anywhere: true` matches anywhere. Requires Manage Channels. Per-guild cap: 25
-- `/custom reaction remove name:<autocomplete>` — soft-delete a reaction (Manage Channels, autocomplete from cache)
+- `/custom reaction add url:<url> pattern:<regex> [anywhere:<bool>]` — register an image + Rust regex; whenever a guild message matches, the bot replies with the image in an embed. `anywhere: false` (default) anchors to the full message; `anywhere: true` matches anywhere. The confirmation shows the reaction's per-guild number (`#1`, `#2`, … within the server). Tenor/Giphy *page* links (`tenor.com/view/…`, `giphy.com/gifs/…`) are rejected — paste the direct media URL (`media.tenor.com/....gif`) instead. Requires Manage Channels. Per-guild cap: 25
+- `/custom reaction list` — list the server's reactions (ephemeral) with their per-guild numbers, patterns, and `anywhere` flags (Manage Channels)
+- `/custom reaction remove name:<autocomplete>` — soft-delete the reaction picked by its per-guild number from autocomplete (Manage Channels, cache-backed). Numbers are positional, so removing one renumbers the rest
 - Levenshtein-distance typo correction on unrecognised prefix commands
 
 ### Optional features
