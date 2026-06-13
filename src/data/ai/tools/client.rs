@@ -11,7 +11,7 @@ static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     )]
     reqwest::Client::builder()
         .build()
-        .expect("Failed to build reqwest client for review agent")
+        .expect("Failed to build reqwest client for the AI tool loop")
 });
 
 // ── Request types ───────────────────────────────────────────────────────────
@@ -103,19 +103,27 @@ struct ChatRequest {
     stream: bool,
 }
 
-/// Send a chat-completions request to DeepSeek. Returns the model's content
-/// and/or tool calls.
+/// Send a tool-calling chat-completions request to DeepSeek. Returns the
+/// model's content and/or tool calls.
+///
+/// This bypasses the `llm` crate on purpose: as of `llm` 1.3.8 the DeepSeek
+/// backend's `chat_with_tools` is unimplemented (`todo!()`), so tool loops talk
+/// to the `/chat/completions` endpoint directly. `temperature` and `max_tokens`
+/// are passed in rather than read from a global so different callers (review,
+/// chat tools) can tune them independently.
 #[tracing::instrument(skip(messages, tools), fields(category = "llm"))]
 pub async fn chat(
     messages: &[Message],
     tools: &[Tool],
+    temperature: f32,
+    max_tokens: u32,
 ) -> Result<ChatResult, Box<dyn std::error::Error + Send + Sync>> {
     let request = ChatRequest {
         model: crate::data::ai::DEFAULT_MODEL.to_string(),
         messages: messages.to_vec(),
         tools: tools.to_vec(),
-        temperature: super::config::AI_REVIEW_TEMPERATURE,
-        max_tokens: super::config::AI_REVIEW_MAX_TOKENS,
+        temperature,
+        max_tokens,
         stream: false,
     };
 
