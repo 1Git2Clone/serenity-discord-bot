@@ -10,6 +10,7 @@ SUPERVISOR_CONF="/etc/supervisor/conf.d/serenity-bot.conf"
 # supervisorctl needs root to reach its unix socket; route every call through
 # sudo so the script works when invoked as a normal user.
 SUPERVISORCTL="sudo supervisorctl"
+FEATURES="${1:-"opentelemetry ai-deepseek"}"
 
 echo "=== Starting Blue-Green Restart for ${PATTERN}* ==="
 
@@ -20,8 +21,8 @@ PULL_OUTPUT=$(git -C "$REPO_DIR" pull 2>&1)
 echo "$PULL_OUTPUT"
 
 if ! echo "$PULL_OUTPUT" | grep -q "Already up to date"; then
-  echo "--> Changes detected. Building release binary..."
-  cargo build --release --manifest-path "$REPO_DIR/Cargo.toml"
+  echo "--> Changes detected. Building release binary with features $FEATURES..."
+  cargo build --release --manifest-path "$REPO_DIR/Cargo.toml" --features="$FEATURES"
 else
   echo "--> Already up to date. Skipping build."
 fi
