@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Configuration
-PATTERN="serenity-bot-"
+PATTERN="serenity-bot"
 SLEEP_DELAY=5 # Seconds to wait for the new service to stabilize
 
 echo "=== Starting Blue-Green Restart for ${PATTERN}* ==="
@@ -33,11 +33,12 @@ fi
 PROCESSED_APPS=()
 
 for SERVICE in $SERVICES; do
-    # Match the service name and extract the base app name
-    if [[ "$SERVICE" =~ ^(.*)-(blue|green)$ ]]; then
+    # Match the service name and extract the base app name.
+    # Names come through as "group:program", e.g. serenity-bot:serenity-bot-a.
+    if [[ "$SERVICE" =~ ^(.*)-(a|b)$ ]]; then
         BASE_APP="${BASH_REMATCH[1]}"
     else
-        echo "Skipping $SERVICE (does not end in -blue or -green)"
+        echo "Skipping $SERVICE (does not end in -a or -b)"
         continue
     fi
 
@@ -57,26 +58,26 @@ for SERVICE in $SERVICES; do
     echo "------------------------------------------------"
     echo "Processing Blue-Green deployment for: $BASE_APP"
 
-    BLUE_SERVICE="${BASE_APP}-blue"
-    GREEN_SERVICE="${BASE_APP}-green"
+    SLOT_A_SERVICE="${BASE_APP}-a"
+    SLOT_B_SERVICE="${BASE_APP}-b"
 
     # 4. Determine which service is currently running
-    BLUE_STATUS=$(supervisorctl status "$BLUE_SERVICE" | awk '{print $2}' || echo "STOPPED")
-    GREEN_STATUS=$(supervisorctl status "$GREEN_SERVICE" | awk '{print $2}' || echo "STOPPED")
+    SLOT_A_STATUS=$(supervisorctl status "$SLOT_A_SERVICE" | awk '{print $2}' || echo "STOPPED")
+    SLOT_B_STATUS=$(supervisorctl status "$SLOT_B_SERVICE" | awk '{print $2}' || echo "STOPPED")
 
     ACTIVE_SERVICE=""
     IDLE_SERVICE=""
 
-    if [ "$BLUE_STATUS" == "RUNNING" ]; then
-        ACTIVE_SERVICE="$BLUE_SERVICE"
-        IDLE_SERVICE="$GREEN_SERVICE"
-    elif [ "$GREEN_STATUS" == "RUNNING" ]; then
-        ACTIVE_SERVICE="$GREEN_SERVICE"
-        IDLE_SERVICE="$BLUE_SERVICE"
+    if [ "$SLOT_A_STATUS" == "RUNNING" ]; then
+        ACTIVE_SERVICE="$SLOT_A_SERVICE"
+        IDLE_SERVICE="$SLOT_B_SERVICE"
+    elif [ "$SLOT_B_STATUS" == "RUNNING" ]; then
+        ACTIVE_SERVICE="$SLOT_B_SERVICE"
+        IDLE_SERVICE="$SLOT_A_SERVICE"
     else
-        echo "Warning: Neither Blue nor Green is running for $BASE_APP. Defaulting to start Blue."
+        echo "Warning: Neither slot is running for $BASE_APP. Defaulting to start slot A."
         ACTIVE_SERVICE=""
-        IDLE_SERVICE="$BLUE_SERVICE"
+        IDLE_SERVICE="$SLOT_A_SERVICE"
     fi
 
     # 5. Perform the zero-downtime swap
