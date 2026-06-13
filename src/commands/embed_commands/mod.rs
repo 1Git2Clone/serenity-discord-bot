@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 pub mod spec;
+pub use spec::custom_reaction::custom;
 pub use spec::interactions::*;
 pub use spec::solo::*;
 

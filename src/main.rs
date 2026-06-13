@@ -151,6 +151,7 @@ async fn main() -> Result<(), Error> {
                 commands::embed_commands::boom(),
                 commands::embed_commands::quote(),
                 commands::embed_commands::uptime(),
+                commands::embed_commands::custom(),
             ],
             manual_cooldowns: true,
             ..Default::default()
@@ -188,6 +189,8 @@ async fn main() -> Result<(), Error> {
                     ai::init_registered_channels(&pool).await?;
                     cache::init().await;
                 }
+
+                crate::data::custom_reactions::init(&pool).await?;
 
                 tokio::spawn(crate::data::reminders::reminder_polling_loop(
                     Arc::clone(&ctx.http),

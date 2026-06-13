@@ -277,6 +277,152 @@ impl AiReviewGuildsTable {
     }
 }
 
+/// A row returned by `CustomReactionsTable::fetch_live` and `fetch_all_live`.
+pub struct CustomReactionRow {
+    pub id: i64,
+    pub pattern: String,
+    pub image_url: String,
+    pub anywhere: bool,
+}
+
+pub enum CustomReactionsTable {}
+
+impl CustomReactionsTable {
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            guild_id = %guild_id,
+            pattern = %pattern,
+        )
+    )]
+    /// Insert a new reaction. Returns the assigned `id`.
+    pub async fn insert(
+        pool: &PgPool,
+        guild_id: i64,
+        pattern: &str,
+        image_url: &str,
+        anywhere: bool,
+    ) -> sqlx::Result<i64> {
+        let row = sqlx::query!(
+            "INSERT INTO custom_reactions (guild_id, pattern, image_url, anywhere)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id",
+            guild_id,
+            pattern,
+            image_url,
+            anywhere,
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(row.id)
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            id = %id,
+            guild_id = %guild_id,
+        )
+    )]
+    /// Soft-delete a reaction. Returns `true` if a live row was found and deleted.
+    pub async fn soft_delete(pool: &PgPool, id: i64, guild_id: i64) -> sqlx::Result<bool> {
+        let res = sqlx::query!(
+            "UPDATE custom_reactions
+             SET deleted_at = now()
+             WHERE id = $1 AND guild_id = $2 AND deleted_at IS NULL",
+            id,
+            guild_id,
+        )
+        .execute(pool)
+        .await?;
+        Ok(res.rows_affected() > 0)
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            guild_id = %guild_id,
+        )
+    )]
+    /// Fetch all live reactions for a single guild, ordered by id.
+    pub async fn fetch_live(pool: &PgPool, guild_id: i64) -> sqlx::Result<Vec<CustomReactionRow>> {
+        let rows = sqlx::query!(
+            "SELECT id, pattern, image_url, anywhere
+             FROM custom_reactions
+             WHERE guild_id = $1 AND deleted_at IS NULL
+             ORDER BY id",
+            guild_id,
+        )
+        .fetch_all(pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| CustomReactionRow {
+                id: r.id,
+                pattern: r.pattern,
+                image_url: r.image_url,
+                anywhere: r.anywhere,
+            })
+            .collect())
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+        )
+    )]
+    /// Fetch all live reactions across every guild, ordered by guild_id then id.
+    /// Used for cold-start cache seeding.
+    pub async fn fetch_all_live(pool: &PgPool) -> sqlx::Result<Vec<(i64, CustomReactionRow)>> {
+        let rows = sqlx::query!(
+            "SELECT id, guild_id, pattern, image_url, anywhere
+             FROM custom_reactions
+             WHERE deleted_at IS NULL
+             ORDER BY guild_id, id",
+        )
+        .fetch_all(pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                (
+                    r.guild_id,
+                    CustomReactionRow {
+                        id: r.id,
+                        pattern: r.pattern,
+                        image_url: r.image_url,
+                        anywhere: r.anywhere,
+                    },
+                )
+            })
+            .collect())
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            guild_id = %guild_id,
+        )
+    )]
+    /// Count live reactions for a guild.
+    pub async fn count_live(pool: &PgPool, guild_id: i64) -> sqlx::Result<i64> {
+        let row = sqlx::query!(
+            "SELECT COUNT(*) AS count
+             FROM custom_reactions
+             WHERE guild_id = $1 AND deleted_at IS NULL",
+            guild_id,
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(row.count.unwrap_or(0))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,6 +557,56 @@ mod tests {
                 .await?
                 .contains(&GUILD_AI)
         );
+        Ok(())
+    }
+
+    const CR_GUILD: i64 = 0x5AFE_0004_0000_0001;
+
+    async fn cleanup_cr(pool: &PgPool) -> TestResult {
+        sqlx::query("DELETE FROM custom_reactions WHERE guild_id = $1")
+            .bind(CR_GUILD)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn custom_reactions_insert_fetch_soft_delete_count() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        cleanup_cr(&pool).await?;
+
+        let id = CustomReactionsTable::insert(
+            &pool,
+            CR_GUILD,
+            "hello",
+            "https://example.com/a.gif",
+            false,
+        )
+        .await?;
+        assert_eq!(CustomReactionsTable::count_live(&pool, CR_GUILD).await?, 1);
+
+        let rows = CustomReactionsTable::fetch_live(&pool, CR_GUILD).await?;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, id);
+        assert_eq!(rows[0].pattern, "hello");
+        assert!(!rows[0].anywhere);
+
+        let all = CustomReactionsTable::fetch_all_live(&pool).await?;
+        assert!(all.iter().any(|(gid, r)| *gid == CR_GUILD && r.id == id));
+
+        assert!(CustomReactionsTable::soft_delete(&pool, id, CR_GUILD).await?);
+        // Second call: already deleted.
+        assert!(!CustomReactionsTable::soft_delete(&pool, id, CR_GUILD).await?);
+        assert_eq!(CustomReactionsTable::count_live(&pool, CR_GUILD).await?, 0);
+        assert!(
+            CustomReactionsTable::fetch_live(&pool, CR_GUILD)
+                .await?
+                .is_empty()
+        );
+
+        cleanup_cr(&pool).await?;
         Ok(())
     }
 }

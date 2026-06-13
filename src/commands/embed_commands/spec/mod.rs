@@ -7,6 +7,7 @@
 use super::user_interaction;
 use crate::prelude::*;
 
+pub mod custom_reaction;
 pub mod interactions;
 pub mod solo;
 

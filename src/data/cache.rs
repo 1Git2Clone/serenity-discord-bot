@@ -162,6 +162,46 @@ pub async fn key_exists(
     redis::cmd("EXISTS").arg(key).query_async(conn).await
 }
 
+// ── Hash helpers (for custom reactions) ─────────────────────────────────────
+
+/// Set a field in a Redis hash.
+pub async fn hash_set(
+    conn: &mut ConnectionManager,
+    key: &str,
+    field: &str,
+    value: &str,
+) -> Result<(), redis::RedisError> {
+    let _: () = redis::cmd("HSET")
+        .arg(key)
+        .arg(field)
+        .arg(value)
+        .query_async(conn)
+        .await?;
+    Ok(())
+}
+
+/// Get all fields and values from a Redis hash.
+pub async fn hash_getall(
+    conn: &mut ConnectionManager,
+    key: &str,
+) -> Result<Vec<(String, String)>, redis::RedisError> {
+    redis::cmd("HGETALL").arg(key).query_async(conn).await
+}
+
+/// Delete a field from a Redis hash.
+pub async fn hash_del(
+    conn: &mut ConnectionManager,
+    key: &str,
+    field: &str,
+) -> Result<(), redis::RedisError> {
+    let _: () = redis::cmd("HDEL")
+        .arg(key)
+        .arg(field)
+        .query_async(conn)
+        .await?;
+    Ok(())
+}
+
 // ── RAII drop-guard for Redis locks ─────────────────────────────────────────
 
 /// Releases a Redis lock on drop. The DEL is spawned because Drop can't be
@@ -287,5 +327,34 @@ mod tests {
     async fn empty_guard_is_noop() {
         // No Redis required: an empty key skips the spawned release.
         drop(RedisLockGuard::new(String::new(), String::new()));
+    }
+
+    #[tokio::test]
+    async fn hash_set_getall_del_roundtrip() -> TestResult {
+        let Some(mut conn) = test_redis().await else {
+            return Ok(());
+        };
+        let key = test_key("hash");
+
+        hash_set(&mut conn, &key, "f1", "v1").await?;
+        hash_set(&mut conn, &key, "f2", "v2").await?;
+
+        let pairs = hash_getall(&mut conn, &key).await?;
+        // HGETALL returns field/value interleaved; collect into a map to check.
+        let map: std::collections::HashMap<&str, &str> = pairs
+            .iter()
+            .map(|(f, v)| (f.as_str(), v.as_str()))
+            .collect();
+        assert_eq!(map.get("f1"), Some(&"v1"));
+        assert_eq!(map.get("f2"), Some(&"v2"));
+
+        hash_del(&mut conn, &key, "f1").await?;
+        let pairs2 = hash_getall(&mut conn, &key).await?;
+        let fields: Vec<&str> = pairs2.iter().map(|(f, _)| f.as_str()).collect();
+        assert!(!fields.contains(&"f1"));
+        assert!(fields.contains(&"f2"));
+
+        let _: () = redis::cmd("DEL").arg(&key).query_async(&mut conn).await?;
+        Ok(())
     }
 }
