@@ -6,6 +6,10 @@ set -euo pipefail
 PATTERN="serenity-bot"
 SLEEP_DELAY=5 # Seconds to wait for the new service to stabilize
 
+# supervisorctl needs root to reach its unix socket; route every call through
+# sudo so the script works when invoked as a normal user.
+SUPERVISORCTL="sudo supervisorctl"
+
 echo "=== Starting Blue-Green Restart for ${PATTERN}* ==="
 
 # 1. Pull latest changes and rebuild only if there's something new
@@ -22,7 +26,7 @@ else
 fi
 
 # 2. Get all matching services from supervisorctl
-SERVICES=$(supervisorctl status | awk '{print $1}' | grep "^${PATTERN}" || true)
+SERVICES=$(${SUPERVISORCTL} status | awk '{print $1}' | grep "^${PATTERN}" || true)
 
 if [ -z "$SERVICES" ]; then
     echo "No services found matching pattern: ${PATTERN}*"
@@ -62,8 +66,8 @@ for SERVICE in $SERVICES; do
     SLOT_B_SERVICE="${BASE_APP}-b"
 
     # 4. Determine which service is currently running
-    SLOT_A_STATUS=$(supervisorctl status "$SLOT_A_SERVICE" | awk '{print $2}' || echo "STOPPED")
-    SLOT_B_STATUS=$(supervisorctl status "$SLOT_B_SERVICE" | awk '{print $2}' || echo "STOPPED")
+    SLOT_A_STATUS=$(${SUPERVISORCTL} status "$SLOT_A_SERVICE" | awk '{print $2}' || echo "STOPPED")
+    SLOT_B_STATUS=$(${SUPERVISORCTL} status "$SLOT_B_SERVICE" | awk '{print $2}' || echo "STOPPED")
 
     ACTIVE_SERVICE=""
     IDLE_SERVICE=""
@@ -86,16 +90,16 @@ for SERVICE in $SERVICES; do
         echo "Idle service:   $IDLE_SERVICE"
 
         echo "--> Starting $IDLE_SERVICE..."
-        supervisorctl start "$IDLE_SERVICE"
+        ${SUPERVISORCTL} start "$IDLE_SERVICE"
 
         echo "--> Waiting $SLEEP_DELAY seconds for $IDLE_SERVICE to stabilize..."
         sleep "$SLEEP_DELAY"
 
         # Double check if the new service stayed up
-        NEW_STATUS=$(supervisorctl status "$IDLE_SERVICE" | awk '{print $2}')
+        NEW_STATUS=$(${SUPERVISORCTL} status "$IDLE_SERVICE" | awk '{print $2}')
         if [ "$NEW_STATUS" == "RUNNING" ]; then
             echo "--> $IDLE_SERVICE is healthy. Stopping $ACTIVE_SERVICE..."
-            supervisorctl stop "$ACTIVE_SERVICE"
+            ${SUPERVISORCTL} stop "$ACTIVE_SERVICE"
             echo "Successfully swapped to $IDLE_SERVICE"
         else
             echo "ERROR: $IDLE_SERVICE failed to stay RUNNING. Aborting swap to protect live traffic."
@@ -104,7 +108,7 @@ for SERVICE in $SERVICES; do
     else
         # Fallback if both were dead
         echo "--> Starting $IDLE_SERVICE fresh..."
-        supervisorctl start "$IDLE_SERVICE"
+        ${SUPERVISORCTL} start "$IDLE_SERVICE"
     fi
 
     # Append this app pair to our processed list
