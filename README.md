@@ -47,6 +47,16 @@
 
 A Hu Tao-themed Discord bot built with [Serenity](https://github.com/serenity-rs/serenity) and [Poise](https://github.com/serenity-rs/poise). Responds to both slash and prefix commands (`hu`, `ht`), with persistent XP levelling backed by PostgreSQL and an optional AI persona that stays in character across a full channel conversation window.
 
+The minimal build needs only a Discord token and PostgreSQL; AI, Redis, and
+telemetry are opt-in Cargo features. Run it with:
+
+```sh
+cargo run --release
+```
+
+For deeper detail, see the [documentation](#documentation): architecture,
+configuration, deployment, AI features, and observability.
+
 ## Features
 
 - `/help` — lists every registered command
@@ -61,6 +71,22 @@ A Hu Tao-themed Discord bot built with [Serenity](https://github.com/serenity-rs
 - Levenshtein-distance typo correction on unrecognised prefix commands
 
 ### Optional features
+
+Everything optional is a Cargo feature. `ai` is a meta-feature — enabling it
+also enables `redis` — and it requires picking exactly one `ai-<backend>`.
+
+| Feature | What it adds | Notes |
+|---|---|---|
+| (core) | Commands, XP, reminders, custom reactions | Needs only `BOT_TOKEN` + PostgreSQL. |
+| `redis` | Cross-instance AI context, locks, rate limits | Standalone. Single instance works without it. |
+| `ai` | The AI persona and `/ai-review` | Meta-feature: also enables `redis`. Needs a backend (below). |
+| `ai-<backend>` | The AI provider | Exactly one of `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`. Mandatory when `ai` is on. |
+| `opentelemetry` | OTLP trace export | Point at any OTLP collector; compose ships Tempo + Grafana. |
+| `tokio_console` | Tokio Console runtime inspection | Needs `RUSTFLAGS="--cfg tokio_unstable"`. |
+
+Building with `--features ai` and no backend stops at a `compile_error!` by
+design. See [docs/configuration.md](./docs/configuration.md) for the
+environment variables each feature reads.
 
 #### AI
 
@@ -79,40 +105,20 @@ Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.examp
 
 #### AI code review
 
-`/ai-review run url:<repo-url> pr:<n>` — a Hu Tao-themed code review
-agent shallow-clones the PR, inspects it with read-only tools (`list_files`,
-`read_file`, `git_diff`, `git_log`, plus `pr_conversation` for the existing
-comment/review threads), and posts a structured review as a PR comment. Reviews run one at a time; without the setup below the command
-replies that it isn't configured.
+`/ai-review run url:<repo-url> pr:<n>` — a Hu Tao-themed agent shallow-clones a
+GitHub PR, inspects it with read-only tools (`list_files`, `read_file`,
+`git_diff`, `git_log`, `pr_conversation`), and posts a structured review as a PR
+comment. It needs a GitHub App, per-server admin opt-in (`/ai-review enable`),
+and device-flow authorization on first use. Reviews run one at a time and are
+advisory.
 
-Setup, on top of the AI feature above:
+Limitations: `/ai-review` only works against DeepSeek (it talks to the DeepSeek
+endpoint directly, regardless of which `ai-<backend>` you built), `AI_MODEL`
+must be a function-calling model (`deepseek-chat`), and the host needs `git` and
+the [GitHub CLI](https://cli.github.com/) (`gh`) installed.
 
-1. `git` and the [GitHub CLI](https://cli.github.com/) (`gh`) on the host —
-   the agent shells out to them. No `gh auth login` needed.
-2. Create a GitHub App (Settings → Developer settings → GitHub Apps) with
-   Device Flow enabled and Pull requests: read & write permission, then
-   install it on the repos you want reviewable. Set `GITHUB_OAUTH_CLIENT_ID`
-   (client ID, `Iv` prefix), `GITHUB_APP_ID` (numeric), and
-   `GITHUB_APP_PRIVATE_KEY_PATH` (path to a generated `.pem`) in `.env`. Set
-   `GITHUB_OAUTH_SCOPE` to `repo` to allow private-repo reviews (default is
-   `public_repo`).
-3. An administrator runs `/ai-review enable` in the server (and `/ai-review
-   disable` to turn it off). Enabled servers are stored in PostgreSQL, so
-   the setting survives restarts.
-4. Optional: `AI_REVIEW_MAX_ITERATIONS` (default 20), `AI_REVIEW_TIMEOUT_SECS`
-   (default 600), and `GITHUB_TOKEN_TTL_SECS` (default 3600) in `.env`.
-
-On first use (and after the in-memory TTL or a bot restart) the requester
-receives an ephemeral message with a github.com/login/device link and a short
-code. Once they approve, the bot verifies they have push access to the target
-repo before starting the review. The PR comment itself is posted by the bot's
-GitHub App, not the requester. User tokens (used only for the permission
-check) are never written to disk or a database — they are held in memory only
-and expire after the TTL.
-
-`AI_MODEL` must support function calling (`deepseek-chat` does). Private
-repos additionally require a gh credential helper on the host for the
-workspace's base-branch fetch; public repos work out of the box.
+See [docs/ai.md](./docs/ai.md) for the full setup and usage walkthrough, and
+[SECURITY.md](./SECURITY.md) for the two-token model and sandbox guarantees.
 
 #### Tokio Console
 
@@ -126,7 +132,7 @@ RUSTFLAGS="--cfg tokio_unstable" cargo run --features tokio_console
 
 #### Telemetry
 
-Distributed tracing via OpenTelemetry — backend-agnostic, so you can point it at any OTLP-compatible collector. The compose setup ships with [Grafana Tempo](https://grafana.com/oss/tempo/) and Grafana pre-wired as the UI. To run Tempo manually (create `/var/tempo` once with your user as owner):
+Distributed tracing via OpenTelemetry — backend-agnostic, so you can point it at any OTLP-compatible collector. The compose setup ships with [Grafana Tempo](https://grafana.com/oss/tempo/) and Grafana pre-wired as the UI. See [docs/observability.md](./docs/observability.md) for the tracing layers and the `category` span field. To run Tempo manually (create `/var/tempo` once with your user as owner):
 
 ```sh
 sudo mkdir -p /var/tempo && sudo chown $USER /var/tempo
@@ -177,3 +183,19 @@ docker-compose up -d
 > The [`Dockerfile`](./Dockerfile) builds with the features listed in its `FEATURES`
 > arg (defaults to `ai-deepseek opentelemetry tokio_console`). Override via the
 > compose build args to change provider or feature set.
+
+## Documentation
+
+- [docs/architecture.md](./docs/architecture.md) — crate layout, startup,
+  message flow, the two AI paths, and the Redis-optional model.
+- [docs/configuration.md](./docs/configuration.md) — full environment-variable
+  reference.
+- [docs/deployment.md](./docs/deployment.md) — native, Docker Compose,
+  sharding, and the production topology.
+- [docs/ai.md](./docs/ai.md) — enabling AI, the context window, and the
+  `/ai-review` walkthrough.
+- [docs/observability.md](./docs/observability.md) — tracing, Tokio Console,
+  and OpenTelemetry.
+
+See [SECURITY.md](./SECURITY.md) for the secrets inventory and AI review threat
+model, and [CONTRIBUTORS.md](./CONTRIBUTORS.md) to set up a dev environment.
