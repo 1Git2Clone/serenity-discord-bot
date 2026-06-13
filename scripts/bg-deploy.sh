@@ -5,6 +5,7 @@ set -euo pipefail
 # Configuration
 PATTERN="serenity-bot"
 SLEEP_DELAY=5 # Seconds to wait for the new service to stabilize
+SUPERVISOR_CONF="/etc/supervisor/conf.d/serenity-bot.conf"
 
 # supervisorctl needs root to reach its unix socket; route every call through
 # sudo so the script works when invoked as a normal user.
@@ -25,7 +26,16 @@ else
     echo "--> Already up to date. Skipping build."
 fi
 
-# 2. Get all matching services from supervisorctl
+# 2. Keep the live supervisor config symlinked to the repo and load any
+#    changes. ln -sf is idempotent; reread/update are no-ops when nothing
+#    changed, so this is safe to run on every deploy.
+REPO_CONF="$REPO_DIR/deploy/supervisor/serenity-bot.conf"
+echo "--> Syncing supervisor config from $REPO_CONF..."
+sudo ln -sf "$REPO_CONF" "$SUPERVISOR_CONF"
+${SUPERVISORCTL} reread
+${SUPERVISORCTL} update
+
+# 3. Get all matching services from supervisorctl
 SERVICES=$(${SUPERVISORCTL} status | awk '{print $1}' | grep "^${PATTERN}" || true)
 
 if [ -z "$SERVICES" ]; then
@@ -33,7 +43,7 @@ if [ -z "$SERVICES" ]; then
     exit 0
 fi
 
-# 3. Track processed pairs so we don't restart the same app twice
+# 4. Track processed pairs so we don't restart the same app twice
 PROCESSED_APPS=()
 
 for SERVICE in $SERVICES; do
@@ -67,7 +77,7 @@ for SERVICE in $SERVICES; do
     BLUE_SERVICE="${BASE_APP}-blue"
     GREEN_SERVICE="${BASE_APP}-green"
 
-    # 4. Determine which service is currently running
+    # 5. Determine which service is currently running
     BLUE_STATUS=$(${SUPERVISORCTL} status "$BLUE_SERVICE" | awk '{print $2}' || echo "STOPPED")
     GREEN_STATUS=$(${SUPERVISORCTL} status "$GREEN_SERVICE" | awk '{print $2}' || echo "STOPPED")
 
@@ -86,7 +96,7 @@ for SERVICE in $SERVICES; do
         IDLE_SERVICE="$BLUE_SERVICE"
     fi
 
-    # 5. Perform the zero-downtime swap
+    # 6. Perform the zero-downtime swap
     if [ -n "$ACTIVE_SERVICE" ]; then
         echo "Active service: $ACTIVE_SERVICE"
         echo "Idle service:   $IDLE_SERVICE"
