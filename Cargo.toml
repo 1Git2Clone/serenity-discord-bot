@@ -62,7 +62,7 @@ opentelemetry = [
   "dep:opentelemetry-otlp",
 ]
 # Standalone Redis store; `ai` builds on it.
-redis = ["dep:redis"]
+redis = ["dep:redis", "dep:serde_json", "serde"]
 ai = ["dep:llm", "redis", "dep:tempfile", "dep:jsonwebtoken", "reqwest/rustls", "reqwest/json", "serde", "dep:serde_json"]
 
 # Pick a provider as needed

@@ -72,5 +72,9 @@ pub async fn handle_message(
     #[cfg(feature = "ai")]
     crate::data::ai::handle_ai_channel_message(ctx, data, new_message).await?;
 
+    // Send custom-reaction embeds when the message content matches.
+    #[cfg(feature = "redis")]
+    crate::data::custom_reactions::handle_message(ctx, data, new_message).await?;
+
     Ok(())
 }
