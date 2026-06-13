@@ -1,5 +1,4 @@
 mod agent;
-mod client;
 pub(crate) mod config;
 pub mod github;
 pub mod guilds;
