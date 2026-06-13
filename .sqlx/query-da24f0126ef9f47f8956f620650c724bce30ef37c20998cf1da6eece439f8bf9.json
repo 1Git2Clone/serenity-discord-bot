@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE custom_reactions\n             SET deleted_at = now()\n             WHERE id = $1 AND guild_id = $2 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "da24f0126ef9f47f8956f620650c724bce30ef37c20998cf1da6eece439f8bf9"
+}
