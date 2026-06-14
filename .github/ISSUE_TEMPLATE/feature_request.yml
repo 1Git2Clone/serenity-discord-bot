@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a change or new capability.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Frame it like the open issues do: state the problem, a suggested
+        approach, and what is out of scope. KISS and YAGNI apply — see
+        [AGENTS.md](../blob/main/AGENTS.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What is missing or painful today, and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: The change you have in mind. Point at files/modules if you know them.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you weighed and why you set them aside.
+    validations:
+      required: false
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / out of scope
+      description: What this covers, and what is explicitly a follow-up.
+    validations:
+      required: false

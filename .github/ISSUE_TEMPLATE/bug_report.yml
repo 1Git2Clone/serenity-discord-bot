@@ -1,0 +1,52 @@
+name: Bug report
+description: Report something that misbehaves or crashes.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. See [CONTRIBUTORS.md](../blob/main/CONTRIBUTORS.md)
+        for how the project is built and tested. Keep it concise and concrete.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you observed, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps that trigger the bug.
+      placeholder: |
+        1. Run with `--features ...`
+        2. Invoke `/...`
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: How it was built
+      description: >-
+        Which Cargo features were enabled (e.g. `ai-deepseek`, `opentelemetry`,
+        `redis`, none), and release vs debug.
+      placeholder: cargo run --release --features ai-deepseek
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste relevant log output. Redact tokens and secrets.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust version, Postgres/Redis versions if relevant.
+    validations:
+      required: false
