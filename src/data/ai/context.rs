@@ -36,10 +36,17 @@ fn to_message(author_id: u64, name: &str, content: &str, bot_user_id: u64) -> Op
     }
 }
 
+/// Max chars of a parent message kept in the reply marker.
+const AI_REPLY_SNIPPET_CHARS: usize = 80;
+
 /// A message rendered for the model: its text plus any embeds flattened to text
 /// (author/title/description/fields/footer), with images noted but not shown.
 /// Command outputs are usually embed-only with empty `content`, so without this
 /// the model can't see them at all.
+///
+/// Inline replies get a `[replying to {author}: {snippet}]` marker prepended so
+/// the model keeps the link to the parent message; only the immediate parent is
+/// included.
 fn render_message(message: &serenity::Message) -> String {
     let mut parts: Vec<String> = Vec::new();
 
@@ -52,7 +59,30 @@ fn render_message(message: &serenity::Message) -> String {
         parts.push(render_embed(embed));
     }
 
-    parts.join("\n")
+    let rendered = parts.join("\n");
+
+    match message.referenced_message.as_deref() {
+        Some(parent) => {
+            let snippet = reply_snippet(&render_message(parent));
+            format!(
+                "[replying to {}: {snippet}] {rendered}",
+                author_name(&parent.author)
+            )
+        }
+        None => rendered,
+    }
+}
+
+/// Flatten the parent's rendered text to a single line and truncate on a char
+/// boundary, appending an ellipsis if cut. Keeps the marker cheap against
+/// `AI_MAX_TOKENS`.
+fn reply_snippet(rendered: &str) -> String {
+    let flat = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut snippet: String = flat.chars().take(AI_REPLY_SNIPPET_CHARS).collect();
+    if flat.chars().count() > AI_REPLY_SNIPPET_CHARS {
+        snippet.push('…');
+    }
+    snippet
 }
 
 fn render_embed(embed: &serenity::Embed) -> String {
@@ -285,6 +315,20 @@ mod tests {
     fn entry_content_may_contain_colons_and_newlines() {
         let entry = encode_entry(1, "alice", "key: value\nsecond line");
         assert!(entry_to_message(&entry, BOT_ID).is_some());
+    }
+
+    #[test]
+    fn reply_snippet_truncates_on_char_boundary_with_ellipsis() {
+        // Multi-byte chars so byte indexing would panic; char-based must not.
+        let long = "é".repeat(AI_REPLY_SNIPPET_CHARS + 5);
+        let snippet = reply_snippet(&long);
+        assert_eq!(snippet.chars().count(), AI_REPLY_SNIPPET_CHARS + 1);
+        assert!(snippet.ends_with('…'));
+
+        // Short input is left intact, no ellipsis.
+        let short = reply_snippet("hi there");
+        assert_eq!(short, "hi there");
+        assert!(!short.ends_with('…'));
     }
 
     #[test]
