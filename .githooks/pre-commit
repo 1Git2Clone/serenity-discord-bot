@@ -1,7 +1,11 @@
 #!/bin/sh
-# Fast pre-commit gate: formatting. Bypass with `git commit --no-verify`.
+# Fast pre-commit gate: formatting + lints. Bypass with `git commit --no-verify`.
 set -e
 
 echo "pre-commit • cargo fmt --check"
 cargo fmt --check
+
+echo "pre-commit • cargo clippy"
+cargo clippy --all-targets --all-features
+
 echo "pre-commit • OK"

@@ -12,6 +12,7 @@ const HISTORY_LIMIT: i64 = 100;
 /// and marks them finished (kept as history, capped per user). Minute resolution
 /// matches the command's input granularity — finer polling would only add load
 /// for accuracy the schedule can't promise. Runs for the lifetime of the process.
+#[allow(clippy::infinite_loop)]
 pub async fn reminder_polling_loop(http: Arc<Http>, pool: Arc<PgPool>) {
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
