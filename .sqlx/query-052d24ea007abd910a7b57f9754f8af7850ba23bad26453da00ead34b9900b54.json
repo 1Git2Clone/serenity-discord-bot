@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT extra_prompt FROM guild_ai_settings WHERE guild_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "extra_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "guild_ai_settings",
+            "name": "extra_prompt"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "052d24ea007abd910a7b57f9754f8af7850ba23bad26453da00ead34b9900b54"
+}

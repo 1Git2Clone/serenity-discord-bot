@@ -7,6 +7,8 @@
 use super::user_interaction;
 use crate::prelude::*;
 
+#[cfg(feature = "ai")]
+pub mod custom_prompt;
 pub mod custom_reaction;
 pub mod interactions;
 pub mod solo;

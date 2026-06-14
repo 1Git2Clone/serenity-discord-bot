@@ -37,6 +37,11 @@ jobs:
       DATABASE_URL: postgres://postgres:password@localhost:5432/bot_database
       REDIS_URL: redis://localhost:6379
       RUST_BACKTRACE: full
+      # Clippy/Build run before "Run database migrations", so compile sqlx's
+      # query! macros against the committed .sqlx cache instead of the (empty,
+      # un-migrated) live DB. Matches the local pre-commit hook, which has no
+      # database. Migrations still run before the tests, which connect at runtime.
+      SQLX_OFFLINE: "true"
 
     steps:
       - uses: actions/checkout@v5
