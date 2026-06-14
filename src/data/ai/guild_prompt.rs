@@ -110,8 +110,16 @@ mod tests {
             get_guild_prompt(&pool, GUILD).await.as_deref(),
             Some("be extra cheerful")
         );
+        // A second read with no intervening mutation is served from the Redis
+        // cache (the prior read populated it), not the DB.
+        assert_eq!(
+            get_guild_prompt(&pool, GUILD).await.as_deref(),
+            Some("be extra cheerful")
+        );
 
         assert!(delete_guild_prompt(&pool, GUILD).await?);
+        assert!(get_guild_prompt(&pool, GUILD).await.is_none());
+        // The cached negative sentinel also serves "no prompt" from the cache.
         assert!(get_guild_prompt(&pool, GUILD).await.is_none());
         Ok(())
     }
