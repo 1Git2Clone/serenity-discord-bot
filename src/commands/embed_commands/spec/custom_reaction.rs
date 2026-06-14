@@ -1,6 +1,12 @@
 //! `/custom reaction` command: register an image+regex reaction, or remove one.
+//!
+//! Also hosts the top-level `/custom` group, which nests `/custom reaction` and
+//! (under the `ai` feature) `/custom prompt`.
 
 use crate::{data::custom_reactions, prelude::*};
+
+#[cfg(feature = "ai")]
+use super::custom_prompt::custom_prompt;
 
 /// Strip Discord CDN attachment signing query params (`?ex=&is=&hm=`).
 fn strip_cdn_signing(url: &str) -> String {
@@ -277,6 +283,21 @@ pub async fn custom_reaction(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Top-level `/custom` group.
+#[cfg(feature = "ai")]
+#[poise::command(
+    slash_command,
+    subcommands("custom_reaction", "custom_prompt"),
+    required_permissions = "MANAGE_CHANNELS",
+    guild_only
+)]
+pub async fn custom(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("Use `/custom reaction add|remove|list` or `/custom prompt add|show|remove`.")
+        .await?;
+    Ok(())
+}
+
+/// Top-level `/custom` group.
+#[cfg(not(feature = "ai"))]
 #[poise::command(
     slash_command,
     subcommands("custom_reaction"),

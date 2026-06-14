@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO guild_ai_settings (guild_id, extra_prompt)\n             VALUES ($1, $2)\n             ON CONFLICT (guild_id)\n             DO UPDATE SET extra_prompt = EXCLUDED.extra_prompt,\n                           updated_at   = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "057a9b66024e20b8dea57479ec892a706224390fa457d9f1740d3741be608e9e"
+}

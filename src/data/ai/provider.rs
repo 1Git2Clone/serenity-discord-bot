@@ -134,7 +134,9 @@ pub static AI_PROVIDER: std::sync::LazyLock<Box<dyn LLMProvider>> = std::sync::L
     },
 );
 
-/// `system` turns are dropped — the persona is baked into [`AI_PROVIDER`].
+/// The base persona is baked into [`AI_PROVIDER`] at build time. The `llm` chat
+/// API has no per-message system role, so a per-guild `system` turn rides as a
+/// leading user instruction.
 #[tracing::instrument(
     skip(messages),
     fields(
@@ -146,8 +148,9 @@ pub static AI_PROVIDER: std::sync::LazyLock<Box<dyn LLMProvider>> = std::sync::L
 pub async fn chat(messages: &[AiMessage]) -> Result<String, Error> {
     let conversation = messages
         .iter()
-        .filter(|m| m.role != "system")
         .map(|m| {
+            // No system role exists in the chat API; a `system` turn maps to a
+            // user turn (it's prepended first, so it reads as leading guidance).
             let builder = if m.role == "assistant" {
                 ChatMessage::assistant()
             } else {

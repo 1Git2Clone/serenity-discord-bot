@@ -277,6 +277,71 @@ impl AiReviewGuildsTable {
     }
 }
 
+#[cfg(feature = "ai")]
+pub enum GuildAiSettingsTable {}
+
+#[cfg(feature = "ai")]
+impl GuildAiSettingsTable {
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            guild_id = %guild_id
+        )
+    )]
+    /// The guild's extra system prompt, if one is set.
+    pub async fn fetch(pool: &PgPool, guild_id: i64) -> sqlx::Result<Option<String>> {
+        let row = sqlx::query!(
+            "SELECT extra_prompt FROM guild_ai_settings WHERE guild_id = $1",
+            guild_id
+        )
+        .fetch_optional(pool)
+        .await?;
+        Ok(row.map(|r| r.extra_prompt))
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            guild_id = %guild_id
+        )
+    )]
+    /// Set or replace the guild's extra system prompt.
+    pub async fn upsert(pool: &PgPool, guild_id: i64, extra_prompt: &str) -> sqlx::Result<()> {
+        sqlx::query!(
+            "INSERT INTO guild_ai_settings (guild_id, extra_prompt)
+             VALUES ($1, $2)
+             ON CONFLICT (guild_id)
+             DO UPDATE SET extra_prompt = EXCLUDED.extra_prompt,
+                           updated_at   = now()",
+            guild_id,
+            extra_prompt
+        )
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(
+        fields(
+            category = "sql",
+            db_pool = ?pool,
+            guild_id = %guild_id
+        )
+    )]
+    /// Delete the guild's extra system prompt. Returns `true` if a row existed.
+    pub async fn delete(pool: &PgPool, guild_id: i64) -> sqlx::Result<bool> {
+        let res = sqlx::query!(
+            "DELETE FROM guild_ai_settings WHERE guild_id = $1",
+            guild_id
+        )
+        .execute(pool)
+        .await?;
+        Ok(res.rows_affected() > 0)
+    }
+}
+
 /// A row returned by `CustomReactionsTable::fetch_live` and `fetch_all_live`.
 pub struct CustomReactionRow {
     pub id: i64,
@@ -440,6 +505,8 @@ mod tests {
     const CHANNEL: i64 = 0x5AFE_0002_0000_0021;
     #[cfg(feature = "ai")]
     const GUILD_AI: i64 = 0x5AFE_0002_0000_0022;
+    #[cfg(feature = "ai")]
+    const GUILD_AI_PROMPT: i64 = 0x5AFE_0002_0000_0023;
 
     /// Unchecked query (not `query!`) so tests don't add entries to the
     /// offline `.sqlx` cache.
@@ -557,6 +624,42 @@ mod tests {
                 .await?
                 .contains(&GUILD_AI)
         );
+        Ok(())
+    }
+
+    #[cfg(feature = "ai")]
+    #[tokio::test]
+    async fn guild_ai_settings_upsert_fetch_delete() -> TestResult {
+        let Some(pool) = test_pool().await else {
+            return Ok(());
+        };
+        GuildAiSettingsTable::delete(&pool, GUILD_AI_PROMPT).await?;
+        assert!(
+            GuildAiSettingsTable::fetch(&pool, GUILD_AI_PROMPT)
+                .await?
+                .is_none()
+        );
+
+        GuildAiSettingsTable::upsert(&pool, GUILD_AI_PROMPT, "speak in rhyme").await?;
+        assert_eq!(
+            GuildAiSettingsTable::fetch(&pool, GUILD_AI_PROMPT)
+                .await?
+                .as_deref(),
+            Some("speak in rhyme")
+        );
+
+        // Upsert replaces rather than inserting a second row.
+        GuildAiSettingsTable::upsert(&pool, GUILD_AI_PROMPT, "speak in prose").await?;
+        assert_eq!(
+            GuildAiSettingsTable::fetch(&pool, GUILD_AI_PROMPT)
+                .await?
+                .as_deref(),
+            Some("speak in prose")
+        );
+
+        assert!(GuildAiSettingsTable::delete(&pool, GUILD_AI_PROMPT).await?);
+        // Second delete: nothing left to remove.
+        assert!(!GuildAiSettingsTable::delete(&pool, GUILD_AI_PROMPT).await?);
         Ok(())
     }
 

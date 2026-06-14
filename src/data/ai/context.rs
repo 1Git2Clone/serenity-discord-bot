@@ -137,17 +137,20 @@ pub async fn record_message(message: &serenity::Message) {
 /// The recent conversation for a channel as a prompt.
 ///
 /// Reads the Redis window; on a cold channel (or without Redis) it seeds the
-/// window from a one-off Discord fetch. `current` is appended as a trailing user
-/// turn — used by `/ai`, whose prompt isn't a channel message; the auto-reply
-/// passes `None` since the triggering message is already in the window.
+/// window from a one-off Discord fetch. `extra_system`, when set, is prepended
+/// as a leading system turn (a guild's custom prompt addon). `current` is
+/// appended as a trailing user turn — used by `/ai`, whose prompt isn't a
+/// channel message; the auto-reply passes `None` since the triggering message is
+/// already in the window.
 #[tracing::instrument(
-    skip(cache_http, current),
+    skip(cache_http, extra_system, current),
     fields(category = "ai_context", channel_id = %channel_id)
 )]
 pub async fn channel_context(
     cache_http: impl serenity::CacheHttp,
     channel_id: serenity::ChannelId,
     bot_user_id: u64,
+    extra_system: Option<&str>,
     current: Option<&str>,
 ) -> Vec<AiMessage> {
     let key = ctx_key(channel_id.get());
@@ -166,6 +169,12 @@ pub async fn channel_context(
         }
         None => fetch_from_discord(&cache_http, channel_id, bot_user_id).await,
     };
+
+    // The base persona lives on the provider; a guild's extra prompt rides as a
+    // leading system turn (`chat` sends system turns as a user instruction).
+    if let Some(extra) = extra_system {
+        prompt.insert(0, AiMessage::new("system", extra));
+    }
 
     if let Some(current) = current {
         prompt.push(AiMessage::new("user", current));
