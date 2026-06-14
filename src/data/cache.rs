@@ -162,6 +162,38 @@ pub async fn key_exists(
     redis::cmd("EXISTS").arg(key).query_async(conn).await
 }
 
+// ── String helpers ──────────────────────────────────────────────────────────
+
+/// Get a string value, or `None` if the key is unset.
+pub async fn get_string(
+    conn: &mut ConnectionManager,
+    key: &str,
+) -> Result<Option<String>, redis::RedisError> {
+    redis::cmd("GET").arg(key).query_async(conn).await
+}
+
+/// Set a string value with an expiry (seconds).
+pub async fn set_string_ex(
+    conn: &mut ConnectionManager,
+    key: &str,
+    value: &str,
+    ttl_secs: u64,
+) -> Result<(), redis::RedisError> {
+    let _: () = redis::cmd("SETEX")
+        .arg(key)
+        .arg(ttl_secs)
+        .arg(value)
+        .query_async(conn)
+        .await?;
+    Ok(())
+}
+
+/// Delete a key. A no-op if it doesn't exist.
+pub async fn del(conn: &mut ConnectionManager, key: &str) -> Result<(), redis::RedisError> {
+    let _: () = redis::cmd("DEL").arg(key).query_async(conn).await?;
+    Ok(())
+}
+
 // ── Hash helpers (for custom reactions) ─────────────────────────────────────
 
 /// Set a field in a Redis hash.
@@ -335,6 +367,23 @@ mod tests {
         assert_eq!(map.get("f2"), Some(&"v2"));
 
         let _: () = redis::cmd("DEL").arg(&key).query_async(&mut conn).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn string_get_set_del_roundtrip() -> TestResult {
+        let Some(mut conn) = test_redis().await else {
+            return Ok(());
+        };
+        let key = test_key("string");
+
+        assert!(get_string(&mut conn, &key).await?.is_none());
+
+        set_string_ex(&mut conn, &key, "hello", 30).await?;
+        assert_eq!(get_string(&mut conn, &key).await?.as_deref(), Some("hello"));
+
+        del(&mut conn, &key).await?;
+        assert!(get_string(&mut conn, &key).await?.is_none());
         Ok(())
     }
 }

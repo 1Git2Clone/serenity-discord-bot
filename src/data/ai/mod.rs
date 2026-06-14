@@ -17,6 +17,7 @@ compile_error!(
 mod channels;
 mod config;
 mod context;
+mod guild_prompt;
 mod handler;
 mod provider;
 pub mod review;
@@ -28,6 +29,7 @@ pub use config::{
     try_acquire_channel_lock,
 };
 pub use context::{author_name, channel_context, record_message};
+pub use guild_prompt::{MAX_PROMPT_LEN, delete_guild_prompt, get_guild_prompt, set_guild_prompt};
 pub use handler::handle_ai_channel_message;
 pub use provider::{AI_PROVIDER, AiMessage, chat, init_system_prompt};
 

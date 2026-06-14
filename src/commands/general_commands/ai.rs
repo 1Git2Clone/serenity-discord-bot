@@ -58,16 +58,33 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     ctx.defer().await?;
 
     let who = ai::author_name(ctx.author());
+    let extra_system = match ctx.guild_id() {
+        Some(guild_id) => ai::get_guild_prompt(&ctx.data().pool, guild_id.get() as i64).await,
+        None => None,
+    };
     let prompt = ai::channel_context(
         ctx.serenity_context(),
         channel_id,
         ctx.data().bot_user.id.get(),
+        extra_system.as_deref(),
         Some(&format!("{who}: {message}")),
     )
     .await;
     let response = ai::chat(&prompt).await?;
 
-    ctx.say(response).await?;
+    // The reply echoes model output that a guild's moderator-set prompt can
+    // steer, so block @everyone/@here and role pings (user mentions still ping).
+    ctx.send(
+        poise::CreateReply::default()
+            .content(response)
+            .allowed_mentions(
+                serenity::CreateAllowedMentions::new()
+                    .all_users(true)
+                    .all_roles(false)
+                    .everyone(false),
+            ),
+    )
+    .await?;
 
     Ok(())
 }

@@ -4,6 +4,7 @@ use super::{
     channels::is_ai_channel,
     config::{check_ai_rate_limit, try_acquire_channel_lock},
     context::channel_context,
+    guild_prompt::get_guild_prompt,
     provider::chat,
 };
 use crate::prelude::*;
@@ -54,11 +55,37 @@ pub async fn handle_ai_channel_message(
 
     // The triggering message is already in the window (recorded in `handle_message`
     // before this runs), so no trailing turn is appended.
-    let prompt = channel_context(ctx, new_message.channel_id, data.bot_user.id.get(), None).await;
+    let extra_system = match new_message.guild_id {
+        Some(guild_id) => get_guild_prompt(&data.pool, guild_id.get() as i64).await,
+        None => None,
+    };
+    let prompt = channel_context(
+        ctx,
+        new_message.channel_id,
+        data.bot_user.id.get(),
+        extra_system.as_deref(),
+        None,
+    )
+    .await;
     let response = chat(&prompt).await?;
 
+    // The reply echoes model output that a guild's moderator-set prompt can
+    // steer, so block @everyone/@here and role pings (still ping the user being
+    // replied to). Without this a `/custom prompt` like "always say @everyone"
+    // would mass-ping the server on every auto-reply.
+    let reply = serenity::CreateMessage::new()
+        .content(response)
+        .reference_message(new_message)
+        .allowed_mentions(
+            serenity::CreateAllowedMentions::new()
+                .all_users(true)
+                .all_roles(false)
+                .everyone(false)
+                .replied_user(true),
+        );
     new_message
-        .reply(ctx, response)
+        .channel_id
+        .send_message(ctx, reply)
         .instrument(tracing::info_span!("discord_reply", category = "discord"))
         .await?;
 
