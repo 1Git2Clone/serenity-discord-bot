@@ -179,10 +179,11 @@ pub async fn set_string_ex(
     value: &str,
     ttl_secs: u64,
 ) -> Result<(), redis::RedisError> {
-    let _: () = redis::cmd("SETEX")
+    let _: () = redis::cmd("SET")
         .arg(key)
-        .arg(ttl_secs)
         .arg(value)
+        .arg("EX")
+        .arg(ttl_secs)
         .query_async(conn)
         .await?;
     Ok(())
