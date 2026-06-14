@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-14
+
 ### Added
 
 - `/custom reaction add url:<url> pattern:<regex> anywhere:<bool>` and `/custom reaction add attachment:<file> pattern:<regex> anywhere:<bool>` — staff (Manage Channels) register an image + a Rust regex; any matching guild message gets a red embed reply showing the image. `anywhere: false` (the default) anchors the pattern to the full trimmed message; `anywhere: true` matches anywhere. Patterns are validated at register time: 512-char cap, compiled-automaton size limit, and empty-string-match rejection (all with human-readable error messages including a regex101 Rust-flavor link). Multiple reactions can fire on one message — all matches are sent, ordered by id. The confirmation reports the reaction's **per-guild number** (`#1`, `#2`, … within the server), not the global database id. Tenor/Giphy *page* links (`tenor.com/view/…`, `giphy.com/gifs/…`) are rejected at register time with a hint to paste the direct media URL instead — a page link is an HTML page, not an image, and renders as a blank box in an embed. Discord CDN attachment URLs have signing query params stripped at storage time; external URLs are stored as-is
@@ -115,7 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker Compose setup with PostgreSQL and Jaeger
 - SQLite → PostgreSQL migration
 
-[Unreleased]: https://github.com/1git2clone/serenity-discord-bot/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/1git2clone/serenity-discord-bot/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/1git2clone/serenity-discord-bot/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/1git2clone/serenity-discord-bot/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/1git2clone/serenity-discord-bot/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/1git2clone/serenity-discord-bot/compare/v0.1.1...v0.2.0
