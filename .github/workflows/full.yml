@@ -6,8 +6,54 @@ on:
   pull_request:
     branches: ["main"]
 
+# Cancel superseded runs when a branch is pushed repeatedly.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Deploy feature set mirrors scripts/deploy-features.sh (DEPLOY_FEATURES).
+        features: ["", "--features \"opentelemetry ai-deepseek\"", "--all-features"]
+    env:
+      SQLX_OFFLINE: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets ${{ matrix.features }} -- -D warnings
+
   build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Deploy feature set mirrors scripts/deploy-features.sh (DEPLOY_FEATURES).
+        features: ["", "--features \"opentelemetry ai-deepseek\"", "--all-features"]
+    env:
+      SQLX_OFFLINE: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --verbose ${{ matrix.features }}
+
+  test:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -40,25 +86,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install sqlx-cli
-        run: cargo install sqlx-cli --no-default-features --features postgres
+        uses: taiki-e/install-action@sqlx-cli
 
       - name: Wait for Postgres
         run: until pg_isready -h localhost -p 5432; do sleep 2; done
 
       - name: Run database migrations
         run: sqlx migrate run
-
-      - name: Build
-        run: cargo build --verbose --all-features
 
       - name: Run tests
         run: cargo test --verbose --all-features -- --nocapture
@@ -80,9 +118,14 @@ jobs:
           files: lcov.info
           fail_ci_if_error: true
 
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
       - name: Create filler .env for Docker build
         run: |
-          echo "DATABASE_URL=${DATABASE_URL}" > .env
+          echo "DATABASE_URL=postgres://postgres:password@localhost:5432/bot_database" > .env
           echo "BOT_TOKEN=dummy_token" >> .env
 
       - name: Build Docker image

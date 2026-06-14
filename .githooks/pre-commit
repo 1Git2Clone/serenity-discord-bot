@@ -6,6 +6,6 @@ echo "pre-commit • cargo fmt --check"
 cargo fmt --check
 
 echo "pre-commit • cargo clippy"
-cargo clippy --all-targets --all-features
+cargo clippy --all-targets --all-features -- -D warnings
 
 echo "pre-commit • OK"
