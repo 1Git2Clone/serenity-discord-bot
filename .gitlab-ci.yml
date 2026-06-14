@@ -1,4 +1,5 @@
 stages:
+  - lint_rust
   - docker_build
   - build_rust
   - run_tests_rust
@@ -7,6 +8,15 @@ variables:
   # Rust CI
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
+  # query! macros compile offline against the committed .sqlx, so lint needs no DB.
+  SQLX_OFFLINE: "true"
+
+clippy_rust:
+  stage: lint_rust
+  image: rust:latest
+  script:
+    - rustup component add clippy
+    - cargo clippy --all-targets --all-features -- -D warnings
 
 docker_build:
   stage: docker_build

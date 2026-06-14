@@ -235,7 +235,8 @@ async fn custom_reaction_list(ctx: Context<'_>) -> Result<(), Error> {
         // cap this only bites on pathologically long patterns/URLs.
         const MAX_LEN: usize = 1900;
         let mut out = format!("Custom reactions ({}):", entries.len());
-        let mut shown = 0;
+        // `i` doubles as the count already shown: at index `i` the prior `i`
+        // entries have been appended.
         for (i, e) in entries.iter().enumerate() {
             let line = format!(
                 "\n{}. `{}` (anywhere: {}) — {}",
@@ -247,12 +248,11 @@ async fn custom_reaction_list(ctx: Context<'_>) -> Result<(), Error> {
             if out.len() + line.len() > MAX_LEN {
                 out.push_str(&format!(
                     "\n…and {} more — too long to show.",
-                    entries.len() - shown
+                    entries.len() - i
                 ));
                 break;
             }
             out.push_str(&line);
-            shown += 1;
         }
         out
     };

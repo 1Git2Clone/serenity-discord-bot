@@ -17,7 +17,6 @@ pub use reqwest::{Response, StatusCode};
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 pub use crate::{
     assets::Assets,
-    cdn_url,
     commands::{
         cmd_utils::{self, get_replied_user, make_full_response, same_user},
         level_logic::update_level,
@@ -34,7 +33,6 @@ pub use crate::{
     },
     database::{bot_mentions::*, connect_to_db, level_system::*},
     enums::{command_enums::EmbedType, schemas::LevelsTable},
-    media_url,
 };
 pub use serenity_discord_bot_derive::IterateVariants;
 
@@ -44,7 +42,6 @@ pub use serenity_discord_bot_derive::IterateVariants;
 pub use std::{
     borrow::Cow,
     collections::HashMap,
-    path::Path,
     sync::{Arc, LazyLock},
 };
 
@@ -69,7 +66,7 @@ pub use serenity::{
 // Databases
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 pub use sqlx::{
-    postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgQueryResult, PgRow},
+    postgres::{PgPool, PgPoolOptions},
     prelude::*,
 };
 
