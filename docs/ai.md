@@ -40,6 +40,21 @@ calling.
 
 Persona chat also runs in DMs.
 
+### Per-guild custom prompt
+
+`/custom prompt` appends a server-specific instruction block to the shared Hu
+Tao system prompt without replacing the persona. Requires Manage Channels.
+
+- `/custom prompt add <text>` — set or replace the guild's extra prompt.
+- `/custom prompt show` — show the current one (ephemeral).
+- `/custom prompt remove` — clear it.
+
+The extra prompt is injected as a leading turn ahead of the conversation, so it
+applies to both `/ai` and `/aichannel` auto-replies. It is stored in
+`guild_ai_settings` and cached in Redis (`ai:guild_prompt:{guild}`, TTL 1800s,
+DB authoritative); the no-prompt case is negative-cached so the per-message path
+stays off the DB. DMs have no guild, so they use the base persona only.
+
 ### Context window
 
 Conversation context is kept per channel so the persona can follow a thread.
@@ -51,7 +66,7 @@ The behavior depends on whether Redis is configured.
 - Without Redis, the bot re-fetches recent messages from Discord on every
   reply instead.
 
-Two details worth knowing:
+Three details worth knowing:
 
 - **Warm channels only.** `record_message` appends a message to the window only
   if the window already exists. Channels become "warm" after a prior AI
@@ -60,6 +75,11 @@ Two details worth knowing:
 - **Embeds are flattened.** Most command outputs are embed-only with empty
   message `content`. The context layer renders embeds to text and appends them,
   so the model sees command output instead of nothing.
+- **Replies carry their parent.** When a message is an inline reply, its
+  rendered turn is prefixed with `[replying to <author>: <snippet>]` (the parent
+  flattened and truncated the same way), so the model can tell which earlier
+  message an answer addresses instead of assuming the most recent line. One
+  level deep; a deleted or unresolved parent is skipped.
 
 Speakers are distinguished in the window: the bot's own messages become
 `assistant` turns, and everyone else becomes a `user` turn prefixed with their
