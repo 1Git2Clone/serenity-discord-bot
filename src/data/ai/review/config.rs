@@ -9,10 +9,18 @@ pub static GITHUB_OAUTH_CLIENT_ID: LazyLock<String> = LazyLock::new(|| {
         .expect("Set the `GITHUB_OAUTH_CLIENT_ID` variable for /ai-review.")
 });
 
+#[allow(
+    clippy::expect_used,
+    reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+)]
 pub static GITHUB_APP_ID: LazyLock<String> = LazyLock::new(|| {
     std::env::var("GITHUB_APP_ID").expect("Set the `GITHUB_APP_ID` variable for /ai-review.")
 });
 
+#[allow(
+    clippy::expect_used,
+    reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
+)]
 pub static GITHUB_APP_PRIVATE_KEY: LazyLock<String> = LazyLock::new(|| {
     let path = std::env::var("GITHUB_APP_PRIVATE_KEY_PATH")
         .expect("Set the `GITHUB_APP_PRIVATE_KEY_PATH` variable for /ai-review.");
@@ -113,11 +121,9 @@ pub async fn try_acquire_review_guard() -> Option<crate::data::cache::RedisLockG
     };
     let key = "ai:review_guard".to_string();
     let token = format!("{}-{}", std::process::id(), rand::random::<u64>());
-    if crate::data::cache::try_acquire_lock(&mut conn, &key, &token, AI_REVIEW_GUARD_TTL).await {
-        Some(crate::data::cache::RedisLockGuard::new(key, token))
-    } else {
-        None
-    }
+    crate::data::cache::try_acquire_lock(&mut conn, &key, &token, AI_REVIEW_GUARD_TTL)
+        .await
+        .then(|| crate::data::cache::RedisLockGuard::new(key, token))
 }
 
 #[cfg(test)]

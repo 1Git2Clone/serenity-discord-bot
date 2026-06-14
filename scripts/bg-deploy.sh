@@ -10,7 +10,12 @@ SUPERVISOR_CONF="/etc/supervisor/conf.d/serenity-bot.conf"
 # supervisorctl needs root to reach its unix socket; route every call through
 # sudo so the script works when invoked as a normal user.
 SUPERVISORCTL="sudo supervisorctl"
-FEATURES="${1:-"opentelemetry ai-deepseek"}"
+
+# Default feature set comes from the shared single source of truth; the $1
+# override still wins when given.
+# shellcheck source=scripts/deploy-features.sh
+. "$(dirname "$0")/deploy-features.sh"
+FEATURES="${1:-$DEPLOY_FEATURES}"
 
 echo "=== Starting Blue-Green Restart for ${PATTERN}* ==="
 

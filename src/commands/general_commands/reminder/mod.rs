@@ -20,6 +20,10 @@ const MAX_AUTOCOMPLETE: usize = 25;
     subcommands("create", "list", "search", "delete", "timezone"),
     subcommand_required
 )]
+#[allow(
+    clippy::unused_async,
+    reason = "Poise requires subcommand parents to be async."
+)]
 pub async fn reminder(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
