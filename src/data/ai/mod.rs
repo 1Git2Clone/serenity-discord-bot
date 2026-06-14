@@ -29,10 +29,7 @@ pub use config::{
 };
 pub use context::{author_name, channel_context, record_message};
 pub use handler::handle_ai_channel_message;
-pub use provider::{AI_PROVIDER, AiMessage, chat, init_system_prompt};
-
-#[cfg(feature = "ai-ollama")]
-pub use config::CHAT_ENDPOINT;
+pub use provider::{AI_PROVIDER, chat, init_system_prompt};
 
 #[cfg(any(
     feature = "ai-anthropic",

@@ -77,11 +77,9 @@ pub async fn try_acquire_channel_lock(
     };
     let key = format!("ai:ch_lock:{channel_id}");
     let token = format!("{}-{}", std::process::id(), rand::random::<u64>());
-    if crate::data::cache::try_acquire_lock(&mut conn, &key, &token, AI_CHANNEL_LOCK_TTL).await {
-        Some(crate::data::cache::RedisLockGuard::new(key, token))
-    } else {
-        None
-    }
+    crate::data::cache::try_acquire_lock(&mut conn, &key, &token, AI_CHANNEL_LOCK_TTL)
+        .await
+        .then(|| crate::data::cache::RedisLockGuard::new(key, token))
 }
 
 // ── Rate limiter (was moka Cache) ───────────────────────────────────────────

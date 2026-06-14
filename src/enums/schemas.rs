@@ -377,6 +377,7 @@ impl CustomReactionsTable {
     )]
     /// Fetch all live reactions across every guild, ordered by guild_id then id.
     /// Used for cold-start cache seeding.
+    #[cfg(any(feature = "redis", test))]
     pub async fn fetch_all_live(pool: &PgPool) -> sqlx::Result<Vec<(i64, CustomReactionRow)>> {
         let rows = sqlx::query!(
             "SELECT id, guild_id, pattern, image_url, anywhere

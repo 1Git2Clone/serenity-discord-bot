@@ -19,9 +19,12 @@ const REGEX_DFA_SIZE_LIMIT: usize = 1 << 20; // 1 MiB
 /// Discord caps autocomplete responses at 25 entries.
 const MAX_AUTOCOMPLETE: usize = 25;
 
+#[cfg(feature = "redis")]
 const CR_SEEDED_KEY: &str = "cr:seeded";
+#[cfg(feature = "redis")]
 const CR_GUILDS_KEY: &str = "cr:guilds";
 
+#[cfg(feature = "redis")]
 fn meta_key(guild_id: i64) -> String {
     format!("cr:meta:{guild_id}")
 }
@@ -38,6 +41,7 @@ static COMPILED: LazyLock<std::sync::RwLock<HashMap<i64, Arc<Regex>>>> =
 /// Compiled regex for a stored reaction, compiling and caching on first use.
 /// Returns `None` only if a stored pattern fails to compile, which shouldn't
 /// happen since patterns are validated at register time.
+#[cfg(any(feature = "redis", test))]
 fn compiled_regex(id: i64, pattern: &str, anywhere: bool) -> Option<Arc<Regex>> {
     if let Some(re) = COMPILED.read().ok()?.get(&id) {
         return Some(Arc::clone(re));
@@ -173,8 +177,12 @@ mod cache_entry {
 use cache_entry::CrEntry;
 
 /// A matched reaction ready to send.
+#[cfg(any(feature = "redis", test))]
 pub struct MatchedReaction {
     pub id: i64,
+    // ponytail: read only by the redis-gated send path; in a test build without
+    // redis it's still populated but never read.
+    #[cfg_attr(not(feature = "redis"), allow(dead_code))]
     pub image_url: String,
 }
 
@@ -440,6 +448,7 @@ pub async fn remove(
         content = %content,
     )
 )]
+#[cfg(any(feature = "redis", test))]
 pub async fn matching(
     pool: &PgPool,
     guild_id: i64,
@@ -486,6 +495,7 @@ pub async fn matching(
 }
 
 /// DB fallback for `matching` — used when Redis is unavailable or errors.
+#[cfg(any(feature = "redis", test))]
 async fn matching_from_db(
     pool: &PgPool,
     guild_id: i64,
@@ -535,6 +545,7 @@ mod tests {
     // Sentinel guild IDs — each test gets its own to avoid parallel-test races.
     const CR_TEST_GUILD: i64 = 0x5AFE_0005_0000_0001;
     const CR_CAP_GUILD: i64 = 0x5AFE_0005_0000_0002;
+    #[cfg(feature = "redis")]
     const CR_REDIS_GUILD: i64 = 0x5AFE_0005_0000_0003;
     const CR_MULTI_GUILD: i64 = 0x5AFE_0005_0000_0004;
     const CR_AC_GUILD: i64 = 0x5AFE_0005_0000_0005;
@@ -800,7 +811,7 @@ mod tests {
         #[cfg(feature = "redis")]
         if let Some(mut conn) = cache::conn().await {
             let _: () = redis::cmd("DEL")
-                .arg(&meta_key(guild_id))
+                .arg(meta_key(guild_id))
                 .query_async(&mut conn)
                 .await
                 .unwrap_or(());
@@ -879,7 +890,7 @@ mod tests {
             .await
             .unwrap_or(());
         let _: () = redis::cmd("DEL")
-            .arg(&meta_key(CR_REDIS_GUILD))
+            .arg(meta_key(CR_REDIS_GUILD))
             .query_async(&mut conn)
             .await
             .unwrap_or(());
@@ -920,7 +931,7 @@ mod tests {
             .await
             .unwrap_or(());
         let _: () = redis::cmd("DEL")
-            .arg(&meta_key(CR_REDIS_GUILD))
+            .arg(meta_key(CR_REDIS_GUILD))
             .query_async(&mut conn)
             .await
             .unwrap_or(());

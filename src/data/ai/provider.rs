@@ -25,8 +25,11 @@ impl AiMessage {
 }
 
 /// The active backend, selected at compile time by the `ai-<backend>` Cargo
-/// feature. Exactly one is expected (enforced by the `compile_error!` guard in
+/// feature. At least one is required (enforced by the `compile_error!` guard in
 /// `mod.rs`); each `return` below only exists when its feature is on.
+// ponytail: with several ai-* features on at once (e.g. --all-features) the
+// later returns are unreachable — the first-enabled backend wins, which is fine.
+#[allow(unreachable_code)]
 fn ai_backend() -> LLMBackend {
     #[cfg(feature = "ai-deepseek")]
     return LLMBackend::DeepSeek;
