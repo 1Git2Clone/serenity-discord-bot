@@ -526,6 +526,7 @@ pub async fn autocomplete_reactions(pool: &PgPool, guild_id: i64, partial: &str)
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
