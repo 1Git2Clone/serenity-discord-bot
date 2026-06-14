@@ -8,6 +8,15 @@
 
 ---
 
+## Architecture
+
+The non-obvious architecture lives in
+[docs/architecture.md](./docs/architecture.md) and `handoff/DOCS_KEYNOTES.md`.
+Two gotchas up front: `/ai-review` only works against DeepSeek, and the `ai`
+Cargo feature implies `redis`.
+
+---
+
 ## Core Rules
 
 ### KISS — Keep It Simple
