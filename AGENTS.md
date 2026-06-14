@@ -73,6 +73,68 @@ Every changed line should trace directly to the user's request.
 
 ---
 
+## Comments & Docs Register
+
+Write like a contributor, not a narrator. Plain, terse doc and inline comments.
+No markdown bold, no hype, no restating the code in prose. A comment earns its
+place by explaining something the code can't say for itself — a why, a gotcha, a
+ceiling. If it just paraphrases the line below it, delete it.
+
+---
+
+## Keep Docs In Sync
+
+Treat docs as part of the change, not an afterthought. When a change is
+user-facing or otherwise notable, update them in the same commit/PR:
+
+- `CHANGELOG.md` — add an entry under `[Unreleased]` (match the existing
+  Added/Changed/Fixed prose register). Pure CI/repo-plumbing changes don't need
+  one; user-visible behavior and commands do.
+- `README.md` — if the change adds/alters a command, feature flag, env var, or
+  setup step described there.
+- `docs/` — if it touches architecture or behavior documented under `docs/`.
+
+If you decide a change needs none of these, say so briefly rather than skipping
+silently.
+
+---
+
+## Migrations Are Append-Only
+
+Never edit or reorder a migration once it has been applied anywhere. To change
+the schema, add a new migration with an additive `ALTER`. Editing an applied
+migration desyncs every environment that already ran it. After changing
+queries, regenerate `.sqlx/` with `cargo sqlx prepare` so offline builds and CI
+stay in sync.
+
+---
+
+## Reuse Over Macros
+
+When you do deduplicate (at three-plus uses — see YAGNI), reach for spec structs
+and shared functions, not proc-macro DSLs. LSP support — go-to-definition,
+rename, completion — matters more than terseness. The `InteractionSpec` /
+`run_interaction` pattern in `embed_commands/spec` is the shape to follow.
+
+---
+
+## Verification Gates
+
+CI runs clippy with `-D warnings` across three feature configs; match it locally
+before pushing — code that compiles under one config can break under another,
+which is exactly what the matrix catches:
+
+- `cargo fmt --check`
+- `cargo clippy --all-targets -- -D warnings` for each of: no features,
+  `--features "opentelemetry ai-deepseek"` (the deployed set — see
+  `scripts/deploy-features.sh`), and `--all-features`.
+- Real tests, not just `cargo check`: feature-gated code needs Postgres and
+  Redis. Bring them up with `docker compose up -d db redis`, run
+  `sqlx migrate run`, then `cargo test`. `cargo check` alone never exercises the
+  gated paths.
+
+---
+
 ## Goal-Driven Execution
 
 Define success criteria and loop until they're met.
