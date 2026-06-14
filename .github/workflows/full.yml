@@ -90,7 +90,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install sqlx-cli
-        uses: taiki-e/install-action@sqlx-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
 
       - name: Wait for Postgres
         run: until pg_isready -h localhost -p 5432; do sleep 2; done
