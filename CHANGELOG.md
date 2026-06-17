@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reply-context marker no longer nests/duplicates down the reply chain. `render_message` snippeted the parent via `render_message(parent)`, which re-prepended the parent's own `[replying to ...]` marker — so a reply-to-a-reply produced `[replying to A: [replying to B: ...]]` and walked the whole chain unbounded, contradicting the documented "one level deep". The parent is now snippeted from its *body* (`render_body`, content + embeds, no marker), so the marker is strictly one level deep
+
 ## [0.3.0] - 2026-06-14
 
 ### Added
