@@ -171,12 +171,72 @@ pub async fn chat(messages: &[AiMessage]) -> Result<String, Error> {
         .await?;
     tracing::info!("Raw AI response: {response}");
 
-    Ok(response.text().unwrap_or_else(|| response.to_string()))
+    let text = response.text().unwrap_or_else(|| response.to_string());
+    Ok(strip_reply_markers(&text))
+}
+
+/// Strip any `[replying to ...]` markers the model parroted back from its
+/// context. The marker is an internal reply-link cue (see
+/// `context::render_message`); it must never surface in a user-facing reply.
+/// This is a boundary guard — even with the marker kept off the bot's own turns,
+/// the model can still echo one it saw on a user turn — so a leaked marker can't
+/// reach Discord regardless of source.
+fn strip_reply_markers(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(start) = rest.find("[replying to ") {
+        out.push_str(&rest[..start]);
+        match rest[start..].find(']') {
+            Some(end) => rest = &rest[start + end + 1..],
+            // Unterminated marker: keep the remainder verbatim rather than eat it.
+            None => {
+                out.push_str(&rest[start..]);
+                rest = "";
+                break;
+            }
+        }
+    }
+    out.push_str(rest);
+
+    // Trim only — don't collapse internal whitespace, which would flatten the
+    // multi-line replies the persona sometimes writes.
+    out.trim().to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn strip_reply_markers_removes_leading_stacked_markers() {
+        // The exact failure shape: the model parrots the marker many times before
+        // the real reply (issue #36 reopened).
+        let parroted = "[replying to Kazu: oh hi] [replying to Kazu: oh hi] \
+                        [replying to Kazu: oh hi] lets out a surprised squeak";
+        assert_eq!(strip_reply_markers(parroted), "lets out a surprised squeak");
+    }
+
+    #[test]
+    fn strip_reply_markers_leaves_clean_text_untouched() {
+        assert_eq!(
+            strip_reply_markers("Aiya! Silly-churl!"),
+            "Aiya! Silly-churl!"
+        );
+    }
+
+    #[test]
+    fn strip_reply_markers_preserves_multiline_body() {
+        let input = "[replying to Kazu: hi]\nfirst line\nsecond line";
+        assert_eq!(strip_reply_markers(input), "first line\nsecond line");
+    }
+
+    #[test]
+    fn strip_reply_markers_keeps_unterminated_marker() {
+        // No closing bracket: don't swallow the rest of the message.
+        let input = "[replying to Kazu: oops";
+        assert_eq!(strip_reply_markers(input), "[replying to Kazu: oops");
+    }
 
     #[test]
     fn ai_message_new_stores_role_and_content() {

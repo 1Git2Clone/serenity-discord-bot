@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `[replying to ...]` reply-context marker no longer leaks into the bot's visible replies, where it stacked into dozens of repeated copies before the actual message. The bot replies inline, so its own messages were rendered with the marker and stored as `assistant` turns; the model then learned its replies should start with `[replying to ...]` and parroted it. The marker is now kept off the bot's own turns (it's a cue for reading *other* people's reply links), and any marker the model still echoes is stripped from the response before it's sent
 - Reply-context marker no longer nests/duplicates down the reply chain. `render_message` snippeted the parent via `render_message(parent)`, which re-prepended the parent's own `[replying to ...]` marker — so a reply-to-a-reply produced `[replying to A: [replying to B: ...]]` and walked the whole chain unbounded, contradicting the documented "one level deep". The parent is now snippeted from its *body* (`render_body`, content + embeds, no marker), so the marker is strictly one level deep
 
 ## [0.3.0] - 2026-06-14
