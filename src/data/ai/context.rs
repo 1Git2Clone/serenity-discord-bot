@@ -39,15 +39,16 @@ fn to_message(author_id: u64, name: &str, content: &str, bot_user_id: u64) -> Op
 /// Max chars of a parent message kept in the reply marker.
 const AI_REPLY_SNIPPET_CHARS: usize = 80;
 
-/// A message rendered for the model: its text plus any embeds flattened to text
-/// (author/title/description/fields/footer), with images noted but not shown.
-/// Command outputs are usually embed-only with empty `content`, so without this
-/// the model can't see them at all.
+/// Render a message's own content and embeds, *without* any reply marker.
+/// Its text plus any embeds flattened to text (author/title/description/fields/
+/// footer), with images noted but not shown. Command outputs are usually
+/// embed-only with empty `content`, so without this the model can't see them.
 ///
-/// Inline replies get a `[replying to {author}: {snippet}]` marker prepended so
-/// the model keeps the link to the parent message; only the immediate parent is
-/// included.
-fn render_message(message: &serenity::Message) -> String {
+/// This is the body shared by two callers: the message itself, and the snippet
+/// of a replied-to parent. Keeping the parent snippet on the body (rather than
+/// the fully-rendered turn) is what keeps the reply marker one level deep — see
+/// `render_message`.
+fn render_body(message: &serenity::Message) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     let content = message.content.trim();
@@ -59,11 +60,26 @@ fn render_message(message: &serenity::Message) -> String {
         parts.push(render_embed(embed));
     }
 
-    let rendered = parts.join("\n");
+    parts.join("\n")
+}
+
+/// A message rendered for the model, including a reply marker when applicable.
+///
+/// Inline replies get a `[replying to {author}: {snippet}]` marker prepended so
+/// the model keeps the link to the parent message. Only the immediate parent is
+/// included, and the snippet is the parent's *body* (no marker), so the marker
+/// never nests beyond one level.
+fn render_message(message: &serenity::Message) -> String {
+    let rendered = render_body(message);
 
     match message.referenced_message.as_deref() {
         Some(parent) => {
-            let snippet = reply_snippet(&render_message(parent));
+            // Snippet the parent's BODY, never `render_message(parent)`. The
+            // latter would re-prepend the parent's own `[replying to ...]`
+            // marker, so a reply-to-a-reply would nest markers and walk the
+            // whole chain unbounded. Bodies carry no marker, so this stays
+            // exactly one level deep.
+            let snippet = reply_snippet(&render_body(parent));
             format!(
                 "[replying to {}: {snippet}] {rendered}",
                 author_name(&parent.author)
