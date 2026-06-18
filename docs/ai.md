@@ -76,10 +76,12 @@ Three details worth knowing:
   message `content`. The context layer renders embeds to text and appends them,
   so the model sees command output instead of nothing.
 - **Replies carry their parent.** When a message is an inline reply, its
-  rendered turn is prefixed with `[replying to <author>: <snippet>]` (the parent
-  flattened and truncated the same way), so the model can tell which earlier
-  message an answer addresses instead of assuming the most recent line. One
-  level deep; a deleted or unresolved parent is skipped.
+  rendered turn is prefixed with `[replying to <author>: <snippet>]`, where the
+  snippet is the parent's *body* (content + embeds) flattened and truncated the
+  same way — but **not** the parent's own reply marker. This is what keeps it
+  strictly one level deep: snippeting the parent's fully-rendered turn would
+  re-include the parent's marker and nest unbounded down the reply chain. A
+  deleted or unresolved parent is skipped.
 
 Speakers are distinguished in the window: the bot's own messages become
 `assistant` turns, and everyone else becomes a `user` turn prefixed with their
