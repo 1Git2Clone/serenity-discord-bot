@@ -56,7 +56,7 @@ pub async fn handle_message(
     // are filtered out below — but never other bots.
     #[cfg(feature = "ai")]
     if !new_message.author.bot || new_message.author.id == data.bot_user.id {
-        crate::data::ai::record_message(new_message).await;
+        crate::data::ai::record_message(new_message, data.bot_user.id.get()).await;
     }
 
     if new_message.author.bot {

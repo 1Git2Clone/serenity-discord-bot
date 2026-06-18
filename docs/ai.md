@@ -81,7 +81,12 @@ Three details worth knowing:
   same way — but **not** the parent's own reply marker. This is what keeps it
   strictly one level deep: snippeting the parent's fully-rendered turn would
   re-include the parent's marker and nest unbounded down the reply chain. A
-  deleted or unresolved parent is skipped.
+  deleted or unresolved parent is skipped. The bot's *own* turns never carry the
+  marker — it's a cue for reading other people's reply links, and on the
+  `assistant` turns it only trains the model to begin its replies with
+  `[replying to ...]` and parrot the marker into the visible message. As a
+  belt-and-braces guard, any marker the model still echoes is stripped from the
+  response before it's sent.
 
 Speakers are distinguished in the window: the bot's own messages become
 `assistant` turns, and everyone else becomes a `user` turn prefixed with their

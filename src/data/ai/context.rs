@@ -69,8 +69,18 @@ fn render_body(message: &serenity::Message) -> String {
 /// the model keeps the link to the parent message. Only the immediate parent is
 /// included, and the snippet is the parent's *body* (no marker), so the marker
 /// never nests beyond one level.
-fn render_message(message: &serenity::Message) -> String {
+///
+/// The bot's own messages are skipped: they become `assistant` turns, and the
+/// marker there only teaches the model that its replies should *start* with
+/// `[replying to ...]`, which it then parrots — stacking copies into the actual
+/// reply. The marker is a cue for reading *other* people's reply links, not part
+/// of the bot's voice, so its own turns carry their plain body.
+fn render_message(message: &serenity::Message, bot_user_id: u64) -> String {
     let rendered = render_body(message);
+
+    if message.author.id.get() == bot_user_id {
+        return rendered;
+    }
 
     match message.referenced_message.as_deref() {
         Some(parent) => {
@@ -144,8 +154,8 @@ fn entry_to_message(entry: &str, bot_user_id: u64) -> Option<AiMessage> {
 /// Append a message to a channel's window, but only if the window already exists
 /// (i.e. the channel is "warm" from a prior AI interaction). No-op without Redis.
 #[tracing::instrument(skip(message), fields(category = "redis", channel_id = %message.channel_id))]
-pub async fn record_message(message: &serenity::Message) {
-    let rendered = render_message(message);
+pub async fn record_message(message: &serenity::Message, bot_user_id: u64) {
+    let rendered = render_message(message, bot_user_id);
     if rendered.trim().is_empty() {
         return;
     }
@@ -250,7 +260,7 @@ async fn fetch_from_discord(
             to_message(
                 m.author.id.get(),
                 &author_name(&m.author),
-                &render_message(m),
+                &render_message(m, bot_user_id),
                 bot_user_id,
             )
         })
@@ -276,7 +286,13 @@ async fn seed_from_discord(
     // (author_id, name, rendered text); drop messages that render to nothing.
     let rendered: Vec<(u64, String, String)> = messages
         .iter()
-        .map(|m| (m.author.id.get(), author_name(&m.author), render_message(m)))
+        .map(|m| {
+            (
+                m.author.id.get(),
+                author_name(&m.author),
+                render_message(m, bot_user_id),
+            )
+        })
         .filter(|(_, _, text)| !text.trim().is_empty())
         .collect();
 
