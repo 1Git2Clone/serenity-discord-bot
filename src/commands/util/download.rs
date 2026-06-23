@@ -310,6 +310,7 @@ pub async fn download(
             .arg("--no-simulate")
             // Prefer mp4/m4a so the trim step's `-c copy` into .mp4 works; many
             // sources default to vp9/opus webm which won't remux into mp4.
+            .args(["--extractor-args", "youtube:player_client=mweb"])
             .args(["-S", "ext:mp4:m4a"])
             .args(["--merge-output-format", "mp4"])
             .args(["--print", "after_move:filepath"])
@@ -323,11 +324,14 @@ pub async fn download(
     .map_err(Error::from)?;
 
     if !dl_output.status.success() {
-        ctx.say(format!(
-            "yt-dlp failed: {}",
-            String::from_utf8_lossy(&dl_output.stderr)
-        ))
-        .await?;
+        let stderr = String::from_utf8_lossy(&dl_output.stderr);
+        let error_msg = stderr
+            .lines()
+            .filter(|l| l.starts_with("ERROR:"))
+            .last()
+            .or_else(|| stderr.lines().filter(|l| !l.is_empty()).last())
+            .unwrap_or("unknown error");
+        ctx.say(format!("yt-dlp failed: {error_msg}")).await?;
         return Ok(());
     }
 
