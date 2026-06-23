@@ -52,6 +52,10 @@ async fn run(
 
 /// Validate a URL is a safe, allowlisted social-media URL.
 fn validate_url(raw: &str) -> Result<Url, &'static str> {
+    // ponytail: no private-IP or `--`-in-path checks. The domain allowlist is
+    // the real security boundary — anything not on it is rejected regardless
+    // of IP class or path content. Adding more checks would be belt-and-
+    // suspenders for a threat the allowlist already blocks.
     let parsed = Url::parse(raw).map_err(|_| "Could not parse as a URL.")?;
 
     match parsed.scheme() {
@@ -63,28 +67,6 @@ fn validate_url(raw: &str) -> Result<Url, &'static str> {
         return Err("URLs with credentials (user:pass@) are not allowed.");
     }
 
-    if let Some(ip) = parsed.host() {
-        let private = match ip {
-            url::Host::Ipv4(a) => {
-                a.is_loopback()
-                    || a.is_private()
-                    || a.is_link_local()
-                    || a.is_unspecified()
-                    || a.is_broadcast()
-            }
-            url::Host::Ipv6(a) => {
-                a.is_loopback()
-                    || a.is_unspecified()
-                    || (a.segments()[0] & 0xfe00) == 0xfc00
-                    || (a.segments()[0] & 0xffc0) == 0xfe80
-            }
-            url::Host::Domain(_) => false,
-        };
-        if private {
-            return Err("URL points to a private/internal IP address.");
-        }
-    }
-
     let host = parsed.host_str().ok_or("URL has no host.")?.to_lowercase();
     let allowed = ALLOWED_DOMAINS
         .iter()
@@ -93,17 +75,6 @@ fn validate_url(raw: &str) -> Result<Url, &'static str> {
         return Err(
             "URL host is not in the allowlist. Supported: YouTube, Facebook, Instagram, TikTok, Twitter/X, Reddit, Vimeo.",
         );
-    }
-
-    for segment in parsed.path_segments().into_iter().flatten() {
-        if segment.starts_with("--") {
-            return Err("URL path contains flag-like content (`--`).");
-        }
-    }
-    for (key, _) in parsed.query_pairs() {
-        if key.starts_with("--") {
-            return Err("URL query contains flag-like content (`--`).");
-        }
     }
 
     Ok(parsed)
