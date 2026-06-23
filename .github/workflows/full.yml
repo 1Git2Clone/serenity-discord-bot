@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         # Deploy feature set mirrors scripts/deploy-features.sh (DEPLOY_FEATURES).
-        features: ["", "--features \"opentelemetry ai-deepseek\"", "--all-features"]
+        features: ["", "--features \"opentelemetry ai-openrouter\"", "--all-features"]
     env:
       SQLX_OFFLINE: true
     steps:
@@ -44,7 +44,7 @@ jobs:
       fail-fast: false
       matrix:
         # Deploy feature set mirrors scripts/deploy-features.sh (DEPLOY_FEATURES).
-        features: ["", "--features \"opentelemetry ai-deepseek\"", "--all-features"]
+        features: ["", "--features \"opentelemetry ai-openrouter\"", "--all-features"]
     env:
       SQLX_OFFLINE: true
     steps:
