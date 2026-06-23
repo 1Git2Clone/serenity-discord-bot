@@ -1,16 +1,15 @@
 use crate::prelude::*;
 
-mod age;
-mod avatar;
 #[cfg(feature = "util-download")]
 pub mod download;
-mod uptime;
 
-use age::age;
-use avatar::avatar;
+// Reuse the existing standalone commands as `/util` subcommands rather than
+// copying them — the same `#[poise::command]` fn can be both a top-level
+// command and a subcommand.
+use crate::commands::embed_commands::{avatar, uptime::uptime};
+use crate::commands::general_commands::age::age;
 #[cfg(feature = "util-download")]
 use download::download;
-use uptime::uptime;
 
 /// Utility commands — avatar, uptime, age.
 #[cfg(not(feature = "util-download"))]

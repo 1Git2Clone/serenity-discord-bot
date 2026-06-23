@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use crate::prelude::*;
 use tokio::process::Command;
+use tokio::sync::Semaphore;
 use url::Url;
 
 const MAX_DURATION_SECS: f64 = 300.0;
@@ -21,6 +22,16 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(30);
 const TRIM_TIMEOUT: Duration = Duration::from_secs(60);
 const ENCODE_TIMEOUT: Duration = Duration::from_secs(240);
 
+/// Global serial queue for the heavy yt-dlp + ffmpeg work: one job at a time.
+/// Without it, concurrent invocations stack `libx264 -preset medium` encodes
+/// and saturate every CPU core on the shared bot host.
+///
+/// ponytail: permits=1 (strict serial). A second request waits on the permit
+/// instead of running in parallel. Worst-case job is ~12.5 min, so one request
+/// queued behind one job still fits Discord's 15-min interaction token. Raise
+/// permits only if the host has spare cores and you accept the contention.
+static DOWNLOAD_SLOT: Semaphore = Semaphore::const_new(1);
+
 const ALLOWED_DOMAINS: &[&str] = &[
     "youtube.com",
     "youtu.be",
@@ -31,7 +42,9 @@ const ALLOWED_DOMAINS: &[&str] = &[
     "tiktok.com",
     "twitter.com",
     "x.com",
-    "t.co",
+    // No `t.co`: it's an open URL shortener that redirects to arbitrary hosts,
+    // which yt-dlp would follow — bypassing this allowlist (SSRF). Direct
+    // twitter.com / x.com URLs are sufficient.
     "reddit.com",
     "redd.it",
     "vimeo.com",
@@ -261,6 +274,26 @@ pub async fn download(
         ctx.say(format!("Invalid end timecode: {msg}")).await?;
         return Ok(());
     }
+
+    // Hold the global serial slot for the rest of the command. Bad input is
+    // rejected above without ever queueing. The permit releases on every exit
+    // path (including `?`) when `_permit` drops.
+    let _permit = match DOWNLOAD_SLOT.try_acquire() {
+        Ok(permit) => permit,
+        Err(_) => {
+            ctx.say("⏳ Another download is already processing — you're queued, this may take a few minutes...")
+                .await?;
+            match DOWNLOAD_SLOT.acquire().await {
+                Ok(permit) => permit,
+                // Unreachable in practice: the semaphore is never closed.
+                Err(_) => {
+                    ctx.say("Download queue is unavailable, try again later.")
+                        .await?;
+                    return Ok(());
+                }
+            }
+        }
+    };
 
     let temp_dir = tempfile::TempDir::new()?;
     let source_template = temp_dir.path().join("%(title)s.%(ext)s");
