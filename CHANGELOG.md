@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `util-download` Cargo feature — `/util download <url> [start] [end]` downloads media via `yt-dlp`, optionally trims with `ffmpeg`, then 2-pass encodes targeting 8 MB for Discord attachment upload. Requires `yt-dlp` and `ffmpeg` (with `ffprobe`) on `PATH`
+- `/util` parent command group — groups `/avatar`, `/uptime`, `/age`, and `/util download` (when `util-download` is enabled) under a single `/util` parent. The old standalone `/avatar`, `/uptime`, and `/age` commands remain registered for backward compatibility
 - `ai-openrouter` Cargo feature — adds OpenRouter as a persona-chat backend alongside `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, and `ai-groq`. Set `AI_API_KEY` to an OpenRouter key and `AI_MODEL` to an OpenRouter model id (e.g. `deepseek/deepseek-chat`)
 
 ### Fixed

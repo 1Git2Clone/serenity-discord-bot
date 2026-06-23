@@ -11,3 +11,4 @@
 /bin/*
 !/bin/README.md
 /lcov.info
+/.worktrees/

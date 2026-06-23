@@ -49,6 +49,7 @@ redis = { version = "1.2.2", features = [
   "connection-manager",
 ], optional = true }
 jsonwebtoken = { version = "9", optional = true }
+url = { version = "2.5", optional = true }
 
 [features]
 serde = ["dep:serde"]
@@ -73,3 +74,6 @@ ai-openai    = ["ai", "llm/openai"]
 ai-google    = ["ai", "llm/google"]
 ai-groq      = ["ai", "llm/groq"]
 ai-openrouter = ["ai", "llm/openrouter"]
+
+# Download & compress media from URLs (shells out to yt-dlp + ffmpeg)
+util-download = ["dep:tempfile", "dep:url"]
