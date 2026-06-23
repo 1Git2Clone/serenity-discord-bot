@@ -3,4 +3,4 @@
 # bg-deploy.sh sources this for its default; the CI build/clippy matrix
 # mirrors the same string with a comment pointing here.
 # shellcheck disable=SC2034
-DEPLOY_FEATURES="opentelemetry ai-openrouter"
+DEPLOY_FEATURES="opentelemetry ai-openrouter util-download"
