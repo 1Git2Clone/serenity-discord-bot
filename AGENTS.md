@@ -89,7 +89,11 @@ user-facing or otherwise notable, update them in the same commit/PR:
 
 - `CHANGELOG.md` — add an entry under `[Unreleased]` (match the existing
   Added/Changed/Fixed prose register). Pure CI/repo-plumbing changes don't need
-  one; user-visible behavior and commands do.
+  one; user-visible behavior and commands do. Example: adding a new
+  `ai-<backend>` Cargo feature is user-facing (entry needed); swapping which
+  backend `scripts/deploy-features.sh`/CI build is internal ops config, not a
+  changelog entry — it doesn't change what the project does, only what's
+  currently deployed.
 - `README.md` — if the change adds/alters a command, feature flag, env var, or
   setup step described there.
 - `docs/` — if it touches architecture or behavior documented under `docs/`.
@@ -126,7 +130,7 @@ which is exactly what the matrix catches:
 
 - `cargo fmt --check`
 - `cargo clippy --all-targets -- -D warnings` for each of: no features,
-  `--features "opentelemetry ai-deepseek"` (the deployed set — see
+  `--features "opentelemetry ai-openrouter"` (the deployed set — see
   `scripts/deploy-features.sh`), and `--all-features`.
 - Real tests, not just `cargo check`: feature-gated code needs Postgres and
   Redis. Bring them up with `docker compose up -d db redis`, run
