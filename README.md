@@ -63,6 +63,7 @@ configuration, deployment, AI features, and observability.
 - Embed interaction commands: tieup, pat, hug, kiss, slap, punch, bonk, nom, kill, kick, bury, selfbury, peek, avatar, drive, chair, boom, quote
 - XP levelling with a 60-second cooldown, stored in PostgreSQL — `/level` for a member's level, `/toplevels` for the server leaderboard
 - `/reminder` — schedule a DM for later (`create`/`list`/`search`/`delete`), with a saveable default timezone (`/reminder timezone`, per-server or global) and browsable, paginated history
+- `/util` — utility commands: `/util avatar`, `/util uptime`, `/util age`, and `/util download` (when `util-download` feature is enabled)
 - `/age` — your or another member's account creation date
 - `/cookie` — give someone a cookie
 - `/uptime` — bot uptime
@@ -83,6 +84,7 @@ also enables `redis` — and it requires picking exactly one `ai-<backend>`.
 | `ai` | The AI persona and `/ai-review` | Meta-feature: also enables `redis`. Needs a backend (below). |
 | `ai-<backend>` | The AI provider | Exactly one of `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`, `ai-openrouter`. Mandatory when `ai` is on. |
 | `opentelemetry` | OTLP trace export | Point at any OTLP collector; compose ships Tempo + Grafana. |
+| `util-download` | `/util download` — yt-dlp + ffmpeg 2-pass encode targeting 8 MB | Needs `yt-dlp` and `ffmpeg` (with `ffprobe`) on `PATH`. |
 | `tokio_console` | Tokio Console runtime inspection | Needs `RUSTFLAGS="--cfg tokio_unstable"`. |
 
 Building with `--features ai` and no backend stops at a `compile_error!` by
