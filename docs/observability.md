@@ -14,8 +14,7 @@ overrides the default entirely.
 ## The `category` span field
 
 Every instrumented span carries a custom `category` field for filtering. Values
-include `redis`, `ai_chat`, `llm`, `github_api`, `ai_review`, `ai_review_tool`,
-`sql`, and `discord_command`.
+include `redis`, `ai_chat`, `llm`, `sql`, and `discord_command`.
 
 The top-level `event_handler` is deliberately not instrumented: it fires for
 every gateway event, including presence updates, so a span there would be pure

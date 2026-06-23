@@ -223,61 +223,6 @@ impl AiChannelsTable {
 }
 
 #[cfg(feature = "ai")]
-pub enum AiReviewGuildsTable {}
-
-#[cfg(feature = "ai")]
-impl AiReviewGuildsTable {
-    #[tracing::instrument(
-        fields(
-            category = "sql",
-            db_pool = ?pool,
-            guild_id = %guild_id
-        )
-    )]
-    /// Returns `true` if the guild was newly registered.
-    pub async fn register(pool: &PgPool, guild_id: i64) -> sqlx::Result<bool> {
-        let res = sqlx::query!(
-            "INSERT INTO ai_review_guilds (guild_id)
-             VALUES ($1)
-             ON CONFLICT (guild_id) DO NOTHING",
-            guild_id
-        )
-        .execute(pool)
-        .await?;
-        Ok(res.rows_affected() > 0)
-    }
-
-    #[tracing::instrument(
-        fields(
-            category = "sql",
-            db_pool = ?pool,
-            guild_id = %guild_id
-        )
-    )]
-    /// Returns `true` if the guild was registered before.
-    pub async fn unregister(pool: &PgPool, guild_id: i64) -> sqlx::Result<bool> {
-        let res = sqlx::query!("DELETE FROM ai_review_guilds WHERE guild_id = $1", guild_id)
-            .execute(pool)
-            .await?;
-        Ok(res.rows_affected() > 0)
-    }
-
-    #[tracing::instrument(
-        fields(
-            category = "sql",
-            db_pool = ?pool,
-        )
-    )]
-    pub async fn fetch_all(pool: &PgPool) -> sqlx::Result<Vec<i64>> {
-        let rows = sqlx::query!("SELECT guild_id FROM ai_review_guilds")
-            .fetch_all(pool)
-            .await?;
-
-        Ok(rows.into_iter().map(|row| row.guild_id).collect())
-    }
-}
-
-#[cfg(feature = "ai")]
 pub enum GuildAiSettingsTable {}
 
 #[cfg(feature = "ai")]
@@ -600,31 +545,6 @@ mod tests {
 
         AiChannelsTable::unregister(&pool, CHANNEL).await?;
         assert!(!AiChannelsTable::fetch_all(&pool).await?.contains(&CHANNEL));
-        Ok(())
-    }
-
-    #[cfg(feature = "ai")]
-    #[tokio::test]
-    async fn ai_review_guilds_register_unregister_fetch() -> TestResult {
-        let Some(pool) = test_pool().await else {
-            return Ok(());
-        };
-        AiReviewGuildsTable::unregister(&pool, GUILD_AI).await?;
-
-        AiReviewGuildsTable::register(&pool, GUILD_AI).await?;
-        AiReviewGuildsTable::register(&pool, GUILD_AI).await?;
-        assert!(
-            AiReviewGuildsTable::fetch_all(&pool)
-                .await?
-                .contains(&GUILD_AI)
-        );
-
-        AiReviewGuildsTable::unregister(&pool, GUILD_AI).await?;
-        assert!(
-            !AiReviewGuildsTable::fetch_all(&pool)
-                .await?
-                .contains(&GUILD_AI)
-        );
         Ok(())
     }
 

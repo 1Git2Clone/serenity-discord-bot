@@ -1,9 +1,8 @@
 # Architecture
 
 A system overview for new contributors: the crate layout, how the bot starts,
-how a message flows through the handlers, the two separate AI code paths, the
-tool registry the review agent runs on, and the way Redis is treated as
-optional throughout.
+how a message flows through the handlers, the AI persona chat path, and the way
+Redis is treated as optional throughout.
 
 ## Crate layout
 
@@ -47,17 +46,10 @@ later steps depend on earlier ones.
 ### Fail-fast configuration
 
 Required configuration is read through `LazyLock<String>` statics that panic
-if the variable is missing (`AI_MODEL`, `AI_API_KEY`, `GITHUB_APP_ID`, and
-friends, in `src/data/ai/config.rs` and `src/data/ai/review/config.rs`). They
-are force-evaluated at startup so a misconfiguration crashes immediately with a
-clear message instead of failing deep inside a request.
-
-One sharp edge: a `LazyLock` that panics is poisoned for the rest of the
-process — every later access re-panics. That is why `review_available`
-(`ai_review.rs`) checks the GitHub variables with `std::env::var(...).is_err()`
-before touching the panicking statics. Without that guard one missing variable
-would permanently disable `/ai-review` for the whole run. Any new panicking
-static used inside a command needs the same pre-check.
+if the variable is missing (`AI_MODEL`, `AI_API_KEY`, and friends, in
+`src/data/ai/config.rs`). They are force-evaluated at startup so a
+misconfiguration crashes immediately with a clear message instead of failing
+deep inside a request.
 
 ## Message data flow
 
@@ -88,49 +80,26 @@ prefixes with mention-as-prefix enabled. Unrecognized prefix commands get
 Levenshtein typo correction. Cooldowns are manual (`manual_cooldowns: true`);
 the XP cooldown and the AI per-user rate limit are unrelated systems.
 
-## The two AI code paths
+## AI code path
 
-There are two AI paths, at two different abstraction levels. They do not share
-code and behave differently — do not conflate them.
-
-### Path A — persona chat
+### Persona chat
 
 `/ai`, the `/aichannel` auto-reply, and DMs. Goes through the `llm` crate via
 the `AI_PROVIDER` static (`src/data/ai/provider.rs`). It is provider-agnostic:
 it works with whichever `ai-<backend>` you compiled. It is plain chat
 completion with a system persona and no tool calling.
 
-### Path B — AI code review
+### Path B — removed
 
-`/ai-review`. This path bypasses the `llm` crate entirely and hand-rolls the
-OpenAI/DeepSeek `/chat/completions` tool-calling protocol in
-`src/data/ai/tools/client.rs`. The reason: as of `llm` 1.3.8 the DeepSeek
-backend's `chat_with_tools` is `todo!()`, so there is nothing to call through
-the crate.
+`/ai-review` was removed in 0.4.0. It was a manually-triggered GitHub PR review
+command that bypassed the `llm` crate (because `llm` 1.3.8's DeepSeek
+`chat_with_tools` was `todo!()`), pulled in `jsonwebtoken` and `tempfile`
+dependencies, and required its own GitHub App, Postgres table, Redis guard, and
+device-flow OAuth dance. Automatic AI PR reviewers (this repo's own
+`/code-review ultra` / Codewhale) do a strictly better job, so the command was
+removed.
 
-The endpoint is hardcoded to `https://api.deepseek.com/chat/completions` and
-auth uses `AI_API_KEY`. The consequence is that **`/ai-review` only works
-against DeepSeek**, regardless of which `ai-<backend>` feature is enabled for
-Path A. `AI_MODEL` must name a function-calling model (`deepseek-chat` works).
-See [docs/ai.md](./ai.md) for the user-facing walkthrough and
-[SECURITY.md](../SECURITY.md) for the threat model.
 
-## The tool registry
-
-`src/data/ai/tools/mod.rs` holds a small generic tool-calling abstraction used
-by the review agent.
-
-- `ToolSpec<Ctx>` is a wire definition (name, description, JSON-Schema
-  parameters) plus a function-pointer handler. The handler is a plain `fn`
-  pointer, not a `dyn Trait`, which sidesteps the boxing that an `async fn` in
-  a trait would force. A tool is "data plus a function."
-- `Ctx` is generic so handlers can borrow what they need. The review path's
-  `ReviewCtx` carries the workspace, the PR coordinates, and the token.
-- `ToolRegistry::dispatch` returns an error string for an unknown tool
-  (`"unknown tool: <name>"`) rather than failing. This is the same convention
-  the handlers use: tool errors are strings relayed back to the model so it can
-  react, never an `Err` that aborts the agent loop. This is intentional and
-  load-bearing for the loop's robustness.
 
 ## Redis-optional fallback model
 
@@ -139,11 +108,10 @@ is unset or the connection failed. The whole codebase treats Redis as
 best-effort, and every Redis-backed feature has a single-instance fallback:
 
 | Feature | With Redis | Without Redis (fallback) |
-|---|---|---|
+|---|---|---|---|
 | AI context window | windowed list `ai:ctx:{channel}`, TTL 1800s | re-fetch recent messages from Discord every reply |
 | Per-channel AI lock | `SET NX EX` lock, TTL 30s | no-op guard — cannot dedupe |
 | AI user rate limit | `SET NX EX`, TTL 10s | never rate-limits |
-| Global review guard | lock `ai:review_guard`, TTL 600s | no-op guard |
 
 A single instance runs fine without Redis. Multi-instance deployments need it:
 the locks and rate limits are coordination primitives that otherwise only hold
