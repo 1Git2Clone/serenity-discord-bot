@@ -301,7 +301,7 @@ pub async fn download(
     tracing::info!("Downloading {url}");
     ctx.say("Downloading media...").await?;
 
-    let dl_output = run(
+    let dl_output = match run(
         Command::new("yt-dlp")
             .arg("--no-playlist")
             // `--print` alone implies `--simulate` (nothing downloads), and the
@@ -321,7 +321,13 @@ pub async fn download(
         "yt-dlp download",
     )
     .await
-    .map_err(Error::from)?;
+    {
+        Ok(o) => o,
+        Err(e) => {
+            ctx.say(format!("yt-dlp failed: {e}")).await?;
+            return Ok(());
+        }
+    };
 
     if !dl_output.status.success() {
         let stderr = String::from_utf8_lossy(&dl_output.stderr);
@@ -337,7 +343,13 @@ pub async fn download(
 
     let actual_path = std::path::PathBuf::from(String::from_utf8_lossy(&dl_output.stdout).trim());
 
-    let duration = probe_duration(&actual_path).await?;
+    let duration = match probe_duration(&actual_path).await {
+        Ok(d) => d,
+        Err(e) => {
+            ctx.say(format!("Failed to probe media: {e}")).await?;
+            return Ok(());
+        }
+    };
     if duration > MAX_DURATION_SECS {
         ctx.say(format!(
             "Source is {duration:.0}s long — exceeds the {MAX_DURATION_SECS:.0}s limit."
@@ -350,14 +362,24 @@ pub async fn download(
     let trimmed_path = if did_trim {
         ctx.say("Trimming...").await?;
         let trimmed = temp_dir.path().join("trimmed.mp4");
-        trim_media(&actual_path, &trimmed, start.as_deref(), end.as_deref()).await?;
+        if let Err(e) = trim_media(&actual_path, &trimmed, start.as_deref(), end.as_deref()).await
+        {
+            ctx.say(format!("Trim failed: {e}")).await?;
+            return Ok(());
+        }
         trimmed
     } else {
         actual_path.clone()
     };
 
     let encode_duration = if did_trim {
-        probe_duration(&trimmed_path).await?
+        match probe_duration(&trimmed_path).await {
+            Ok(d) => d,
+            Err(e) => {
+                ctx.say(format!("Failed to probe trimmed media: {e}")).await?;
+                return Ok(());
+            }
+        }
     } else {
         duration
     };
@@ -368,13 +390,12 @@ pub async fn download(
         std::fs::copy(&trimmed_path, &output_path)?;
     } else {
         ctx.say("Compressing (2-pass encode)...").await?;
-        two_pass_encode(
-            &trimmed_path,
-            &output_path,
-            encode_duration,
-            temp_dir.path(),
-        )
-        .await?;
+        if let Err(e) =
+            two_pass_encode(&trimmed_path, &output_path, encode_duration, temp_dir.path()).await
+        {
+            ctx.say(format!("Encode failed: {e}")).await?;
+            return Ok(());
+        }
     }
 
     let file_size = std::fs::metadata(&output_path)?.len();
