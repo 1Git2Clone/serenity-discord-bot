@@ -81,7 +81,7 @@ also enables `redis` — and it requires picking exactly one `ai-<backend>`.
 | (core) | Commands, XP, reminders, custom reactions | Needs only `BOT_TOKEN` + PostgreSQL. |
 | `redis` | Cross-instance AI context, locks, rate limits | Standalone. Single instance works without it. |
 | `ai` | The AI persona and `/ai-review` | Meta-feature: also enables `redis`. Needs a backend (below). |
-| `ai-<backend>` | The AI provider | Exactly one of `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`. Mandatory when `ai` is on. |
+| `ai-<backend>` | The AI provider | Exactly one of `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`, `ai-openrouter`. Mandatory when `ai` is on. |
 | `opentelemetry` | OTLP trace export | Point at any OTLP collector; compose ships Tempo + Grafana. |
 | `tokio_console` | Tokio Console runtime inspection | Needs `RUSTFLAGS="--cfg tokio_unstable"`. |
 
@@ -91,7 +91,7 @@ environment variables each feature reads.
 
 #### AI
 
-An in-character Hu Tao persona powered by the [llm crate](https://crates.io/crates/llm), which supports every mainstream provider. The backend is chosen at compile time — enable exactly one of: `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`.
+An in-character Hu Tao persona powered by the [llm crate](https://crates.io/crates/llm), which supports every mainstream provider. The backend is chosen at compile time — enable exactly one of: `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`, `ai-openrouter`.
 
 Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.example`](./.env.example) for all variables.
 

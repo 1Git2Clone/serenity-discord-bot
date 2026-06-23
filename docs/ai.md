@@ -15,7 +15,7 @@ AI is compiled in via Cargo features. `ai` is a meta-feature: it also enables
 one backend:
 
 ```
-ai-deepseek  ai-ollama  ai-anthropic  ai-openai  ai-google  ai-groq
+ai-deepseek  ai-ollama  ai-anthropic  ai-openai  ai-google  ai-groq  ai-openrouter
 ```
 
 Building with `--features ai` and no backend fails with a `compile_error!`.

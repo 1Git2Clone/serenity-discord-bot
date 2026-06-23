@@ -21,6 +21,7 @@ pub static DEFAULT_MODEL: LazyLock<String> = LazyLock::new(|| {
     feature = "ai-openai",
     feature = "ai-google",
     feature = "ai-groq",
+    feature = "ai-openrouter",
 ))]
 pub static AI_API_KEY: LazyLock<String> = LazyLock::new(|| {
     #[allow(
@@ -28,7 +29,7 @@ pub static AI_API_KEY: LazyLock<String> = LazyLock::new(|| {
         reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
     )]
     std::env::var("AI_API_KEY")
-        .expect("Set the `AI_API_KEY` variable when using any of the following features: `ai-anthropic`, `ai-openai`, `ai-deepseek`, `ai-google`, or `ai-groq`.")
+        .expect("Set the `AI_API_KEY` variable when using any of the following features: `ai-anthropic`, `ai-openai`, `ai-deepseek`, `ai-google`, `ai-groq`, or `ai-openrouter`.")
 });
 /// Defaults to 10 if not present like it was in:
 /// - https://github.com/1Git2Clone/serenity-discord-bot/commit/a7d2a8c157eb966335c1dcc9a3995bc48b8aa193
