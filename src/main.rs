@@ -127,8 +127,6 @@ async fn main() -> Result<(), Error> {
                 commands::general_commands::ai(),
                 #[cfg(feature = "ai")]
                 commands::general_commands::aichannel(),
-                #[cfg(feature = "ai")]
-                commands::general_commands::ai_review(),
                 commands::general_commands::cookie(),
                 commands::level_cmds::level(),
                 commands::level_cmds::toplevels(),

@@ -12,13 +12,11 @@ Project documentation for serenity-discord-bot. Start with the top-level
 - [deployment.md](./deployment.md) — running natively, Docker Compose,
   telemetry-only infra, sharding and multi-instance, and the blue-green
   production topology.
-- [ai.md](./ai.md) — enabling AI, the persona chat and context window, and a
-  full `/ai-review` setup and usage walkthrough.
+- [ai.md](./ai.md) — enabling AI, the persona chat and context window.
 - [custom-reactions.md](./custom-reactions.md) — the per-guild numbering model,
   safe removal, image-URL validation, and the write-through Redis cache.
 - [observability.md](./observability.md) — tracing layers, the `category` span
   field, Tokio Console, and OpenTelemetry with Tempo/Grafana.
 
-See also [SECURITY.md](../SECURITY.md) for the secrets inventory and the AI
-code review threat model, and [CONTRIBUTORS.md](../CONTRIBUTORS.md) for the dev
-environment and workflow.
+See also [SECURITY.md](../SECURITY.md) for the secrets inventory, and
+[CONTRIBUTORS.md](../CONTRIBUTORS.md) for the dev environment and workflow.
