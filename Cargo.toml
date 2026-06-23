@@ -49,7 +49,6 @@ redis = { version = "1.2.2", features = [
   "connection-manager",
 ], optional = true }
 jsonwebtoken = { version = "9", optional = true }
-ffmpeg-sidecar = { version = "2.5", optional = true }
 url = { version = "2.5", optional = true }
 
 [features]
@@ -76,5 +75,5 @@ ai-google    = ["ai", "llm/google"]
 ai-groq      = ["ai", "llm/groq"]
 ai-openrouter = ["ai", "llm/openrouter"]
 
-# Download & compress media from URLs (yt-dlp + ffmpeg-sidecar)
-util-download = ["dep:ffmpeg-sidecar", "dep:tempfile", "dep:url"]
+# Download & compress media from URLs (shells out to yt-dlp + ffmpeg)
+util-download = ["dep:tempfile", "dep:url"]

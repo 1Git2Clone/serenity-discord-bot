@@ -271,8 +271,15 @@ pub async fn download(
     let dl_output = run(
         Command::new("yt-dlp")
             .arg("--no-playlist")
-            .arg("--print")
-            .arg("filename")
+            // `--print` alone implies `--simulate` (nothing downloads), and the
+            // bare `filename` field is the pre-merge name. `--no-simulate` plus
+            // `after_move:filepath` actually fetches and prints the final path.
+            .arg("--no-simulate")
+            // Prefer mp4/m4a so the trim step's `-c copy` into .mp4 works; many
+            // sources default to vp9/opus webm which won't remux into mp4.
+            .args(["-S", "ext:mp4:m4a"])
+            .args(["--merge-output-format", "mp4"])
+            .args(["--print", "after_move:filepath"])
             .arg("--output")
             .arg(source_template.to_string_lossy().to_string())
             .arg(&url),
