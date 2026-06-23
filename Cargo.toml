@@ -26,7 +26,6 @@ rayon = "1.10.0"
 regex = "1.11.1"
 reqwest = { version = "0.13.2", default-features = false }
 serenity_discord_bot_derive = { path = "./serenity_discord_bot_derive" }
-tempfile = { version = "3", optional = true }
 strsim = "0.11.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "std"] }
@@ -48,7 +47,7 @@ redis = { version = "1.2.2", features = [
   "tokio-comp",
   "connection-manager",
 ], optional = true }
-jsonwebtoken = { version = "9", optional = true }
+tempfile = { version = "3", optional = true }
 url = { version = "2.5", optional = true }
 
 [features]
@@ -64,7 +63,7 @@ opentelemetry = [
 ]
 # Standalone Redis store; `ai` builds on it.
 redis = ["dep:redis", "dep:serde_json", "serde"]
-ai = ["dep:llm", "redis", "dep:tempfile", "dep:jsonwebtoken", "reqwest/rustls", "reqwest/json", "serde", "dep:serde_json"]
+ai = ["dep:llm", "redis", "reqwest/rustls", "reqwest/json", "serde", "dep:serde_json"]
 
 # Pick a provider as needed
 ai-deepseek  = ["ai", "llm/deepseek"]

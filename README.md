@@ -81,7 +81,7 @@ also enables `redis` — and it requires picking exactly one `ai-<backend>`.
 |---|---|---|
 | (core) | Commands, XP, reminders, custom reactions | Needs only `BOT_TOKEN` + PostgreSQL. |
 | `redis` | Cross-instance AI context, locks, rate limits | Standalone. Single instance works without it. |
-| `ai` | The AI persona and `/ai-review` | Meta-feature: also enables `redis`. Needs a backend (below). |
+| `ai` | The AI persona chat | Meta-feature: also enables `redis`. Needs a backend (below). |
 | `ai-<backend>` | The AI provider | Exactly one of `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`, `ai-openrouter`. Mandatory when `ai` is on. |
 | `opentelemetry` | OTLP trace export | Point at any OTLP collector; compose ships Tempo + Grafana. |
 | `util-download` | `/util download` — yt-dlp + ffmpeg 2-pass encode targeting 8 MB | Needs `yt-dlp` and `ffmpeg` (with `ffprobe`) on `PATH`. |
@@ -100,29 +100,11 @@ Set `AI_MODEL` and `AI_API_KEY` (hosted backends) in `.env` — see [`.env.examp
 - `/ai` — one-off prompt in any channel or DM
 - `/aichannel` — toggle a channel where the bot auto-replies to every message (requires Manage Channels)
 - `/custom prompt add|show|remove` — set a per-server instruction block appended to the AI's system prompt, applied to both `/ai` and auto-replies (requires Manage Channels)
-- `/ai-review` — AI code review of a GitHub PR (see below)
 - Set `REDIS_URL` to keep conversation context in Redis and to share AI locks and rate limits across bot instances; without it the bot re-fetches recent messages from Discord on every reply and coordination is per-instance
 
 ![AI channel demo](./assets/ai-channel-demo.png)
 
 ![AI DM demo](./assets/ai-dm-demo.png)
-
-#### AI code review
-
-`/ai-review run url:<repo-url> pr:<n>` — a Hu Tao-themed agent shallow-clones a
-GitHub PR, inspects it with read-only tools (`list_files`, `read_file`,
-`git_diff`, `git_log`, `pr_conversation`), and posts a structured review as a PR
-comment. It needs a GitHub App, per-server admin opt-in (`/ai-review enable`),
-and device-flow authorization on first use. Reviews run one at a time and are
-advisory.
-
-Limitations: `/ai-review` only works against DeepSeek (it talks to the DeepSeek
-endpoint directly, regardless of which `ai-<backend>` you built), `AI_MODEL`
-must be a function-calling model (`deepseek-chat`), and the host needs `git` and
-the [GitHub CLI](https://cli.github.com/) (`gh`) installed.
-
-See [docs/ai.md](./docs/ai.md) for the full setup and usage walkthrough, and
-[SECURITY.md](./SECURITY.md) for the two-token model and sandbox guarantees.
 
 #### Tokio Console
 
@@ -196,10 +178,9 @@ docker-compose up -d
   reference.
 - [docs/deployment.md](./docs/deployment.md) — native, Docker Compose,
   sharding, and the production topology.
-- [docs/ai.md](./docs/ai.md) — enabling AI, the context window, and the
-  `/ai-review` walkthrough.
+- [docs/ai.md](./docs/ai.md) — enabling AI and the context window.
 - [docs/observability.md](./docs/observability.md) — tracing, Tokio Console,
   and OpenTelemetry.
 
-See [SECURITY.md](./SECURITY.md) for the secrets inventory and AI review threat
-model, and [CONTRIBUTORS.md](./CONTRIBUTORS.md) to set up a dev environment.
+See [SECURITY.md](./SECURITY.md) for the secrets inventory, and
+[CONTRIBUTORS.md](./CONTRIBUTORS.md) to set up a dev environment.
