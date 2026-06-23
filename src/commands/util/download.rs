@@ -52,9 +52,6 @@ async fn run(
 
 /// Validate a URL is a safe, allowlisted social-media URL.
 fn validate_url(raw: &str) -> Result<Url, &'static str> {
-    if raw.starts_with('-') {
-        return Err("URL starts with `-` which looks like a flag — rejected.");
-    }
     let parsed = Url::parse(raw).map_err(|_| "Could not parse as a URL.")?;
 
     match parsed.scheme() {
@@ -114,8 +111,8 @@ fn validate_url(raw: &str) -> Result<Url, &'static str> {
 
 /// Validate a timecode: pure digits (seconds, ≤5 digits) or HH:MM:SS / MM:SS.
 fn validate_timecode(raw: &str) -> Result<(), &'static str> {
-    if raw.is_empty() || raw.starts_with('-') {
-        return Err("Timecode is empty or starts with `-`.");
+    if raw.is_empty() {
+        return Err("Timecode is empty.");
     }
     if raw.chars().all(|c| c.is_ascii_digit()) {
         if raw.len() > 5 {
