@@ -389,3 +389,67 @@ pub async fn download(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_timecode, validate_url};
+
+    #[test]
+    fn accepts_allowlisted_hosts() {
+        for url in [
+            "https://www.youtube.com/watch?v=abc",
+            "https://youtu.be/abc",
+            "http://x.com/user/status/1",
+            "https://vimeo.com/12345",
+            "https://v.redd.it/abc",
+        ] {
+            assert!(validate_url(url).is_ok(), "should accept {url}");
+        }
+    }
+
+    #[test]
+    fn rejects_t_co_shortener() {
+        // t.co is an open redirector — must stay off the allowlist (SSRF guard).
+        assert!(validate_url("https://t.co/abc123").is_err());
+    }
+
+    #[test]
+    fn rejects_non_allowlisted_and_lookalikes() {
+        for url in [
+            "https://example.com/video",
+            "https://notyoutube.com/x",
+            "https://youtube.com.evil.com/x",
+            "https://evil.com/youtube.com",
+        ] {
+            assert!(validate_url(url).is_err(), "should reject {url}");
+        }
+    }
+
+    #[test]
+    fn rejects_bad_schemes_and_credentials() {
+        for url in [
+            "ftp://youtube.com/x",
+            "file:///etc/passwd",
+            "not a url",
+            "https://user:pass@youtube.com/x",
+        ] {
+            assert!(validate_url(url).is_err(), "should reject {url}");
+        }
+    }
+
+    #[test]
+    fn accepts_valid_timecodes() {
+        for t in ["0", "90", "01:30", "1:30", "01:00:00", "12:34:56"] {
+            assert!(validate_timecode(t).is_ok(), "should accept {t}");
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_timecodes() {
+        for t in [
+            "", "123456", "1m30s", "-5", "01:", ":30", "1:2:3:4", "01:30:",
+        ] {
+            assert!(validate_timecode(t).is_err(), "should reject {t}");
+        }
+    }
+}
