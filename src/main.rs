@@ -150,6 +150,7 @@ async fn main() -> Result<(), Error> {
                 commands::embed_commands::quote(),
                 commands::embed_commands::uptime(),
                 commands::embed_commands::custom(),
+                commands::util::util(),
             ],
             manual_cooldowns: true,
             ..Default::default()

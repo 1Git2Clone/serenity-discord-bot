@@ -36,6 +36,8 @@ that feature is compiled in.
 - `ai` is a meta-feature: enabling it also enables `redis`. It does not pick a
   provider — you must enable exactly one `ai-<backend>`. See the
   [README feature matrix](../README.md#features) and [docs/ai.md](./ai.md).
+- `util-download` needs `yt-dlp` and `ffmpeg` (with `ffprobe`) on `PATH` at
+  runtime. No additional environment variables.
 - `tokio_console` additionally needs `RUSTFLAGS="--cfg tokio_unstable"` at
   build time. See [docs/observability.md](./observability.md).
 - Sharding is opt-in: set all three of `TOTAL_SHARDS`, `SHARD_START`, and

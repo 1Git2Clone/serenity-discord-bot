@@ -2716,11 +2716,13 @@ dependencies = [
  "serenity_discord_bot_derive",
  "sqlx",
  "strsim",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-futures",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
