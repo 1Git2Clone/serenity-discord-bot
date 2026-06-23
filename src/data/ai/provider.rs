@@ -43,6 +43,8 @@ fn ai_backend() -> LLMBackend {
     return LLMBackend::Google;
     #[cfg(feature = "ai-groq")]
     return LLMBackend::Groq;
+    #[cfg(feature = "ai-openrouter")]
+    return LLMBackend::OpenRouter;
 }
 
 /// The static persona. [`init_system_prompt`] wraps this with the bot's command
@@ -118,6 +120,7 @@ pub static AI_PROVIDER: std::sync::LazyLock<Box<dyn LLMProvider>> = std::sync::L
             feature = "ai-openai",
             feature = "ai-google",
             feature = "ai-groq",
+            feature = "ai-openrouter",
         ))]
         {
             builder = builder.api_key(AI_API_KEY.as_str());

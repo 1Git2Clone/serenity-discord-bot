@@ -8,10 +8,11 @@
     feature = "ai-openai",
     feature = "ai-google",
     feature = "ai-groq",
+    feature = "ai-openrouter",
 )))]
 compile_error!(
     "The `ai` feature needs a backend. Enable exactly one of: \
-     `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`."
+     `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, `ai-groq`, `ai-openrouter`."
 );
 
 mod channels;
@@ -39,5 +40,6 @@ pub use provider::{AI_PROVIDER, chat, init_system_prompt};
     feature = "ai-openai",
     feature = "ai-google",
     feature = "ai-groq",
+    feature = "ai-openrouter",
 ))]
 pub use config::AI_API_KEY;
