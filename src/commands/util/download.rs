@@ -302,17 +302,6 @@ pub async fn download(
     ctx.say("Downloading media...").await?;
 
     let mut cmd = Command::new("yt-dlp");
-
-    // Supervisor strips most of HOME-relative PATH entries. Prepend common
-    // JS runtime locations so yt-dlp can solve YouTube's n-challenge.
-    if let Ok(home) = std::env::var("HOME") {
-        let current = std::env::var("PATH").unwrap_or_default();
-        cmd.env(
-            "PATH",
-            format!("{home}/.deno/bin:{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:{current}"),
-        );
-    }
-
     cmd.arg("--no-playlist")
         // `--print` alone implies `--simulate` (nothing downloads), and the
         // bare `filename` field is the pre-merge name. `--no-simulate` plus
@@ -321,6 +310,10 @@ pub async fn download(
         // Prefer mp4/m4a but fall back to whatever's available.
         .args(["-S", "+ext:mp4:m4a"])
         .args(["--merge-output-format", "mp4"])
+        // Use node for JS challenge solving (n-challenge + signature).
+        // ejs:github fetches the required solver script on first use.
+        .args(["--js-runtimes", "node"])
+        .args(["--remote-components", "ejs:github"])
         .args(["--print", "after_move:filepath"])
         .arg("--output")
         .arg(source_template.to_string_lossy().to_string());
