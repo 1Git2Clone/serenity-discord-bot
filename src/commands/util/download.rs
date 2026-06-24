@@ -307,9 +307,6 @@ pub async fn download(
         // bare `filename` field is the pre-merge name. `--no-simulate` plus
         // `after_move:filepath` actually fetches and prints the final path.
         .arg("--no-simulate")
-        // Prefer mp4/m4a so the trim step's `-c copy` into .mp4 works; many
-        // sources default to vp9/opus webm which won't remux into mp4.
-        .args(["--extractor-args", "youtube:player_client=mweb"])
         // Prefer mp4/m4a but fall back to whatever's available.
         .args(["-S", "+ext:mp4:m4a"])
         .args(["--merge-output-format", "mp4"])
