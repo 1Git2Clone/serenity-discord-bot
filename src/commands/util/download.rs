@@ -367,8 +367,23 @@ pub async fn download(
         ctx.say("Trimming...").await?;
         let trimmed = temp_dir.path().join("trimmed.mp4");
         if let Err(e) = trim_media(&actual_path, &trimmed, start.as_deref(), end.as_deref()).await {
-            ctx.say(format!("Trim failed: {e}")).await?;
-            return Ok(());
+            tracing::warn!("Fast trim failed ({e}), retrying with re-encode.");
+            // Fast trim (`-c copy`) fails when the source isn't mp4-compatible
+            // (e.g. webm). Fall back to a full re-encode trim.
+            let mut cmd = Command::new("ffmpeg");
+            cmd.arg("-y").arg("-i").arg(&actual_path);
+            if let Some(s) = &start {
+                cmd.args(["-ss", s]);
+            }
+            if let Some(e) = &end {
+                cmd.args(["-to", e]);
+            }
+            cmd.args(["-c:v", "libx264", "-preset", "fast", "-c:a", "aac"])
+                .arg(&trimmed);
+            if let Err(e) = run(&mut cmd, TRIM_TIMEOUT, "ffmpeg trim (re-encode)").await {
+                ctx.say(format!("Trim failed: {e}")).await?;
+                return Ok(());
+            }
         }
         trimmed
     } else {
