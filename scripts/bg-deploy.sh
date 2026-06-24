@@ -19,18 +19,6 @@ FEATURES="${1:-$DEPLOY_FEATURES}"
 
 echo "=== Starting Blue-Green Restart for ${PATTERN}* ==="
 
-# 0. Ensure deno is installed — required by yt-dlp to solve YouTube's n-challenge.
-#    Without it all DASH/HLS formats are unavailable and downloads fail.
-if ! command -v deno &>/dev/null; then
-  echo "--> Installing deno (yt-dlp JS runtime for YouTube n-challenge)..."
-  curl -fsSL https://deno.land/install.sh | sh
-  export DENO_INSTALL="$HOME/.deno"
-  export PATH="$DENO_INSTALL/bin:$PATH"
-  echo "--> deno $(deno --version | head -1) installed."
-else
-  echo "--> deno already installed: $(deno --version | head -1)"
-fi
-
 # 1. Pull latest changes and rebuild only if there's something new
 REPO_DIR="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 echo "--> Fetching latest changes in $REPO_DIR..."
