@@ -318,10 +318,16 @@ pub async fn download(
         .arg("--output")
         .arg(source_template.to_string_lossy().to_string());
 
-    // Optional cookies file for YouTube auth bypass.
-    if let Ok(cookies) = std::env::var("YT_DLP_COOKIES_PATH")
-        && !cookies.is_empty()
-    {
+    // Cookies file for YouTube auth — env var wins, then cwd/cookies.txt.
+    // supervisord sets directory= to the project root, so cwd is reliable.
+    let cookies_path = std::env::var("YT_DLP_COOKIES_PATH")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            let p = std::env::current_dir().ok()?.join("cookies.txt");
+            p.exists().then(|| p.to_string_lossy().into_owned())
+        });
+    if let Some(cookies) = cookies_path {
         cmd.args(["--cookies", &cookies]);
     }
 
