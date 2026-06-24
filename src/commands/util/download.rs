@@ -301,27 +301,31 @@ pub async fn download(
     tracing::info!("Downloading {url}");
     ctx.say("Downloading media...").await?;
 
-    let dl_output = match run(
-        Command::new("yt-dlp")
-            .arg("--no-playlist")
-            // `--print` alone implies `--simulate` (nothing downloads), and the
-            // bare `filename` field is the pre-merge name. `--no-simulate` plus
-            // `after_move:filepath` actually fetches and prints the final path.
-            .arg("--no-simulate")
-            // Prefer mp4/m4a so the trim step's `-c copy` into .mp4 works; many
-            // sources default to vp9/opus webm which won't remux into mp4.
-            .args(["--extractor-args", "youtube:player_client=mweb"])
-            .args(["-S", "ext:mp4:m4a"])
-            .args(["--merge-output-format", "mp4"])
-            .args(["--print", "after_move:filepath"])
-            .arg("--output")
-            .arg(source_template.to_string_lossy().to_string())
-            .arg(&url),
-        DL_TIMEOUT,
-        "yt-dlp download",
-    )
-    .await
+    let mut cmd = Command::new("yt-dlp");
+    cmd.arg("--no-playlist")
+        // `--print` alone implies `--simulate` (nothing downloads), and the
+        // bare `filename` field is the pre-merge name. `--no-simulate` plus
+        // `after_move:filepath` actually fetches and prints the final path.
+        .arg("--no-simulate")
+        // Prefer mp4/m4a so the trim step's `-c copy` into .mp4 works; many
+        // sources default to vp9/opus webm which won't remux into mp4.
+        .args(["--extractor-args", "youtube:player_client=mweb"])
+        .args(["-S", "ext:mp4:m4a"])
+        .args(["--merge-output-format", "mp4"])
+        .args(["--print", "after_move:filepath"])
+        .arg("--output")
+        .arg(source_template.to_string_lossy().to_string());
+
+    // Optional cookies file for YouTube auth bypass.
+    if let Ok(cookies) = std::env::var("YT_DLP_COOKIES_PATH")
+        && !cookies.is_empty()
     {
+        cmd.args(["--cookies", &cookies]);
+    }
+
+    cmd.arg(&url);
+
+    let dl_output = match run(&mut cmd, DL_TIMEOUT, "yt-dlp download").await {
         Ok(o) => o,
         Err(e) => {
             ctx.say(format!("yt-dlp failed: {e}")).await?;
@@ -333,9 +337,8 @@ pub async fn download(
         let stderr = String::from_utf8_lossy(&dl_output.stderr);
         let error_msg = stderr
             .lines()
-            .filter(|l| l.starts_with("ERROR:"))
-            .last()
-            .or_else(|| stderr.lines().filter(|l| !l.is_empty()).last())
+            .rfind(|l| l.starts_with("ERROR:"))
+            .or_else(|| stderr.lines().rfind(|l| !l.is_empty()))
             .unwrap_or("unknown error");
         ctx.say(format!("yt-dlp failed: {error_msg}")).await?;
         return Ok(());
@@ -362,8 +365,7 @@ pub async fn download(
     let trimmed_path = if did_trim {
         ctx.say("Trimming...").await?;
         let trimmed = temp_dir.path().join("trimmed.mp4");
-        if let Err(e) = trim_media(&actual_path, &trimmed, start.as_deref(), end.as_deref()).await
-        {
+        if let Err(e) = trim_media(&actual_path, &trimmed, start.as_deref(), end.as_deref()).await {
             ctx.say(format!("Trim failed: {e}")).await?;
             return Ok(());
         }
@@ -376,7 +378,8 @@ pub async fn download(
         match probe_duration(&trimmed_path).await {
             Ok(d) => d,
             Err(e) => {
-                ctx.say(format!("Failed to probe trimmed media: {e}")).await?;
+                ctx.say(format!("Failed to probe trimmed media: {e}"))
+                    .await?;
                 return Ok(());
             }
         }
@@ -390,8 +393,13 @@ pub async fn download(
         std::fs::copy(&trimmed_path, &output_path)?;
     } else {
         ctx.say("Compressing (2-pass encode)...").await?;
-        if let Err(e) =
-            two_pass_encode(&trimmed_path, &output_path, encode_duration, temp_dir.path()).await
+        if let Err(e) = two_pass_encode(
+            &trimmed_path,
+            &output_path,
+            encode_duration,
+            temp_dir.path(),
+        )
+        .await
         {
             ctx.say(format!("Encode failed: {e}")).await?;
             return Ok(());

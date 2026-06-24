@@ -1,5 +1,6 @@
 /target
 /.env
+/cookies.txt
 *.pem
 /tempo-data
 
