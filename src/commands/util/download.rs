@@ -310,7 +310,8 @@ pub async fn download(
         // Prefer mp4/m4a so the trim step's `-c copy` into .mp4 works; many
         // sources default to vp9/opus webm which won't remux into mp4.
         .args(["--extractor-args", "youtube:player_client=mweb"])
-        .args(["-S", "ext:mp4:m4a"])
+        // Prefer mp4/m4a but fall back to whatever's available.
+        .args(["-S", "+ext:mp4:m4a"])
         .args(["--merge-output-format", "mp4"])
         .args(["--print", "after_move:filepath"])
         .arg("--output")
