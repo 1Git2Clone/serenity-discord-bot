@@ -302,6 +302,17 @@ pub async fn download(
     ctx.say("Downloading media...").await?;
 
     let mut cmd = Command::new("yt-dlp");
+
+    // Supervisor strips most of HOME-relative PATH entries. Prepend common
+    // JS runtime locations so yt-dlp can solve YouTube's n-challenge.
+    if let Ok(home) = std::env::var("HOME") {
+        let current = std::env::var("PATH").unwrap_or_default();
+        cmd.env(
+            "PATH",
+            format!("{home}/.deno/bin:{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:{current}"),
+        );
+    }
+
     cmd.arg("--no-playlist")
         // `--print` alone implies `--simulate` (nothing downloads), and the
         // bare `filename` field is the pre-merge name. `--no-simulate` plus
