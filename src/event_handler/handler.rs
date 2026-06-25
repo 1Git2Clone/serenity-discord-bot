@@ -26,7 +26,7 @@ pub async fn event_handler(
         serenity::FullEvent::Ready { data_about_bot, .. } => {
             tracing::info!(
                 "\nStart time: {}ms\n=> Logged in as: {}",
-                START_TIME.elapsed().as_millis(),
+                CONFIG.bot.start_time.elapsed().as_millis(),
                 data_about_bot.user.tag()
             );
         }

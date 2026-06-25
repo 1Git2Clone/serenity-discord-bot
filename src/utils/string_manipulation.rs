@@ -21,7 +21,7 @@ use crate::prelude::*;
 /// );
 /// ```
 pub fn remove_emojis_and_embeds_from_str(whole_str: &str) -> Cow<'_, str> {
-    EMOJIS_AND_EMBEDS_REGEX.replace_all(whole_str, "")
+    CONFIG.bot.emoji_regex.replace_all(whole_str, "")
 }
 
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -46,9 +46,9 @@ impl LevenshteinCommandData<'_> {
 pub fn levenshtein_core<'a>(msg: &'a str, commands: &'a [String]) -> LevenshteinCommandData<'a> {
     let lower = msg.to_lowercase();
     let mut data = LevenshteinCommandData::new();
-    for prefix in BOT_PREFIXES.iter() {
-        if lower.starts_with(prefix) {
-            data.prefix = prefix;
+    for prefix in CONFIG.bot.prefixes.iter() {
+        if lower.starts_with(prefix.as_str()) {
+            data.prefix = prefix.as_str();
             break;
         }
     }

@@ -13,17 +13,10 @@ use event_handler::handler::event_handler;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let _ = START_TIME.elapsed().as_secs(); // Dummy data to get the time elapsing started
-
     let _ = dotenv::dotenv()?;
 
-    #[cfg(feature = "ai")]
-    {
-        use crate::data::ai::{CHAT_ENDPOINT, DEFAULT_MODEL};
-
-        LazyLock::force(&CHAT_ENDPOINT);
-        LazyLock::force(&DEFAULT_MODEL);
-    }
+    LazyLock::force(&CONFIG);
+    let _ = CONFIG.bot.start_time.elapsed(); // start the clock
 
     let env_layer = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
 
@@ -74,7 +67,7 @@ async fn main() -> Result<(), Error> {
 
     registry.init();
 
-    let token = BOT_TOKEN.to_string();
+    let token = CONFIG.bot.token.clone();
     // Either all or non_privileged intents only.
     // https://docs.rs/poise/latest/poise/#gateway-intents
     let intents = serenity::GatewayIntents::all() | serenity::GatewayIntents::non_privileged();
@@ -97,7 +90,9 @@ async fn main() -> Result<(), Error> {
 
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: None,
-                additional_prefixes: BOT_PREFIXES
+                additional_prefixes: CONFIG
+                    .bot
+                    .prefixes
                     .iter()
                     .map(|p| {
                         poise::Prefix::Regex(
@@ -167,7 +162,7 @@ async fn main() -> Result<(), Error> {
         .framework(framework)
         .activity(serenity::ActivityData::custom(format!(
             "Usable prefixes: [ {} ]",
-            BOT_PREFIXES.join(", ")
+            CONFIG.bot.prefixes.join(", ")
         )))
         .status(serenity::OnlineStatus::Idle)
         .await;

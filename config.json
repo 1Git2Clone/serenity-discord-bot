@@ -1,0 +1,22 @@
+{
+  "bot": {
+    "prefixes": ["hu", "ht"],
+    "mention_patterns": ["hutao", "hu tao"]
+  },
+  "xp": {
+    "default_xp": 0,
+    "default_level": 1,
+    "min_xp": 5,
+    "max_xp": 15,
+    "cooldown_secs": 60
+  },
+  "ai": {
+    "rate_limit_secs": 10,
+    "default_stream": false,
+    "num_predict": 150,
+    "temperature": 0.7
+  },
+  "level": {
+    "steps": [7.14, 14.28, 21.41, 28.56, 35.69, 42.83, 49.98, 57.12, 64.25, 71.39, 78.53, 85.67, 92.82, 99.96]
+  }
+}

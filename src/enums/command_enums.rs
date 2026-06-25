@@ -1,10 +1,8 @@
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// The EmbedType is the Value from the HashMap containing a vector of all the URL links as strings
 /// that correspond to the EmbedType variant.
-#[derive(Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum EmbedType {
     TieUp,
     Pat,

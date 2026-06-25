@@ -1,9 +1,5 @@
 use crate::{commands::level_logic::calculate_xp_to_level_up, prelude::*};
 
-const LEVEL_STEPS: [f64; 14] = [
-    7.14, 14.28, 21.41, 28.56, 35.69, 42.83, 49.98, 57.12, 64.25, 71.39, 78.53, 85.67, 92.82, 99.96,
-];
-
 fn chat_more(username: &str) -> String {
     format!(
         "Please wait for {} to chat more then try again later...",
@@ -60,7 +56,9 @@ pub async fn level(
     let max_xp = calculate_xp_to_level_up(level).max(100);
     let percent_left_to_level_up = (xp as f64 / max_xp as f64) * 100.;
     let progress_bar: String = {
-        LEVEL_STEPS
+        CONFIG
+            .level
+            .steps
             .iter()
             .map(|x| {
                 if percent_left_to_level_up > *x {

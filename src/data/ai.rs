@@ -1,25 +1,7 @@
-use std::{sync::LazyLock, time::Duration};
-
-use crate::prelude::*;
+use crate::{data::config::CONFIG, prelude::*};
 use dashmap::DashSet;
-use moka::future::Cache;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-
-pub static CHAT_ENDPOINT: LazyLock<String> = LazyLock::new(|| {
-    #[allow(
-        clippy::expect_used,
-        reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
-    )]
-    std::env::var("AI_CHAT_ENDPOINT").expect("Set the `AI_CHAT_ENDPOINT` environment variable.")
-});
-pub static DEFAULT_MODEL: LazyLock<String> = LazyLock::new(|| {
-    #[allow(
-        clippy::expect_used,
-        reason = "If it fails it should do so the moment the app starts with [`LazyLock::force`] which is the intended behaviour."
-    )]
-    std::env::var("AI_MODEL").expect("Set the `AI_MODEL` variable.")
-});
 
 pub struct AiChannelCache {
     inner: DashSet<u64>,
@@ -57,14 +39,6 @@ impl Drop for AiCacheGuard<'_> {
         self.cache.inner.remove(&self.key);
     }
 }
-
-pub static AI_CHANNEL_CACHE: LazyLock<AiChannelCache> = LazyLock::new(AiChannelCache::new);
-pub const AI_RATE_LIMIT_SECS: u64 = 10;
-pub static AI_RATE_LIMIT: LazyLock<Cache<UserId, ()>> = LazyLock::new(|| {
-    Cache::builder()
-        .time_to_live(Duration::from_secs(AI_RATE_LIMIT_SECS))
-        .build()
-});
 
 #[derive(Serialize, Deserialize)]
 pub struct AiMessage {
@@ -118,15 +92,13 @@ impl AiMessage {
 impl Default for OllamaOptions {
     fn default() -> Self {
         Self {
-            num_predict: 150,
-            temperature: 0.7,
+            num_predict: CONFIG.ai.num_predict,
+            temperature: CONFIG.ai.temperature,
         }
     }
 }
 
 impl<'a> OllamaRequest<'a> {
-    pub const DEFAULT_STREAM: bool = false;
-
     pub fn new(
         model: &'a str,
         messages: &'a [AiMessage],
@@ -143,16 +115,16 @@ impl<'a> OllamaRequest<'a> {
 
     pub fn from(messages: &'a [AiMessage]) -> Self {
         Self::new(
-            DEFAULT_MODEL.as_str(),
+            CONFIG.ai.model.as_str(),
             messages,
-            Self::DEFAULT_STREAM,
+            CONFIG.ai.default_stream,
             OllamaOptions::default(),
         )
     }
 
     pub async fn call(&self, client: &Client) -> Result<String, Error> {
         let response = client
-            .post(CHAT_ENDPOINT.as_str())
+            .post(CONFIG.ai.chat_endpoint.as_str())
             .json(&self)
             .send()
             .await?;

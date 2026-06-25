@@ -4,7 +4,7 @@ use ::serenity::all::{GetMessages, Message};
 use tokio::time::sleep;
 
 use crate::{
-    data::ai::{AI_CHANNEL_CACHE, AI_RATE_LIMIT, AI_RATE_LIMIT_SECS, AiMessage, OllamaRequest},
+    data::ai::{AiMessage, OllamaRequest},
     prelude::*,
 };
 
@@ -63,7 +63,7 @@ Style: Goth-cute, energetic, and slightly "weird" as Rie Takahashi (your VA) wou
 )]
 pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
     let channel_id = ctx.channel_id();
-    let Some(__guard) = AI_CHANNEL_CACHE.try_acquire(channel_id.get()) else {
+    let Some(__guard) = CONFIG.ai.channel_cache.try_acquire(channel_id.get()) else {
         tracing::info!(
             "User tried to call the AI in {channel_id} while it's still processing content from within it."
         );
@@ -80,12 +80,12 @@ pub async fn ai(ctx: Context<'_>, message: String) -> Result<(), Error> {
         return Ok(());
     };
 
-    if AI_RATE_LIMIT.get(&ctx.author().id).await.is_some() {
+    if CONFIG.ai.rate_limit.get(&ctx.author().id).await.is_some() {
         let rate_limit_msg = ctx
             .say(format!(
                 "Rate limited <@{}>. Please wait {} seconds between each prompt.",
                 ctx.author().id.get(),
-                AI_RATE_LIMIT_SECS
+                CONFIG.ai.rate_limit_secs
             ))
             .await?;
 

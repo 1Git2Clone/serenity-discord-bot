@@ -1,7 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Feature gated
+// Always available
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#[cfg(feature = "serde")]
 pub use serde::{Deserialize, Serialize};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,14 +25,8 @@ pub use crate::{
         level_logic::update_level,
     },
     data::{
-        bot_data::{
-            BOT_PREFIXES, BOT_TOKEN, DEFAULT_LEVEL, DEFAULT_XP, EMOJIS_AND_EMBEDS_REGEX,
-            START_TIME, VALID_MENTION_COUNT_PATTERNS, XP_COOLDOWN_NUMBER_SECS, XP_RANGE,
-        },
         command_data::{Context, Data, Error},
-        database::DATABASE_FILENAME,
-        embed_media::COMMAND_EMBEDS,
-        user_data::USER_COOLDOWNS,
+        config::CONFIG,
     },
     database::{bot_mentions::*, connect_to_db, level_system::*},
     enums::{

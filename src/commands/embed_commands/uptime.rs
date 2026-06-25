@@ -16,7 +16,7 @@ pub async fn uptime(ctx: Context<'_>, #[rest] msg: Option<String>) -> Result<(),
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = bot_user.face().replace(".webp", ".png");
 
-    let time = START_TIME.elapsed().as_secs();
+    let time = CONFIG.bot.start_time.elapsed().as_secs();
 
     let units = [("days", 86400), ("hours", 3600), ("minutes", 60)];
     let (unit, value) = units

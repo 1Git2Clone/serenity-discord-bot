@@ -16,8 +16,8 @@ async fn add_user_if_not_exists(db: &PgPool, user: &User, guild_id: GuildId) -> 
         db,
         user.id.into(),
         guild_id.into(),
-        DEFAULT_XP,
-        DEFAULT_LEVEL,
+        CONFIG.xp.default_xp,
+        CONFIG.xp.default_level,
     )
     .await?;
 
@@ -56,11 +56,11 @@ pub async fn add_or_update_db_user(
 
     let key = (user.id, guild_id);
 
-    if USER_COOLDOWNS.get(&key).await.is_some() {
+    if CONFIG.xp.cooldowns.get(&key).await.is_some() {
         return Ok(());
     }
 
-    USER_COOLDOWNS.insert(key, ()).await;
+    CONFIG.xp.cooldowns.insert(key, ()).await;
 
     let xp_lvl_res = LevelsTable::fetch_user_level(db, user.id.into(), guild_id.into()).await;
 

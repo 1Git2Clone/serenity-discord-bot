@@ -24,11 +24,13 @@ pub async fn handle_database_message_processing(
 ) -> Result<(), Error> {
     let trimmed_emojis = remove_emojis_and_embeds_from_str(msg);
 
-    let obtained_xp = rand::rng().random_range(XP_RANGE);
+    let obtained_xp = rand::rng().random_range(CONFIG.xp.min_xp..=CONFIG.xp.max_xp);
 
-    if VALID_MENTION_COUNT_PATTERNS
+    if CONFIG
+        .bot
+        .mention_patterns
         .iter()
-        .any(|text| trimmed_emojis.contains(text))
+        .any(|text| trimmed_emojis.contains(text.as_str()))
     {
         handle_replies(pool, ctx, new_message, &trimmed_emojis).await?;
     }

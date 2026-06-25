@@ -9,7 +9,7 @@ use crate::prelude::*;
 pub async fn connect_to_db() -> Result<PgPool, sqlx::Error> {
     let pool = PgPoolOptions::new()
         // .max_connections(5)
-        .connect(&DATABASE_FILENAME)
+        .connect(&CONFIG.database.url)
         .await?;
 
     sqlx::migrate!().run(&pool).await.map_err(|e| {
