@@ -456,42 +456,73 @@ pub async fn matching(
 ) -> Result<Vec<MatchedReaction>, Error> {
     #[cfg(feature = "redis")]
     {
-        if let Some(mut conn) = cache::conn().await {
-            // Short-circuit: if the guild isn't in cr:guilds it has no reactions.
-            match cache::set_contains(&mut conn, CR_GUILDS_KEY, guild_id as u64).await {
-                Ok(false) => return Ok(vec![]),
-                Ok(true) => {}
-                Err(e) => {
-                    tracing::warn!(error = %e, "cr:guilds SISMEMBER failed; falling through to DB");
-                    return matching_from_db(pool, guild_id, content).await;
-                }
-            }
+        let Some(mut conn) = cache::conn().await else {
+            return matching_from_db(pool, guild_id, content).await;
+        };
 
-            match cache::hash_getall(&mut conn, &meta_key(guild_id)).await {
-                Ok(pairs) => {
-                    let mut results: Vec<MatchedReaction> = pairs
-                        .iter()
-                        .filter_map(|(field, value)| {
-                            let id: i64 = field.parse().ok()?;
-                            let entry: CrEntry = serde_json::from_str(value).ok()?;
-                            let re = compiled_regex(id, &entry.pattern, entry.anywhere)?;
-                            re.is_match(content).then_some(MatchedReaction {
-                                id,
-                                image_url: entry.image_url,
-                            })
-                        })
-                        .collect();
-                    results.sort_by_key(|r| r.id);
-                    return Ok(results);
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "HGETALL failed; falling through to DB");
-                }
+        // Short-circuit: if the guild isn't in cr:guilds it has no reactions.
+        // A SISMEMBER error falls through to the DB to match the prior
+        // behaviour — the helper below covers the HGETALL-on-miss path.
+        match cache::set_contains(&mut conn, CR_GUILDS_KEY, guild_id as u64).await {
+            Ok(false) => return Ok(vec![]),
+            Ok(true) => {}
+            Err(e) => {
+                tracing::warn!(error = %e, "cr:guilds SISMEMBER failed; falling through to DB");
+                return matching_from_db(pool, guild_id, content).await;
             }
         }
-    }
 
-    matching_from_db(pool, guild_id, content).await
+        let meta_for_read = meta_key(guild_id);
+        let meta_for_write = meta_key(guild_id);
+        let pairs: Vec<(String, String)> = cache::write_through::get_or_load(
+            move |c| Box::pin(async move { cache::hash_getall(c, &meta_for_read).await.map(Some) }),
+            move || async move {
+                let rows = CustomReactionsTable::fetch_live(pool, guild_id).await?;
+                let pairs = rows
+                    .into_iter()
+                    .filter_map(|row| {
+                        let entry = CrEntry {
+                            pattern: row.pattern,
+                            anywhere: row.anywhere,
+                            image_url: row.image_url,
+                        };
+                        let json = serde_json::to_string(&entry).ok()?;
+                        Some((row.id.to_string(), json))
+                    })
+                    .collect();
+                Ok::<Vec<(String, String)>, Error>(pairs)
+            },
+            move |c, pairs| {
+                let pairs = pairs.clone();
+                Box::pin(async move {
+                    for (field, value) in &pairs {
+                        cache::hash_set(c, &meta_for_write, field, value).await?;
+                    }
+                    Ok(())
+                })
+            },
+        )
+        .await?;
+
+        let mut results: Vec<MatchedReaction> = pairs
+            .iter()
+            .filter_map(|(field, value)| {
+                let id: i64 = field.parse().ok()?;
+                let entry: CrEntry = serde_json::from_str(value).ok()?;
+                let re = compiled_regex(id, &entry.pattern, entry.anywhere)?;
+                re.is_match(content).then_some(MatchedReaction {
+                    id,
+                    image_url: entry.image_url,
+                })
+            })
+            .collect();
+        results.sort_by_key(|r| r.id);
+        Ok(results)
+    }
+    #[cfg(not(feature = "redis"))]
+    {
+        matching_from_db(pool, guild_id, content).await
+    }
 }
 
 /// DB fallback for `matching` — used when Redis is unavailable or errors.

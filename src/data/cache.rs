@@ -271,7 +271,6 @@ pub mod write_through {
 
     use redis::aio::ConnectionManager;
 
-    #[allow(dead_code)] // unused until the cache call sites are migrated (Tasks 2–4 of the plan).
     pub async fn get_or_load<T, LoadFut>(
         read_cache: impl for<'a> FnOnce(
             &'a mut ConnectionManager,
