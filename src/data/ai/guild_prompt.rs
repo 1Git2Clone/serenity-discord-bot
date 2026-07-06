@@ -15,45 +15,30 @@ fn prompt_key(guild_id: i64) -> String {
 /// empty-string sentinel — so the per-message hot path stays off the DB for the
 /// many guilds that never set one.
 pub async fn get_guild_prompt(pool: &PgPool, guild_id: i64) -> Option<String> {
-    let Some(mut conn) = cache::conn().await else {
-        return match GuildAiSettingsTable::fetch(pool, guild_id).await {
-            Ok(prompt) => prompt,
-            Err(e) => {
-                tracing::warn!(error = %e, guild_id, "Failed to fetch guild AI prompt");
-                None
-            }
-        };
-    };
-
     let key = prompt_key(guild_id);
-    if let Ok(Some(cached)) = cache::get_string(&mut conn, &key).await {
-        // An empty string is the negative-cache sentinel for "no prompt set".
-        return (!cached.is_empty()).then_some(cached);
-    }
-
-    // Cache miss (or read error): consult the DB and write the result back. Only
-    // a value the DB actually returned is cached, so a transient DB error isn't.
-    // A reader that races a concurrent mutation can repopulate a stale value for
-    // up to PROMPT_TTL_SECS; mod prompt changes are rare and the staleness is
-    // bounded, so that window is accepted rather than guarded with versioning.
-    let prompt = match GuildAiSettingsTable::fetch(pool, guild_id).await {
-        Ok(prompt) => prompt,
-        Err(e) => {
-            tracing::warn!(error = %e, guild_id, "Failed to fetch guild AI prompt");
-            return None;
-        }
-    };
-    if let Err(e) = cache::set_string_ex(
-        &mut conn,
-        &key,
-        prompt.as_deref().unwrap_or(""),
-        PROMPT_TTL_SECS,
+    let key_for_read = key.clone();
+    let key_for_write = key.clone();
+    cache::write_through::get_or_load::<String, _>(
+        move |conn| Box::pin(async move { cache::get_string(conn, &key_for_read).await }),
+        move || async move {
+            match GuildAiSettingsTable::fetch(pool, guild_id).await {
+                Ok(prompt) => Ok::<String, Error>(prompt.unwrap_or_default()),
+                Err(e) => {
+                    tracing::warn!(error = %e, guild_id, "Failed to fetch guild AI prompt");
+                    Err(Error::from(e))
+                }
+            }
+        },
+        move |conn, value| {
+            Box::pin(async move {
+                cache::set_string_ex(conn, &key_for_write, value, PROMPT_TTL_SECS).await
+            })
+        },
     )
     .await
-    {
-        tracing::warn!(error = %e, guild_id, "Failed to cache guild AI prompt");
-    }
-    prompt
+    // Empty string is the negative-cache sentinel for "no prompt set".
+    .ok()
+    .and_then(|s| if s.is_empty() { None } else { Some(s) })
 }
 
 /// Set or replace the guild's extra prompt, then drop the cache entry.

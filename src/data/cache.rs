@@ -252,6 +252,190 @@ impl Drop for RedisLockGuard {
     }
 }
 
+// ── Write-through get-or-load scaffold ──────────────────────────────────────
+
+/// Shared get-or-load flow for write-through Redis caches.
+///
+/// Three call sites repeat the same scaffolding (cache → DB on miss → write
+/// back, Redis errors logged not propagated). The cache *shape* — set vs
+/// string vs hash, TTL, negative-sentinel convention, key naming — varies
+/// per feature and stays at the call site; this module owns only the flow.
+///
+/// A `None` from `read_cache` triggers the DB load. Callers that need a
+/// negative sentinel (e.g. an empty string for "no prompt set") encode it as
+/// `Some("")` and translate back to `None` themselves — that keeps the
+/// helper shape-agnostic.
+pub mod write_through {
+    use std::future::Future;
+    use std::pin::Pin;
+
+    use redis::aio::ConnectionManager;
+
+    pub async fn get_or_load<T, LoadFut>(
+        read_cache: impl for<'a> FnOnce(
+            &'a mut ConnectionManager,
+        ) -> Pin<
+            Box<dyn Future<Output = Result<Option<T>, redis::RedisError>> + Send + 'a>,
+        >,
+        load_from_db: impl FnOnce() -> LoadFut + Send,
+        write_cache: impl for<'a> FnOnce(
+            &'a mut ConnectionManager,
+            &'a T,
+        ) -> Pin<
+            Box<dyn Future<Output = Result<(), redis::RedisError>> + Send + 'a>,
+        >,
+    ) -> Result<T, crate::data::command_data::Error>
+    where
+        T: Send,
+        LoadFut: Future<Output = Result<T, crate::data::command_data::Error>> + Send,
+    {
+        let Some(mut conn) = super::conn().await else {
+            return load_from_db().await;
+        };
+
+        match read_cache(&mut conn).await {
+            Ok(Some(value)) => return Ok(value),
+            Ok(None) => {}
+            Err(e) => {
+                tracing::warn!(error = %e, "write_through: cache read failed, falling back to DB");
+            }
+        }
+
+        let value = load_from_db().await?;
+
+        if let Err(e) = write_cache(&mut conn, &value).await {
+            tracing::warn!(error = %e, "write_through: cache write-back failed");
+        }
+
+        Ok(value)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::super::{get_string, set_string_ex};
+        use super::*;
+        use crate::tests::test_redis;
+
+        type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+        /// Namespaced key so parallel tests (and stale runs) can't collide.
+        fn test_key(name: &str) -> String {
+            format!("test:write_through:{name}:{}", rand::random::<u64>())
+        }
+
+        #[tokio::test]
+        async fn cache_hit_skips_db() -> TestResult {
+            let Some(mut conn) = test_redis().await else {
+                return Ok(());
+            };
+            let key = test_key("hit");
+            set_string_ex(&mut conn, &key, "from-cache", 30).await?;
+            let key_for_write = key.clone();
+            let key_for_del = key.clone();
+
+            let db_calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let dc = std::sync::Arc::clone(&db_calls);
+            let value: String = get_or_load(
+                move |c| Box::pin(async move { get_string(c, &key).await }),
+                move || async move {
+                    dc.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok::<_, Box<dyn std::error::Error + Send + Sync>>("from-db".to_string())
+                },
+                move |c, v| Box::pin(async move { set_string_ex(c, &key_for_write, v, 30).await }),
+            )
+            .await?;
+            assert_eq!(value, "from-cache");
+            assert_eq!(
+                db_calls.load(std::sync::atomic::Ordering::SeqCst),
+                0,
+                "DB must not be touched on cache hit"
+            );
+
+            let _: () = redis::cmd("DEL")
+                .arg(&key_for_del)
+                .query_async(&mut conn)
+                .await?;
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn cache_miss_loads_from_db_and_writes_back() -> TestResult {
+            let Some(mut conn) = test_redis().await else {
+                return Ok(());
+            };
+            let key = test_key("miss");
+            let key_for_write = key.clone();
+            let key_for_read2 = key.clone();
+            let key_for_del = key.clone();
+
+            let value: String = get_or_load(
+                move |c| Box::pin(async move { get_string(c, &key).await }),
+                || async {
+                    Ok::<_, Box<dyn std::error::Error + Send + Sync>>("from-db".to_string())
+                },
+                move |c, v| Box::pin(async move { set_string_ex(c, &key_for_write, v, 30).await }),
+            )
+            .await?;
+            assert_eq!(value, "from-db");
+
+            // Second call now hits the cache — DB closure must not be called.
+            let value2: String = get_or_load(
+                move |c| Box::pin(async move { get_string(c, &key_for_read2).await }),
+                || async {
+                    Err::<String, _>(Box::<dyn std::error::Error + Send + Sync>::from(
+                        "DB should not be called on second read",
+                    ))
+                },
+                |_c, _v| Box::pin(async { Ok::<(), redis::RedisError>(()) }),
+            )
+            .await?;
+            assert_eq!(value2, "from-db");
+
+            let _: () = redis::cmd("DEL")
+                .arg(&key_for_del)
+                .query_async(&mut conn)
+                .await?;
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn db_load_failure_propagates_and_cache_is_not_written() -> TestResult {
+            let Some(mut conn) = test_redis().await else {
+                return Ok(());
+            };
+            let key = test_key("dbfail");
+            let key_for_exists = key.clone();
+
+            let write_count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let wc = std::sync::Arc::clone(&write_count);
+            let result: Result<String, _> = get_or_load(
+                move |c| Box::pin(async move { get_string(c, &key).await }),
+                || async { Err::<String, _>("db down".into()) },
+                move |_c, _v| {
+                    Box::pin(async move {
+                        wc.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        Ok::<(), redis::RedisError>(())
+                    })
+                },
+            )
+            .await;
+            assert!(result.is_err(), "DB failure must propagate");
+
+            assert_eq!(
+                write_count.load(std::sync::atomic::Ordering::SeqCst),
+                0,
+                "no write-back when DB failed"
+            );
+            let exists: bool = redis::cmd("EXISTS")
+                .arg(&key_for_exists)
+                .query_async(&mut conn)
+                .await?;
+            assert!(!exists);
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
