@@ -20,17 +20,38 @@ pub async fn init_registered_channels(pool: &PgPool) -> Result<(), Error> {
 
 /// Check whether a channel has AI auto-replies enabled. This runs per
 /// message, so a Redis answer (hit or miss) is trusted; the DB is only
-/// queried when Redis is unavailable or the call errors.
+/// queried when Redis is unavailable, the call errors, or the channel isn't
+/// in the set. A confirmed DB hit is written back to Redis so subsequent
+/// reads stay off the DB.
 pub async fn is_ai_channel(pool: &PgPool, channel_id: u64) -> bool {
-    if let Some(mut conn) = cache::conn().await
-        && let Ok(contains) = cache::set_contains(&mut conn, AI_CHANNELS_KEY, channel_id).await
-    {
-        return contains;
-    }
-    AiChannelsTable::fetch_all(pool)
-        .await
-        .map(|v| v.contains(&(channel_id as i64)))
-        .unwrap_or(false)
+    cache::write_through::get_or_load::<bool, _>(
+        move |conn| {
+            let key = AI_CHANNELS_KEY;
+            let id = channel_id;
+            Box::pin(async move { cache::set_contains(conn, key, id).await.map(Some) })
+        },
+        move || async move {
+            Ok::<bool, Error>(
+                AiChannelsTable::fetch_all(pool)
+                    .await
+                    .map(|v| v.contains(&(channel_id as i64)))
+                    .unwrap_or(false),
+            )
+        },
+        move |conn, &registered| {
+            let key = AI_CHANNELS_KEY;
+            let id = channel_id;
+            Box::pin(async move {
+                if registered {
+                    cache::set_add(conn, key, id).await
+                } else {
+                    Ok(())
+                }
+            })
+        },
+    )
+    .await
+    .unwrap_or(false)
 }
 
 /// Toggle a channel's AI registration. The DB decides the new state; the
