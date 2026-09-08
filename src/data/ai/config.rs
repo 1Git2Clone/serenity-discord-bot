@@ -54,8 +54,6 @@ pub static AI_MAX_MSG_CONTEXT: LazyLock<u32> = LazyLock::new(|| {
     }
 });
 
-/// Upper bound on tokens generated per AI reply
-pub const AI_MAX_TOKENS: u32 = 150;
 /// Sampling temperature for AI replies (0.0 = deterministic, higher = more random).
 pub const AI_TEMPERATURE: f32 = 0.7;
 

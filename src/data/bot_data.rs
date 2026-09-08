@@ -54,3 +54,22 @@ pub static EMOJIS_AND_EMBEDS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     ))
     .unwrap()
 });
+
+/// Upper bound on tokens generated per AI reply
+pub static AI_MAX_TOKENS: LazyLock<u32> = LazyLock::new(|| {
+    match std::env::var("AI_MAX_TOKENS") {
+        Ok(v) => v.parse::<u32>().unwrap_or_else(|e| {
+            tracing::error!("Couldn't parse `AI_MAX_TOKENS` as `u32`: {e}. Defaulting to `150`.");
+            150
+        }),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            tracing::error!("`AI_MAX_TOKENS` is invalid Unicode. (Needs to be a positive integer).
+                Defaulting to `150`.");
+            150
+        }
+        _ => {
+            tracing::warn!("No `AI_MAX_TOKENS` environment variable found. Defaulting to `150`.");
+            150
+        }
+    }
+});
