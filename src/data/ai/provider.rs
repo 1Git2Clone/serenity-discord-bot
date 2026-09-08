@@ -8,7 +8,7 @@ use llm::{
 use tracing::Instrument;
 
 use super::config::*;
-use crate::prelude::*;
+use crate::{data::bot_data::AI_MAX_TOKENS, prelude::*};
 
 pub struct AiMessage {
     role: String,
@@ -110,7 +110,7 @@ pub static AI_PROVIDER: std::sync::LazyLock<Box<dyn LLMProvider>> = std::sync::L
             .backend(ai_backend())
             .model(DEFAULT_MODEL.as_str())
             .system(system_prompt())
-            .max_tokens(AI_MAX_TOKENS)
+            .max_tokens(*AI_MAX_TOKENS)
             .temperature(AI_TEMPERATURE);
 
         // Hosted backends authenticate with a key; local Ollama does not.
