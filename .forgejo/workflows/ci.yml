@@ -11,12 +11,19 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Forgejo mirror of .github/workflows/full.yml. Differences, all forced by the
+# runner model (jobs run *inside* a container, not on a VM):
+#   - third-party actions need their full github.com URL, the runner's default
+#     action registry is code.forgejo.org;
+#   - service containers are reached by service name (postgres/redis), not
+#     localhost, and `options:` health-checks are ignored — hence the wait loop;
+#   - coverage is uploaded as a run artifact instead of pushed to Codecov.
 jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: https://github.com/actions/checkout@v5
+      - uses: https://github.com/dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - run: cargo fmt --check
@@ -31,11 +38,11 @@ jobs:
     env:
       SQLX_OFFLINE: true
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: https://github.com/actions/checkout@v5
+      - uses: https://github.com/dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: https://github.com/Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets ${{ matrix.features }} -- -D warnings
 
   build:
@@ -48,9 +55,9 @@ jobs:
     env:
       SQLX_OFFLINE: true
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: https://github.com/actions/checkout@v5
+      - uses: https://github.com/dtolnay/rust-toolchain@stable
+      - uses: https://github.com/Swatinem/rust-cache@v2
       - run: cargo build --verbose ${{ matrix.features }}
 
   test:
@@ -62,26 +69,12 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
           POSTGRES_DB: bot_database
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d bot_database"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
       redis:
         image: redis:8
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     env:
-      DATABASE_URL: postgres://postgres:password@localhost:5432/bot_database
-      REDIS_URL: redis://localhost:6379
+      DATABASE_URL: postgres://postgres:password@postgres:5432/bot_database
+      REDIS_URL: redis://redis:6379
       RUST_BACKTRACE: full
       # Clippy/Build run before "Run database migrations", so compile sqlx's
       # query! macros against the committed .sqlx cache instead of the (empty,
@@ -90,17 +83,24 @@ jobs:
       SQLX_OFFLINE: "true"
 
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: https://github.com/actions/checkout@v5
+      - uses: https://github.com/dtolnay/rust-toolchain@stable
+      - uses: https://github.com/Swatinem/rust-cache@v2
 
       - name: Install sqlx-cli
-        uses: taiki-e/install-action@v2
+        uses: https://github.com/taiki-e/install-action@v2
         with:
           tool: sqlx-cli
 
-      - name: Wait for Postgres
-        run: until pg_isready -h localhost -p 5432; do sleep 2; done
+      - name: Wait for Postgres and Redis
+        run: |
+          for hostport in postgres:5432 redis:6379; do
+            for _ in $(seq 1 60); do
+              (exec 3<>"/dev/tcp/${hostport%:*}/${hostport#*:}") 2>/dev/null && break
+              sleep 2
+            done
+          done
+        shell: bash
 
       - name: Run database migrations
         run: sqlx migrate run
@@ -112,23 +112,23 @@ jobs:
         run: rustup component add llvm-tools-preview
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: https://github.com/taiki-e/install-action@cargo-llvm-cov
 
       - name: Coverage
         continue-on-error: true
         run: bash scripts/coverage.sh
 
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Upload coverage report
+        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: lcov.info
-          fail_ci_if_error: true
+          name: lcov
+          path: lcov.info
+          if-no-files-found: warn
 
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: https://github.com/actions/checkout@v5
 
       - name: Create filler .env for Docker build
         run: |
