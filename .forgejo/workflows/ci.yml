@@ -70,7 +70,21 @@ jobs:
       - uses: https://github.com/dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - name: Cache key for this matrix leg
+        id: ck
+        run: echo "k=$(printf '%s' '${{ matrix.features }}' | tr -cd '[:alnum:]' | cut -c1-32)" >> "$GITHUB_OUTPUT"
+      # Each matrix leg needs its OWN cache. Without this, all three legs hash to
+      # the same rust-cache key (observed: every clippy leg restored
+      # v0-rust-clippy-linux-x64-e1488c39-ed98845c) and overwrite each other, so
+      # a leg restores a target directory built for a DIFFERENT feature set and
+      # cargo rebuilds most of it. That is why the deploy-features legs gained
+      # 1.1x on a warm cache where --all-features gained 3.6x.
+      #
+      # Sanitised to alphanumerics: the raw matrix value contains spaces and
+      # quotes, which have no business in a cache key.
       - uses: https://github.com/Swatinem/rust-cache@v2
+        with:
+          key: ${{ steps.ck.outputs.k }}
       - run: cargo clippy --all-targets ${{ matrix.features }} -- -D warnings
 
   build:
@@ -92,7 +106,21 @@ jobs:
     steps:
       - uses: https://github.com/actions/checkout@v5
       - uses: https://github.com/dtolnay/rust-toolchain@stable
+      - name: Cache key for this matrix leg
+        id: ck
+        run: echo "k=$(printf '%s' '${{ matrix.features }}' | tr -cd '[:alnum:]' | cut -c1-32)" >> "$GITHUB_OUTPUT"
+      # Each matrix leg needs its OWN cache. Without this, all three legs hash to
+      # the same rust-cache key (observed: every clippy leg restored
+      # v0-rust-clippy-linux-x64-e1488c39-ed98845c) and overwrite each other, so
+      # a leg restores a target directory built for a DIFFERENT feature set and
+      # cargo rebuilds most of it. That is why the deploy-features legs gained
+      # 1.1x on a warm cache where --all-features gained 3.6x.
+      #
+      # Sanitised to alphanumerics: the raw matrix value contains spaces and
+      # quotes, which have no business in a cache key.
       - uses: https://github.com/Swatinem/rust-cache@v2
+        with:
+          key: ${{ steps.ck.outputs.k }}
       - run: cargo build --verbose ${{ matrix.features }}
 
   test:
