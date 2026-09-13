@@ -56,9 +56,6 @@ check_coverage() {
 check_coverage "src/utils/string_manipulation" 100
 check_coverage "src/commands/level_logic"       100
 
-# Authorization gate for /ai-review.
-check_coverage "src/data/ai/review/guilds"      90
-
 # Global gate over unit-testable code. Files that need a live Discord shard
 # or an external service (Redis, the LLM API, GitHub) are excluded — they can
 # only be exercised by an integration test suite with a live bot.
@@ -69,6 +66,5 @@ DISCORD_BOUND+='|src/utils/replies\.rs'
 DISCORD_BOUND+='|src/database/level_system\.rs'
 DISCORD_BOUND+='|src/data/(reminders|user_data|database|cache)\.rs'
 DISCORD_BOUND+='|src/data/ai/(handler|channels)\.rs'
-DISCORD_BOUND+='|src/data/ai/review/(agent|client|github)\.rs'
 
 check_coverage "src/" 70 "$DISCORD_BOUND"
