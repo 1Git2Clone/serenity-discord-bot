@@ -144,7 +144,7 @@ mod tests {
         use reqwest::{Client, StatusCode};
         let client = Client::new();
 
-        for (_, vec) in COMMAND_EMBEDS.iter() {
+        for vec in COMMAND_EMBEDS.values() {
             for url in vec.iter() {
                 match client.head(*url).send().await {
                     Ok(resp) => match resp.status() {

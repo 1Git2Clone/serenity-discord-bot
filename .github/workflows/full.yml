@@ -30,6 +30,13 @@ jobs:
         features: ["", "--features \"opentelemetry ai-openrouter util-download\"", "--all-features"]
     env:
       SQLX_OFFLINE: true
+      # Debug info is ~40% of the dev-profile target directory (2.3G -> 1.4G
+      # measured on --all-features) and buys nothing here: no one debugs a CI
+      # container. Compile time barely moves (375s -> 357s), but every byte
+      # saved is a byte the Actions cache does not upload and download again.
+      # NOT set on the `test` job — that one runs cargo llvm-cov, and its line
+      # mapping is not worth risking to save a cache round-trip.
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -47,6 +54,13 @@ jobs:
         features: ["", "--features \"opentelemetry ai-openrouter util-download\"", "--all-features"]
     env:
       SQLX_OFFLINE: true
+      # Debug info is ~40% of the dev-profile target directory (2.3G -> 1.4G
+      # measured on --all-features) and buys nothing here: no one debugs a CI
+      # container. Compile time barely moves (375s -> 357s), but every byte
+      # saved is a byte the Actions cache does not upload and download again.
+      # NOT set on the `test` job — that one runs cargo llvm-cov, and its line
+      # mapping is not worth risking to save a cache round-trip.
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable

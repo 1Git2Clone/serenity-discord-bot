@@ -1,4 +1,4 @@
-FROM rust:1.94-bullseye AS builder
+FROM rust:1.94-bookworm AS builder
 WORKDIR /app
 
 COPY . .
@@ -11,7 +11,7 @@ ENV RUSTFLAGS=${RUSTFLAGS}
 ARG FEATURES="ai-deepseek opentelemetry tokio_console"
 RUN cargo build --release --features "${FEATURES}"
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 
 # git + gh are runtime dependencies of /ai-review (the default FEATURES
