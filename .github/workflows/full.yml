@@ -5,6 +5,11 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  # Re-run the pipeline without an empty commit. Needed to tell a cold Actions
+  # cache from a warm one: the run that populates it and the run that reuses it
+  # have to be two runs of the SAME commit, or the compile times are not
+  # comparable.
+  workflow_dispatch:
 
 # Cancel superseded runs when a branch is pushed repeatedly.
 concurrency:
