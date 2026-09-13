@@ -51,7 +51,7 @@ pub async fn level(
     let username = &target_replied_user.name;
     let response = format!(
         "User stats for: **{}**\n\nRank: {}",
-        &username, level_xp_rank.2
+        username, level_xp_rank.2
     );
     let bot_user = Arc::clone(&ctx.data().bot_user);
     let bot_avatar = Arc::clone(&ctx.data().bot_avatar).to_string();
