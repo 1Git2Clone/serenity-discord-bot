@@ -16,8 +16,24 @@ concurrency:
 #   - third-party actions need their full github.com URL, the runner's default
 #     action registry is code.forgejo.org;
 #   - service containers are reached by service name (postgres/redis), not
-#     localhost, and `options:` health-checks are ignored — hence the wait loop;
-#   - coverage is uploaded as a run artifact instead of pushed to Codecov.
+#     localhost. That only works because the runner sets `container.network` to
+#     "" (a per-job network with DNS); on docker's default bridge there is no
+#     embedded DNS and every name lookup fails. See
+#     vps:modules/containers/forgejo-runner.nix.
+#   - `options:` health-checks are not waited on before the first step runs, so
+#     the wait loop below is what actually gates the migrations;
+#   - coverage is uploaded as a run artifact instead of pushed to Codecov;
+#   - there is no `docker` job. The runner sets `container.docker_host: "-"`, so
+#     job containers get no docker socket, and that is deliberate — the socket
+#     the runner itself mounts is root on the host. The two ways to get a build
+#     anyway both cost more than this job is worth: a `docker:dind` *service*
+#     needs `container.privileged: true`, which privileges EVERY job container
+#     (a workflow's own `options: --privileged` is silently dropped — the
+#     runner's mergeJobOptions only honours --health-*, --volume, --tmpfs,
+#     --memory and --hostname); a host-side dind container needs a privileged
+#     daemon reachable from the job network, i.e. from every other container on
+#     the box. .github/workflows/full.yml already builds the image on every push
+#     to main, which is the coverage this job would duplicate.
 jobs:
   fmt:
     runs-on: ubuntu-latest
@@ -37,6 +53,13 @@ jobs:
         features: ["", "--features \"opentelemetry ai-openrouter util-download\"", "--all-features"]
     env:
       SQLX_OFFLINE: true
+      # Debug info is ~40% of the dev-profile target directory (2.3G -> 1.4G
+      # measured on --all-features) and buys nothing here: no one debugs a CI
+      # container. Compile time barely moves (375s -> 357s), but every byte
+      # saved is a byte the Actions cache does not upload and download again.
+      # NOT set on the `test` job — that one runs cargo llvm-cov, and its line
+      # mapping is not worth risking to save a cache round-trip.
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: https://github.com/actions/checkout@v5
       - uses: https://github.com/dtolnay/rust-toolchain@stable
@@ -54,6 +77,13 @@ jobs:
         features: ["", "--features \"opentelemetry ai-openrouter util-download\"", "--all-features"]
     env:
       SQLX_OFFLINE: true
+      # Debug info is ~40% of the dev-profile target directory (2.3G -> 1.4G
+      # measured on --all-features) and buys nothing here: no one debugs a CI
+      # container. Compile time barely moves (375s -> 357s), but every byte
+      # saved is a byte the Actions cache does not upload and download again.
+      # NOT set on the `test` job — that one runs cargo llvm-cov, and its line
+      # mapping is not worth risking to save a cache round-trip.
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: https://github.com/actions/checkout@v5
       - uses: https://github.com/dtolnay/rust-toolchain@stable
@@ -92,11 +122,18 @@ jobs:
         with:
           tool: sqlx-cli
 
+      # Fails loudly, and that is the point: the first version let the loop
+      # expire and fell through to `sqlx migrate run`, which reported a DNS
+      # error two minutes later and named neither the host nor the service.
       - name: Wait for Postgres and Redis
         run: |
           for hostport in postgres:5432 redis:6379; do
-            for _ in $(seq 1 60); do
+            for i in $(seq 1 60); do
               (exec 3<>"/dev/tcp/${hostport%:*}/${hostport#*:}") 2>/dev/null && break
+              if [ "$i" -eq 60 ]; then
+                echo "::error::$hostport unreachable after 120s" >&2
+                exit 1
+              fi
               sleep 2
             done
           done
@@ -124,16 +161,3 @@ jobs:
           name: lcov
           path: lcov.info
           if-no-files-found: warn
-
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: https://github.com/actions/checkout@v5
-
-      - name: Create filler .env for Docker build
-        run: |
-          echo "DATABASE_URL=postgres://postgres:password@localhost:5432/bot_database" > .env
-          echo "BOT_TOKEN=dummy_token" >> .env
-
-      - name: Build Docker image
-        run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
