@@ -20,6 +20,30 @@ The top-level `event_handler` is deliberately not instrumented: it fires for
 every gateway event, including presence updates, so a span there would be pure
 noise. Only handled events carry spans.
 
+## Span field conventions
+
+Dashboards group and filter on these fields, so their *shape* is part of the
+contract — a field recorded two different ways splits every aggregate in half.
+
+| Field | Form | Notes |
+| --- | --- | --- |
+| `guild_id` | `%` snowflake, `0` in DMs | Never `?guild_id` — the `Debug` of `Option<GuildId>` renders `Some(GuildId(123))`, which is a different value to the backend than `123` |
+| `author` | `%` snowflake | Who sent the message or ran the command |
+| `user_id` | `%` snowflake | The *subject* of a levelling query, which is not always the author (`/level @someone`) |
+| `channel_id` | `%` snowflake | |
+| `attachments` | count | Number of attachments on the message |
+
+`guild_id = 0` for DMs matches how the reminder tables already store a global
+(non-guild) setting, and gives DM traffic a queryable value instead of an
+absent field — a missing attribute cannot be told apart from a span that simply
+never records one.
+
+Spans do not carry message content or whole serenity structs. Use `skip_all`
+and name the fields explicitly rather than `skip(ctx)`: `#[instrument]` records
+every argument it isn't told to skip, so a bare `skip(ctx)` on a message
+handler puts the entire `Message` — author object, avatar hashes, flags, and
+the message text — into the trace backend on every message.
+
 ## Tokio Console
 
 Task-level async runtime inspection through

@@ -24,6 +24,15 @@ pub fn remove_emojis_and_embeds_from_str(whole_str: &str) -> Cow<'_, str> {
     EMOJIS_AND_EMBEDS_REGEX.replace_all(whole_str, "")
 }
 
+/// Whether a message opens with an `http://` or `https://` link.
+///
+/// `ht` is a bot prefix, so poise strips it from every pasted link and reports
+/// the remainder as an unrecognized command name.
+pub fn starts_with_url(msg: &str) -> bool {
+    let lower = msg.to_lowercase();
+    lower.starts_with("http://") || lower.starts_with("https://")
+}
+
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct LevenshteinCommandData<'a> {
     pub prefix: &'a str,
@@ -149,6 +158,15 @@ mod tests {
         let result = levenshtein_core("htping", &cmds);
         assert_eq!(result.prefix, "ht");
         assert!(result.command_matches.is_empty());
+    }
+
+    #[test]
+    fn starts_with_url_matches_links_not_commands() {
+        assert!(starts_with_url("https://klipy.com/gifs/akane-3"));
+        assert!(starts_with_url("http://example.com"));
+        assert!(starts_with_url("HTTPS://EXAMPLE.COM"));
+        assert!(!starts_with_url("htping"));
+        assert!(!starts_with_url("hu help"));
     }
 
     #[test]

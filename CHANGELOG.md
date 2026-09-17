@@ -11,14 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `util-download` Cargo feature — `/util download <url> [start] [end]` downloads media via `yt-dlp`, optionally trims with `ffmpeg`, then 2-pass encodes targeting 8 MB for Discord attachment upload. Requires `yt-dlp` and `ffmpeg` (with `ffprobe`) on `PATH`
 - `/util` parent command group — groups `/avatar`, `/uptime`, `/age`, and `/util download` (when `util-download` is enabled) under a single `/util` parent. The old standalone `/avatar`, `/uptime`, and `/age` commands remain registered for backward compatibility
+- `attachments` and `channel_id` span fields on `handle_message`, and `guild_id` on the AI auto-reply span — per-guild, per-channel, and attachment breakdowns are answerable from traces alone, with no second metrics pipeline
 - `ai-openrouter` Cargo feature — adds OpenRouter as a persona-chat backend alongside `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, and `ai-groq`. Set `AI_API_KEY` to an OpenRouter key and `AI_MODEL` to an OpenRouter model id (e.g. `deepseek/deepseek-chat`)
 
 ### Removed
 
 - `/ai-review` command and all supporting code — removed because automatic AI PR reviewers (this repo's own `/code-review ultra` / Codewhale) do a strictly better job. The command only worked against DeepSeek (bypassing the `llm` crate's `todo!()` tool-calling path), pulled in `jsonwebtoken` and `tempfile` deps, and required its own GitHub App, Postgres table, Redis guard, and device-flow OAuth dance — significant surface area for a redundant feature. The `ai_review_guilds` table is dropped via a new migration
 
+### Changed
+
+- Trace spans on the message path no longer carry whole serenity structs. `#[instrument]` records every argument it is not told to skip, so `skip(ctx)` on the message handlers exported the full `Message` — author object, avatar hashes, flags, and the message text — plus the poise `Context` and the command list, once per message. Those handlers now use `skip_all` with explicit fields. Message *content* is still recorded where a span exists to explain a content match (`handle_replies`)
+
 ### Fixed
 
+- Pasted links no longer spam the warn log. `ht` is a bot prefix, so poise recognized every message opening with `http://` or `https://` as a prefixed command and warned about the unrecognized command name in the rest of the URL (`Recognized prefix \`ht\`, but didn't recognize command name in \`tps://...\``). Nothing was ever executed — the warn was the whole symptom — and links are now skipped while genuine unknown commands still warn
+- `guild_id` was recorded two different ways: `?message.guild_id` on the message path rendered the `Debug` of `Option<GuildId>` (`Some(GuildId(123))`), while commands and the levelling queries recorded the bare snowflake. The same guild therefore appeared as two separate values in the trace backend and every per-guild aggregate was split between them. The message path now matches the command convention — the snowflake, with `0` for DMs — which also makes DM traffic queryable, since an absent attribute cannot be distinguished from a span that never records one
 - The `[replying to ...]` reply-context marker no longer leaks into the bot's visible replies, where it stacked into dozens of repeated copies before the actual message. The bot replies inline, so its own messages were rendered with the marker and stored as `assistant` turns; the model then learned its replies should start with `[replying to ...]` and parroted it. The marker is now kept off the bot's own turns (it's a cue for reading *other* people's reply links), and any marker the model still echoes is stripped from the response before it's sent
 - Reply-context marker no longer nests/duplicates down the reply chain. `render_message` snippeted the parent via `render_message(parent)`, which re-prepended the parent's own `[replying to ...]` marker — so a reply-to-a-reply produced `[replying to A: [replying to B: ...]]` and walked the whole chain unbounded, contradicting the documented "one level deep". The parent is now snippeted from its *body* (`render_body`, content + embeds, no marker), so the marker is strictly one level deep
 
