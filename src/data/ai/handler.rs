@@ -17,6 +17,7 @@ use crate::prelude::*;
     fields(
         category = "ai_auto_reply",
         author = %new_message.author.id,
+        guild_id = %new_message.guild_id.map(GuildId::get).unwrap_or(0),
         channel_id = %new_message.channel_id,
     )
 )]

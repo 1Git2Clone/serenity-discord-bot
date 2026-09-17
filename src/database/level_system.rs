@@ -4,6 +4,7 @@ use crate::prelude::*;
 /// That's the reason why the function isn't public.
 
 #[tracing::instrument(
+    skip_all,
     fields(
         category = "sql",
         db_pool = ?db,
@@ -33,13 +34,12 @@ async fn add_user_if_not_exists(db: &PgPool, user: &User, guild_id: GuildId) -> 
 /// Additionally, we directly use the guild_id instead of the event as the
 /// parameter for add_user_if_not_exists() in order to save computing resources.
 #[tracing::instrument(
-    skip(ctx),
+    skip_all,
     fields(
         category = "sql",
         db_pool = ?db,
         author = %message.author.id,
-        guild_id = ?message.guild_id,
-        message = ?message,
+        guild_id = %message.guild_id.map(GuildId::get).unwrap_or(0),
         obtained_xp = %obtained_xp
     )
 )]
