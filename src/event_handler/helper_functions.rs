@@ -68,8 +68,14 @@ pub async fn handle_database_message_processing(
         channel_id = %new_message.channel_id,
         // No `%`: a sigil makes these strings, and a string cannot be summed
         // by the backend. Recorded as integers so `sum_over_time()` works.
-        attachments = new_message.attachments.len() as u64,
-        links = count_links(&new_message.content) as u64,
+        //
+        // `i64` SPECIFICALLY, not `u64`. tracing-opentelemetry's span visitor
+        // implements `record_i64` but no `record_u64`, so a u64 falls through
+        // the `Visit` trait's default to `record_debug` and arrives as a
+        // string — exactly the failure the missing sigil was meant to fix, and
+        // silent in the same way.
+        attachments = new_message.attachments.len() as i64,
+        links = count_links(&new_message.content) as i64,
     )
 )]
 pub async fn handle_message(
