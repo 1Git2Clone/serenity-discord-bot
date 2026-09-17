@@ -31,7 +31,18 @@ contract — a field recorded two different ways splits every aggregate in half.
 | `author` | `%` snowflake | Who sent the message or ran the command |
 | `user_id` | `%` snowflake | The *subject* of a levelling query, which is not always the author (`/level @someone`) |
 | `channel_id` | `%` snowflake | |
-| `attachments` | count | Number of attachments on the message |
+| `author_name` | `%` string | The unique Discord username, never the per-guild display name |
+| `guild_name` | `%` string | `DM` when there is no guild, the snowflake when the cache is cold |
+| `attachments` | integer | Number of attachments. No `%` — see below |
+| `links` | integer | Number of `http(s)://` links in the message |
+
+Counts are recorded **without a sigil**. `%` and `?` both stringify, and a
+string attribute cannot be summed by the tracing backend — `sum_over_time()`
+over a `%`-recorded count returns nothing at all rather than failing loudly.
+
+Ids stay the key that dashboards group and link on; the `_name` fields are for
+reading. Names are not stable — a user renames, a guild renames — so anything
+that has to survive a rename keys on the snowflake.
 
 `guild_id = 0` for DMs matches how the reminder tables already store a global
 (non-guild) setting, and gives DM traffic a queryable value instead of an

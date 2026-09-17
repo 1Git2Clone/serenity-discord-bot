@@ -33,6 +33,16 @@ pub fn starts_with_url(msg: &str) -> bool {
     lower.starts_with("http://") || lower.starts_with("https://")
 }
 
+/// How many `http://` / `https://` links a message contains.
+///
+/// Recorded on the message span so a dashboard can tell a conversation apart
+/// from a channel that is mostly people pasting links. `https://` does not
+/// contain `http://` as a substring, so the two counts never overlap.
+pub fn count_links(msg: &str) -> usize {
+    let lower = msg.to_lowercase();
+    lower.matches("http://").count() + lower.matches("https://").count()
+}
+
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct LevenshteinCommandData<'a> {
     pub prefix: &'a str,
@@ -167,6 +177,15 @@ mod tests {
         assert!(starts_with_url("HTTPS://EXAMPLE.COM"));
         assert!(!starts_with_url("htping"));
         assert!(!starts_with_url("hu help"));
+    }
+
+    #[test]
+    fn count_links_counts_both_schemes_without_overlap() {
+        assert_eq!(count_links("no links here"), 0);
+        assert_eq!(count_links("https://example.com"), 1);
+        assert_eq!(count_links("HTTP://a.com and https://b.com"), 2);
+        // the `https` in the first URL must not also register as an `http`
+        assert_eq!(count_links("https://a.com https://b.com"), 2);
     }
 
     #[test]
