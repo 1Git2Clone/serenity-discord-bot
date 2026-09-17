@@ -36,9 +36,18 @@ contract — a field recorded two different ways splits every aggregate in half.
 | `attachments` | integer | Number of attachments. No `%` — see below |
 | `links` | integer | Number of `http(s)://` links in the message |
 
-Counts are recorded **without a sigil**. `%` and `?` both stringify, and a
-string attribute cannot be summed by the tracing backend — `sum_over_time()`
-over a `%`-recorded count returns nothing at all rather than failing loudly.
+Counts are recorded as **`i64`, without a sigil**. Two separate traps meet
+here, and both are silent:
+
+- `%` and `?` stringify, and a string attribute cannot be summed — a
+  `sum_over_time()` over one returns an empty series rather than an error.
+- `u64` stringifies too. tracing-opentelemetry's span visitor implements
+  `record_i64` and no `record_u64`, so an unsigned value falls through the
+  `Visit` trait's default to `record_debug`.
+
+`scripts/lint-span-fields.py` fails CI on an unsigned cast inside a
+`#[tracing::instrument]` field list, because this is not a mistake worth
+making twice.
 
 Ids stay the key that dashboards group and link on; the `_name` fields are for
 reading. Names are not stable — a user renames, a guild renames — so anything
