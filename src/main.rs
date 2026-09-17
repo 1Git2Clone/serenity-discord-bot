@@ -10,6 +10,7 @@ mod utils;
 
 use crate::prelude::*;
 use event_handler::handler::event_handler;
+use utils::string_manipulation::starts_with_url;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -99,6 +100,16 @@ async fn main() -> Result<(), Error> {
                         poise::FrameworkError::Command { error, .. } => {
                             tracing::error!("Command failed: {error:?}");
                         }
+                        // `ht` is a prefix, so every message that opens with a
+                        // link parses as a prefixed command — `https://x` is
+                        // the prefix plus the "command" `tps://x`. Those are
+                        // links, not typos, and they were the bulk of the warn
+                        // log. Real unrecognized commands still warn.
+                        poise::FrameworkError::UnknownCommand {
+                            prefix,
+                            msg_content,
+                            ..
+                        } if starts_with_url(&format!("{prefix}{msg_content}")) => {}
                         err => poise::builtins::on_error(err).await.unwrap(),
                     }
                 })
