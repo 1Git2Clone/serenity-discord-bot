@@ -2,9 +2,27 @@ use crate::{
     prelude::*,
     utils::{
         replies::{handle_replies, levenshtein_cmd},
-        string_manipulation::remove_emojis_and_embeds_from_str,
+        string_manipulation::{count_links, remove_emojis_and_embeds_from_str},
     },
 };
+
+/// The guild's name for the message span, falling back to something
+/// identifying rather than to nothing.
+///
+/// Discord only ever sends ids on the wire, so a dashboard grouping on
+/// `guild_id` is a list of snowflakes; this is what makes that list readable.
+/// A DM has no guild at all, and the cache can be cold for one we are in but
+/// have not seen an event from yet — hence the snowflake as the last resort,
+/// which is still a value the guild dashboard can be pointed at.
+fn guild_name(ctx: &serenity::Context, new_message: &serenity::Message) -> String {
+    let Some(id) = new_message.guild_id else {
+        return "DM".to_owned();
+    };
+    ctx.cache
+        .guild(id)
+        .map(|g| g.name.clone())
+        .unwrap_or_else(|| id.get().to_string())
+}
 
 #[tracing::instrument(
     skip_all,
@@ -42,9 +60,16 @@ pub async fn handle_database_message_processing(
     fields(
         category = "message_helper",
         author = %new_message.author.id,
+        // The unique username, not the per-guild display name: it is what a
+        // human types to find someone, and it does not differ between guilds.
+        author_name = %new_message.author.name,
         guild_id = %new_message.guild_id.map(GuildId::get).unwrap_or(0),
+        guild_name = %guild_name(ctx, new_message),
         channel_id = %new_message.channel_id,
-        attachments = %new_message.attachments.len(),
+        // No `%`: a sigil makes these strings, and a string cannot be summed
+        // by the backend. Recorded as integers so `sum_over_time()` works.
+        attachments = new_message.attachments.len() as u64,
+        links = count_links(&new_message.content) as u64,
     )
 )]
 pub async fn handle_message(
