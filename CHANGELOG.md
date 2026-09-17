@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `attachments` and `channel_id` span fields on `handle_message`, and `guild_id` on the AI auto-reply span — per-guild, per-channel, and attachment breakdowns are answerable from traces alone, with no second metrics pipeline
 - `ai-openrouter` Cargo feature — adds OpenRouter as a persona-chat backend alongside `ai-deepseek`, `ai-ollama`, `ai-anthropic`, `ai-openai`, `ai-google`, and `ai-groq`. Set `AI_API_KEY` to an OpenRouter key and `AI_MODEL` to an OpenRouter model id (e.g. `deepseek/deepseek-chat`)
 
+- `scripts/lint-span-fields.py` — fails on an unsigned integer cast inside a `#[tracing::instrument]` field list, wired into CI's `fmt` job and the pre-commit hook. tracing-opentelemetry has no `record_u64`, so a `u64` span field is silently recorded as a string and every aggregate over it returns an empty series; nothing about that fails at runtime, which is why it needs a lint
+
 ### Removed
 
 - `/ai-review` command and all supporting code — removed because automatic AI PR reviewers (this repo's own `/code-review ultra` / Codewhale) do a strictly better job. The command only worked against DeepSeek (bypassing the `llm` crate's `todo!()` tool-calling path), pulled in `jsonwebtoken` and `tempfile` deps, and required its own GitHub App, Postgres table, Redis guard, and device-flow OAuth dance — significant surface area for a redundant feature. The `ai_review_guilds` table is dropped via a new migration

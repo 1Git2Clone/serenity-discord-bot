@@ -48,6 +48,11 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --check
+      # Needs no toolchain and no build, so it rides along on the cheapest job
+      # rather than adding one. Catches a class of bug that is invisible at
+      # runtime — see the script's own docstring.
+      - run: python3 scripts/lint-span-fields.py --self-test
+      - run: python3 scripts/lint-span-fields.py
 
   clippy:
     runs-on: ubuntu-latest
