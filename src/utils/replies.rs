@@ -1,12 +1,11 @@
 use crate::{prelude::*, utils::string_manipulation::levenshtein_core};
 
 #[tracing::instrument(
-    skip(ctx),
+    skip_all,
     fields(
         category = "reply_handler",
         author = %new_message.author.id,
-        guild_id = ?new_message.guild_id,
-        message = ?new_message,
+        guild_id = %new_message.guild_id.map(GuildId::get).unwrap_or(0),
         message_text = %msg,
     )
 )]
@@ -55,11 +54,11 @@ pub async fn handle_replies(
 
 /// Check for typos in msg commands and suggest the closest match.
 #[tracing::instrument(
-    skip(msg, commands),
+    skip_all,
     fields(
         category = "levenshtein",
-        message = ?msg,
-        commands = ?commands,
+        author = %msg.author.id,
+        guild_id = %msg.guild_id.map(GuildId::get).unwrap_or(0),
     )
 )]
 pub async fn levenshtein_cmd(

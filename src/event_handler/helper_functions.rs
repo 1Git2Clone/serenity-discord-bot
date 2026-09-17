@@ -7,13 +7,12 @@ use crate::{
 };
 
 #[tracing::instrument(
-    skip(ctx),
+    skip_all,
     fields(
         category = "sql",
         db_pool = ?pool,
         author = %new_message.author.id,
-        guild_id = ?new_message.guild_id,
-        message = ?new_message,
+        guild_id = %new_message.guild_id.map(GuildId::get).unwrap_or(0),
     )
 )]
 pub async fn handle_database_message_processing(
@@ -39,12 +38,13 @@ pub async fn handle_database_message_processing(
 }
 
 #[tracing::instrument(
-    skip(ctx),
+    skip_all,
     fields(
         category = "message_helper",
         author = %new_message.author.id,
-        guild_id = ?new_message.guild_id,
-        message = ?new_message,
+        guild_id = %new_message.guild_id.map(GuildId::get).unwrap_or(0),
+        channel_id = %new_message.channel_id,
+        attachments = %new_message.attachments.len(),
     )
 )]
 pub async fn handle_message(
