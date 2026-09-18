@@ -55,6 +55,22 @@ pub async fn handle_database_message_processing(
     Ok(())
 }
 
+/// Space-separated attachment URLs for the message span; empty when there are
+/// none, so the field is always present.
+///
+/// A POINTER, NOT AN ARCHIVE. Discord signs CDN links and they expire in about
+/// a day, after which the URL 404s — the bytes are not stored here or anywhere
+/// else the bot controls. Good for "what was just posted", useless as a
+/// gallery of last week.
+fn attachment_urls(new_message: &serenity::Message) -> String {
+    new_message
+        .attachments
+        .iter()
+        .map(|a| a.url.as_str())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[tracing::instrument(
     skip_all,
     fields(
@@ -85,6 +101,7 @@ pub async fn handle_database_message_processing(
         // string — exactly the failure the missing sigil was meant to fix, and
         // silent in the same way.
         attachments = new_message.attachments.len() as i64,
+        attachment_urls = %attachment_urls(new_message),
         links = count_links(&new_message.content) as i64,
     )
 )]
