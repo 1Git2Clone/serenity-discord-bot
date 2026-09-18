@@ -35,6 +35,7 @@ contract — a field recorded two different ways splits every aggregate in half.
 | `guild_name` | `%` string | `DM` when there is no guild, the snowflake when the cache is cold |
 | `attachments` | integer | Number of attachments. No `%` — see below |
 | `links` | integer | Number of `http(s)://` links in the message |
+| `content` | `%` string | The message text, as sent |
 
 Counts are recorded as **`i64`, without a sigil**. Two separate traps meet
 here, and both are silent:
@@ -58,7 +59,9 @@ that has to survive a rename keys on the snowflake.
 absent field — a missing attribute cannot be told apart from a span that simply
 never records one.
 
-Spans do not carry message content or whole serenity structs. Use `skip_all`
+Spans carry the message *text* (`content` on `handle_message`,
+`message_text` where a reply match needs explaining) but never whole serenity
+structs. Use `skip_all`
 and name the fields explicitly rather than `skip(ctx)`: `#[instrument]` records
 every argument it isn't told to skip, so a bare `skip(ctx)` on a message
 handler puts the entire `Message` — author object, avatar hashes, flags, and

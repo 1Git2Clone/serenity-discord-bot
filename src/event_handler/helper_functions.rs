@@ -66,6 +66,16 @@ pub async fn handle_database_message_processing(
         guild_id = %new_message.guild_id.map(GuildId::get).unwrap_or(0),
         guild_name = %guild_name(ctx, new_message),
         channel_id = %new_message.channel_id,
+        // The message text, so a dashboard can show what was actually said
+        // rather than a row of ids and counts.
+        //
+        // This is a deliberate widening of the rule below it. The rule was
+        // written against dumping whole serenity structs — author objects,
+        // avatar hashes, flags — and the text came along as part of that. The
+        // text on its own is the one field a human reads, it is bounded by
+        // Discord's own message limit, and `levenshtein_core` has been
+        // recording a lowercased copy of it on every message the whole time.
+        content = %new_message.content,
         // No `%`: a sigil makes these strings, and a string cannot be summed
         // by the backend. Recorded as integers so `sum_over_time()` works.
         //
