@@ -36,6 +36,7 @@ contract — a field recorded two different ways splits every aggregate in half.
 | `attachments` | integer | Number of attachments. No `%` — see below |
 | `links` | integer | Number of `http(s)://` links in the message |
 | `content` | `%` string | The message text, as sent |
+| `attachment_urls` | `%` string | Space-separated CDN links, empty when none. Discord signs these and they expire in ~a day |
 
 Counts are recorded as **`i64`, without a sigil**. Two separate traps meet
 here, and both are silent:
